@@ -4,7 +4,7 @@
  * Automatic CI process for generating new vcpkg releases.
  * Based loosely on RealTimeChris's shell script version.
  * 
- * This updates the content of ./Vcpkg directory within the BenchmarkSuite
+ * This updates the content of ./Vcpkg directory within the benchmarksuite
  * repository on the main branch, which can then be diffed into
  * the microsoft/vcpkg main branch to build a PR for the new
  * release.
@@ -28,7 +28,7 @@
  */
 
 require __DIR__ . '/vendor/autoload.php';
-use BenchmarkSuite\packager\Vcpkg;
+use benchmarksuite\packager\Vcpkg;
 
 $vcpkg = new Vcpkg();
 

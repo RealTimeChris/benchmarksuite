@@ -6,19 +6,19 @@ The following operating systems and compilers are officially supported:
 
 ### Compiler Support
 ----
-![MSVC](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/MSVC-Windows.yml?style=plastic&logo=microsoft&logoColor=green&label=MSVC&labelColor=pewter&color=blue&branch=main)
-![GCC](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/GCC-Ubuntu.yml?style=plastic&logo=linux&logoColor=green&label=GCC&labelColor=pewter&color=blue&branch=main)
-![CLANG](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/CLANG-MacOS.yml?style=plastic&logo=apple&logoColor=green&label=CLANG&labelColor=pewter&color=blue&branch=main)
+![MSVC](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=microsoft&logoColor=green&label=MSVC&labelColor=pewter&color=blue&branch=main)
+![GCC](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=linux&logoColor=green&label=GCC&labelColor=pewter&color=blue&branch=main)
+![CLANG](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=apple&logoColor=green&label=CLANG&labelColor=pewter&color=blue&branch=main)
 
 ### Operating System Support
 ----
-![Windows](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/MSVC-Windows.yml?style=plastic&logo=microsoft&logoColor=green&label=Windows&labelColor=pewter&color=blue&branch=main)
-![Linux](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/GCC-Ubuntu.yml?style=plastic&logo=linux&logoColor=green&label=Linux&labelColor=pewter&color=blue&branch=main)
-![Mac](https://img.shields.io/github/actions/workflow/status/RealTimeChris/BenchmarkSuite/CLANG-MacOS.yml?style=plastic&logo=apple&logoColor=green&label=MacOS&labelColor=pewter&color=blue&branch=main)
+![Windows](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=microsoft&logoColor=green&label=Windows&labelColor=pewter&color=blue&branch=main)
+![Linux](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=linux&logoColor=green&label=Linux&labelColor=pewter&color=blue&branch=main)
+![Mac](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=apple&logoColor=green&label=MacOS&labelColor=pewter&color=blue&branch=main)
 
-# Quickstart Guide for BenchmarkSuite
+# Quickstart Guide for benchmarksuite
 
-This guide will walk you through setting up and running benchmarks using `BenchmarkSuite`.
+This guide will walk you through setting up and running benchmarks using `benchmarksuite`.
 
 ## Table of Contents
 - [Installation](#installation)
@@ -28,10 +28,10 @@ This guide will walk you through setting up and running benchmarks using `Benchm
 - [Output and Results](#output-and-results)
 
 ## Installation
-To use `BenchmarkSuite`, include the necessary header files in your project. Ensure you have a C++23 (or later) compliant compiler.
+To use `benchmarksuite`, include the necessary header files in your project. Ensure you have a C++23 (or later) compliant compiler.
 
 ```cpp
-#include <BnchSwt/BenchmarkSuite.hpp>
+#include <bnch_swt/benchmarksuite.hpp>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -51,7 +51,7 @@ BNCH_SWT_HOST void testFunction() {
         testValues00.emplace_back(std::to_string(testValues[x]));
     }
 
-    bnch_swt::benchmark_stage<"old-vs-new-i-to-str" + testName>::template runBenchmark<"glz::to_chars", "CYAN">([&] {
+    bnch_swt::benchmark_stage<"old-vs-new-i-to-str" + testName>::template run_benchmark<"glz::to_chars", "CYAN">([&] {
         uint64_t bytesProcessed = 0;
         char newerString[30]{};
         for (uint64_t x = 0; x < count; ++x) {
@@ -64,7 +64,7 @@ BNCH_SWT_HOST void testFunction() {
         return bytesProcessed;
     });
 
-    bnch_swt::benchmark_stage<"old-vs-new-i-to-str" + testName>::template runBenchmark<"jsonifier_internal::toChars", "CYAN">([&] {
+    bnch_swt::benchmark_stage<"old-vs-new-i-to-str" + testName>::template run_benchmark<"jsonifier_internal::toChars", "CYAN">([&] {
         uint64_t bytesProcessed = 0;
         char newerString[30]{};
         for (uint64_t x = 0; x < count; ++x) {
@@ -97,11 +97,11 @@ To create a benchmark:
 The `benchmark_stage` structure orchestrates each test:
 
 ### Methods
-- `runBenchmark()`: Executes a given lambda function, measuring performance. By setting the name of the benchmark 'run' using a string literal, you are instantiating a single benchmark "entity" or "library" to have its data collected and compared, within the given benchmark stage.
+- `run_benchmark()`: Executes a given lambda function, measuring performance. By setting the name of the benchmark 'run' using a string literal, you are instantiating a single benchmark "entity" or "library" to have its data collected and compared, within the given benchmark stage.
 - `printResults()`: Displays detailed performance metrics and comparisons.
 
 ### Example Benchmark Definitions
-- **`runBenchmark`**: Executes a lambda function and tracks performance.
+- **`run_benchmark`**: Executes a lambda function and tracks performance.
   - `"glz::to_chars"`: A label for the function being benchmarked.
   - `"jsonifier_internal::toChars"`: An alternative implementation to compare.
 
@@ -157,5 +157,5 @@ This structured output helps you quickly identify which implementation is faster
 
 ---
 
-Now you’re ready to start benchmarking with **BenchmarkSuite**!
+Now you’re ready to start benchmarking with **benchmarksuite**!
 

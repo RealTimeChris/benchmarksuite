@@ -6,5 +6,5 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'BenchmarkSuite\\packager\\' => array($baseDir . '/classes/packager'),
+    'benchmarksuite\\packager\\' => array($baseDir . '/classes/packager'),
 );

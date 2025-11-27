@@ -1,6 +1,6 @@
 <?php
 
-namespace BenchmarkSuite\packager;
+namespace benchmarksuite\packager;
 
 use \RuntimeException;
 
@@ -88,7 +88,7 @@ class Vcpkg
     }
 
     /**
-     * Check out a repository by tag or branch name to ~/benchmarksuite,
+     * Check out a repository by tag or branch name to ~/rtc-benchmarksuite,
      * using the personal access token and username passed in as command line parameters.
      * 
      * @param string $tag Tag to clone
@@ -102,18 +102,18 @@ class Vcpkg
             /* Empty tag means use the main branch */
             $tag = `{$this->git} config --get init.defaultBranch || echo main`;
         }
-	$repositoryUrl = 'https://' . urlencode($argv[1]) . ':' . urlencode($argv[2]) . '@github.com/realtimechris/BenchmarkSuite';
+	$repositoryUrl = 'https://' . urlencode($argv[1]) . ':' . urlencode($argv[2]) . '@github.com/realtimechris/benchmarksuite';
 
         echo GREEN . "Check out repository: $tag (user: ". $argv[1] . " branch: " . $tag . ")\n" . WHITE;
 
         chdir(getenv('HOME'));
-        system('rm -rf ./benchmarksuite');
+        system('rm -rf ./rtc-benchmarksuite');
         $this->git('config --global user.email "40668522+RealTimeChris@users.noreply.github.com"');
         $this->git('config --global user.name "RealTimeChris"');
-        $this->git('clone ' . escapeshellarg($repositoryUrl) . ' ./benchmarksuite --depth=1');
+        $this->git('clone ' . escapeshellarg($repositoryUrl) . ' ./rtc-benchmarksuite --depth=1');
         
         /* This is noisy, silence it */
-	$status = chdir(getenv("HOME") . '/benchmarksuite');
+	$status = chdir(getenv("HOME") . '/rtc-benchmarksuite');
         $this->git('fetch -at 2>/dev/null');
         $this->git('checkout ' . escapeshellarg($tag) . ' 2>/dev/null');
 	
@@ -121,8 +121,8 @@ class Vcpkg
     }
 
     /**
-     * Create ./vcpkg/ports/benchmarksuite/vcpkg.json and return the portfile contents to
-     * build the branch that is cloned at ~/benchmarksuite
+     * Create ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json and return the portfile contents to
+     * build the branch that is cloned at ~/rtc-benchmarksuite
      * 
      * @param string $sha512 The SHA512 sum of the tagged download, or initially
      * zero, which means that the vcpkg install command should obtain it the
@@ -132,7 +132,7 @@ class Vcpkg
     function constructPortAndVersionFile(string $sha512 = "0"): string
     {
         echo GREEN . "Construct portfile for " . $this->getVersion() . ", sha512: $sha512\n" . WHITE;
-        chdir(getenv("HOME") . '/benchmarksuite');
+        chdir(getenv("HOME") . '/rtc-benchmarksuite');
 
         $portFileContent = 'vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
@@ -154,9 +154,9 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
 ';
 
      
-// ./vcpkg/ports/benchmarksuite/vcpkg.json
+// ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json
         $versionFileContent = '{
-  "name": "benchmarksuite",
+  "name": "rtc-benchmarksuite",
   "version": ' . json_encode($this->getVersion()) . ',
   "description": "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead.",
   "homepage": "https://github.com/realtimechris/benchmarksuite",
@@ -170,11 +170,11 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
   ]
 }';
         echo GREEN . "Writing portfile...\n" . WHITE;
-        $vcpkgDir = './vcpkg/ports/benchmarksuite';
+        $vcpkgDir = './vcpkg/ports/rtc-benchmarksuite';
         if (!is_dir($vcpkgDir)) {
             mkdir($vcpkgDir, 0755, true);
         }
-        file_put_contents('./vcpkg/ports/benchmarksuite/vcpkg.json', $versionFileContent);
+        file_put_contents('./vcpkg/ports/rtc-benchmarksuite/vcpkg.json', $versionFileContent);
         return $portFileContent;
     }
 
@@ -191,17 +191,17 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
 {
     echo GREEN . "Starting first build\n" . WHITE;
 
-    chdir(getenv("HOME") . '/benchmarksuite');
-    echo GREEN . "Create /usr/local/share/vcpkg/ports/benchmarksuite/\n" . WHITE;
-    $this->sudo('mkdir -p /usr/local/share/vcpkg/ports/benchmarksuite/');
-    echo GREEN . "Copy vcpkg.json to /usr/local/share/vcpkg/ports/benchmarksuite/vcpkg.json\n" . WHITE;
-    $this->sudo('cp -v -R ./vcpkg/ports/benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/benchmarksuite/vcpkg.json');
+    chdir(getenv("HOME") . '/rtc-benchmarksuite');
+    echo GREEN . "Create /usr/local/share/vcpkg/ports/rtc-benchmarksuite/\n" . WHITE;
+    $this->sudo('mkdir -p /usr/local/share/vcpkg/ports/rtc-benchmarksuite/');
+    echo GREEN . "Copy vcpkg.json to /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json\n" . WHITE;
+    $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
     file_put_contents('/tmp/portfile', $portFileContent);
-    $this->sudo('cp -v -R /tmp/portfile /usr/local/share/vcpkg/ports/benchmarksuite/portfile.cmake');
+    $this->sudo('cp -v -R /tmp/portfile /usr/local/share/vcpkg/ports/rtc-benchmarksuite/portfile.cmake');
     unlink('/tmp/portfile');
     
     // Capture BOTH stdout and stderr
-    $buildResults = shell_exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install benchmarksuite:x64-linux 2>&1');
+    $buildResults = shell_exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install rtc-benchmarksuite:x64-linux 2>&1');
     
     // DEBUG: Print the full output
     echo RED . "=== FULL BUILD OUTPUT ===\n" . WHITE;
@@ -242,29 +242,29 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
 
         echo GREEN . "Executing second build\n" . WHITE;
         echo GREEN . "Copy local port files to /usr/local/share...\n" . WHITE;
-        chdir(getenv("HOME") . '/benchmarksuite');
-        file_put_contents('./vcpkg/ports/benchmarksuite/portfile.cmake', $portFileContent);
-        $this->sudo('cp -v -R ./vcpkg/ports/benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/benchmarksuite/vcpkg.json');
-        $this->sudo('cp -v -R ./vcpkg/ports/benchmarksuite/portfile.cmake /usr/local/share/vcpkg/ports/benchmarksuite/portfile.cmake');
+        chdir(getenv("HOME") . '/rtc-benchmarksuite');
+        file_put_contents('./vcpkg/ports/rtc-benchmarksuite/portfile.cmake', $portFileContent);
+        $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
+        $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/portfile.cmake /usr/local/share/vcpkg/ports/rtc-benchmarksuite/portfile.cmake');
         $this->sudo('cp -v -R ./vcpkg/ports/* /usr/local/share/vcpkg/ports/');
 
         echo GREEN . "vcpkg x-add-version...\n" . WHITE;
         chdir('/usr/local/share/vcpkg');
-        $this->sudo('./vcpkg format-manifest ./ports/benchmarksuite/vcpkg.json');
+        $this->sudo('./vcpkg format-manifest ./ports/rtc-benchmarksuite/vcpkg.json');
         /* Note: We commit this in /usr/local, but we never push it (we can't) */
         $this->git('add .', true);
         $this->git('commit -m "VCPKG info update"', true);
-        $this->sudo('/usr/local/share/vcpkg/vcpkg x-add-version benchmarksuite');
+        $this->sudo('/usr/local/share/vcpkg/vcpkg x-add-version rtc-benchmarksuite');
 
         echo GREEN . "Copy back port files from /usr/local/share...\n" . WHITE;
-        chdir(getenv('HOME') . '/benchmarksuite');
+        chdir(getenv('HOME') . '/rtc-benchmarksuite');
 
         if (!is_dir('./vcpkg/versions/b-')) {
             mkdir('./vcpkg/versions/b-', 0755, true);
         }
 
-        system('cp -v -R /usr/local/share/vcpkg/ports/benchmarksuite/vcpkg.json ./vcpkg/ports/benchmarksuite/vcpkg.json');
-        system('cp -v -R /usr/local/share/vcpkg/versions/b-/benchmarksuite.json ./vcpkg/versions/b-/benchmarksuite.json');
+        system('cp -v -R /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
+        system('cp -v -R /usr/local/share/vcpkg/versions/b-/rtc-benchmarksuite.json ./vcpkg/versions/b-/rtc-benchmarksuite.json');
 
         echo GREEN . "Commit and push changes to main branch\n" . WHITE;
         $this->git('add .');
@@ -276,7 +276,7 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
         echo GREEN . "vcpkg install...\n" . WHITE;
         $resultCode = 0;
         $output = [];
-        exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install benchmarksuite:x64-linux', $output, $resultCode);
+        exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install rtc-benchmarksuite:x64-linux', $output, $resultCode);
 
         if ($resultCode != 0) {
             echo RED . "There were build errors!\n\nBuild log:\n" . WHITE;

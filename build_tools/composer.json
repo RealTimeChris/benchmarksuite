@@ -1,10 +1,10 @@
 {
   "name": "realtimechris/benchmarksuite-vcpkg-builder",
-  "description": "VCPKG release builder for BenchmarkSuite",
+  "description": "VCPKG release builder for benchmarksuite",
   "type": "library",
   "autoload": {
     "psr-4": {
-      "BenchmarkSuite\\packager\\": "classes/packager/"
+      "benchmarksuite\\packager\\": "classes/packager/"
     }
   },
   "require": {

@@ -9,6 +9,7 @@
       "installDir": "${sourceDir}/out/build/${presetName}",
       "toolchainFile": "C:/vcpkg/scripts/buildsystems/vcpkg.cmake",
       "cacheVariables": {
+        "CMAKE_C_COMPILER": "cl.exe",
         "CMAKE_CXX_COMPILER": "cl.exe"
       },
       "architecture": {
@@ -38,24 +39,63 @@
       }
     },
     {
-      "name": "release-benchmarksuite",
-      "inherits": "release-base"
+      "name": "debug-benchmarksuite-cpu",
+      "inherits": "debug-base",
+      "cacheVariables": {
+        "BNCH_SWT_CPU": true
+      }
     },
     {
-      "name": "debug-benchmarksuite",
-      "inherits": "debug-base"
-    },
-    {
-      "name": "release-benchmarksuite-dev",
+      "name": "release-benchmarksuite-cpu",
       "inherits": "release-base",
       "cacheVariables": {
+        "BNCH_SWT_CPU": true
+      }
+    },
+    {
+      "name": "debug-dev-benchmarksuite-cpu",
+      "inherits": "debug-base",
+      "cacheVariables": {
+        "BNCH_SWT_CPU": true,
         "BENCHMARKS": true
       }
     },
     {
-      "name": "debug-benchmarksuite-dev",
+      "name": "release-dev-benchmarksuite-cpu",
+      "inherits": "release-base",
+      "cacheVariables": {
+        "BNCH_SWT_CPU": true,
+        "BENCHMARKS": true
+      }
+    },
+    {
+      "name": "debug-benchmarksuite-cuda",
       "inherits": "debug-base",
       "cacheVariables": {
+        "BNCH_SWT_CUDA": true
+      }
+    },
+    {
+      "name": "release-benchmarksuite-cuda",
+      "inherits": "release-base",
+      "cacheVariables": {
+        "BNCH_SWT_CUDA": true
+      }
+    },
+
+    {
+      "name": "debug-dev-benchmarksuite-cuda",
+      "inherits": "debug-base",
+      "cacheVariables": {
+        "BNCH_SWT_CUDA": true,
+        "BENCHMARKS": true
+      }
+    },
+    {
+      "name": "release-dev-benchmarksuite-cuda",
+      "inherits": "release-base",
+      "cacheVariables": {
+        "BNCH_SWT_CUDA": true,
         "BENCHMARKS": true
       }
     },
