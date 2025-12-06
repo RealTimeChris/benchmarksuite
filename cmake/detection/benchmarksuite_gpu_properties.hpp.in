@@ -28,17 +28,17 @@ namespace bnch_swt {
 
 	struct gpu_properties {
 	  protected:
-		static constexpr aligned_const sm_count_raw{ @BNCH_SWT_SM_COUNT@ull };
-		static constexpr aligned_const max_threads_per_sm_raw{ @BNCH_SWT_MAX_THREADS_PER_SM@ull };
-		static constexpr aligned_const max_threads_per_block_raw{ @BNCH_SWT_MAX_THREADS_PER_BLOCK@ull };
-		static constexpr aligned_const warp_size_raw{ @BNCH_SWT_WARP_SIZE@ull };
-		static constexpr aligned_const l2_cache_size_raw{ @BNCH_SWT_GPU_L2_CACHE_SIZE@ull };
-		static constexpr aligned_const shared_mem_per_block_raw{ @BNCH_SWT_SHARED_MEM_PER_BLOCK@ull };
-		static constexpr aligned_const max_grid_size_x_raw{ @BNCH_SWT_MAX_GRID_SIZE_X@ull };
-		static constexpr aligned_const max_grid_size_y_raw{ @BNCH_SWT_MAX_GRID_SIZE_Y@ull };
-		static constexpr aligned_const max_grid_size_z_raw{ @BNCH_SWT_MAX_GRID_SIZE_Z@ull };
-		static constexpr aligned_const gpu_arch_index_raw{ @BNCH_SWT_GPU_ARCH_INDEX@ull };
-		static constexpr aligned_const total_threads_raw{ @BNCH_SWT_TOTAL_THREADS@ull };
+		static constexpr aligned_const<uint64_t, 64> sm_count_raw{ @BNCH_SWT_SM_COUNT@ULL };
+		static constexpr aligned_const<uint64_t, 64> max_threads_per_sm_raw{ @BNCH_SWT_MAX_THREADS_PER_SM@ULL };
+		static constexpr aligned_const<uint64_t, 64> max_threads_per_block_raw{ @BNCH_SWT_MAX_THREADS_PER_BLOCK@ULL };
+		static constexpr aligned_const<uint64_t, 64> warp_size_raw{ @BNCH_SWT_WARP_SIZE@ULL };
+		static constexpr aligned_const<uint64_t, 64> l2_cache_size_raw{ @BNCH_SWT_GPU_L2_CACHE_SIZE@ULL };
+		static constexpr aligned_const<uint64_t, 64> shared_mem_per_block_raw{ @BNCH_SWT_SHARED_MEM_PER_BLOCK@ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_x_raw{ @BNCH_SWT_MAX_GRID_SIZE_X@ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_y_raw{ @BNCH_SWT_MAX_GRID_SIZE_Y@ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_z_raw{ @BNCH_SWT_MAX_GRID_SIZE_Z@ULL };
+		static constexpr aligned_const<uint64_t, 64> gpu_arch_index_raw{ @BNCH_SWT_GPU_ARCH_INDEX@ULL };
+		static constexpr aligned_const<uint64_t, 64> total_threads_raw{ @BNCH_SWT_TOTAL_THREADS@ULL };
 
 	  public:
 		static constexpr const uint64_t& sm_count{ *sm_count_raw };

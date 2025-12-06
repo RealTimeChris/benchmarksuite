@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Dec 6, 2024
+
 #pragma once
 
 #include <bnch_swt/config.hpp>
@@ -33,21 +33,21 @@
 namespace bnch_swt::internal {
 
 	template<typename event_count, uint64_t count> struct event_collector_type<event_count, benchmark_types::cpu, count> : public std::vector<event_count> {
-		uint64_t currentIndex{};
+		uint64_t current_index{};
 
 		BNCH_SWT_HOST event_collector_type() : std::vector<event_count>{ count } {};
 
 		template<typename function_type, typename... arg_types> BNCH_SWT_HOST void run(arg_types&&... args) {
 			uint64_t result;
-			const auto startClock		 = clock_type::now();
+			const auto start_clock		 = clock_type::now();
 			volatile uint64_t cycleStart = __rdtsc();
 			result						 = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
 			volatile uint64_t cycleEnd	 = __rdtsc();
-			const auto endClock			 = clock_type::now();
-			std::vector<event_count>::operator[](currentIndex).cycles_val.emplace(cycleEnd - cycleStart);
-			std::vector<event_count>::operator[](currentIndex).elapsed = endClock - startClock;
-			std::vector<event_count>::operator[](currentIndex).bytes_processed_val.emplace(result);
-			++currentIndex;
+			const auto end_clock			 = clock_type::now();
+			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycleEnd - cycleStart);
+			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
+			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);
+			++current_index;
 			return;
 		}
 	};
