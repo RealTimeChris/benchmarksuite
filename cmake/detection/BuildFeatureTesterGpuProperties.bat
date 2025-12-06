@@ -1,0 +1,2 @@
+"C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" -S ./ -B ./Build-Gpu-Properties -DBNCH_SWT_DETECT_GPU_PROPERTIES=TRUE
+"C:/Program Files/Microsoft Visual Studio/2022/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe" --build ./Build-Gpu-Properties --config=Release

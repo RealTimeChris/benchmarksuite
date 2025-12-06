@@ -22,35 +22,55 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
+#include <cstdint>
+#include <bnch_swt/config.hpp>
 #include <bnch_swt/aligned_const.hpp>
 
 namespace bnch_swt {
 
+	struct BNCH_SWT_ALIGN(512) uint512_aligner {
+		BNCH_SWT_ALIGN(512) uint64_t value{};
+
+		BNCH_SWT_HOST consteval operator const uint64_t&() const {
+			return value;
+		}
+	};
+
 	struct gpu_properties {
 	  protected:
-		static constexpr aligned_const sm_count_raw{ @BNCH_SWT_SM_COUNT@ull };
-		static constexpr aligned_const max_threads_per_sm_raw{ @BNCH_SWT_MAX_THREADS_PER_SM@ull };
-		static constexpr aligned_const max_threads_per_block_raw{ @BNCH_SWT_MAX_THREADS_PER_BLOCK@ull };
-		static constexpr aligned_const warp_size_raw{ @BNCH_SWT_WARP_SIZE@ull };
-		static constexpr aligned_const l2_cache_size_raw{ @BNCH_SWT_GPU_L2_CACHE_SIZE@ull };
-		static constexpr aligned_const shared_mem_per_block_raw{ @BNCH_SWT_SHARED_MEM_PER_BLOCK@ull };
-		static constexpr aligned_const max_grid_size_x_raw{ @BNCH_SWT_MAX_GRID_SIZE_X@ull };
-		static constexpr aligned_const max_grid_size_y_raw{ @BNCH_SWT_MAX_GRID_SIZE_Y@ull };
-		static constexpr aligned_const max_grid_size_z_raw{ @BNCH_SWT_MAX_GRID_SIZE_Z@ull };
-		static constexpr aligned_const gpu_arch_index_raw{ @BNCH_SWT_GPU_ARCH_INDEX@ull };
-		static constexpr aligned_const total_threads_raw{ @BNCH_SWT_TOTAL_THREADS@ull };
+		static constexpr uint512_aligner arg_alignment_raw{ 16ULL };
+		static constexpr uint512_aligner flops_raw{ @BNCH_SWT_FP32_THROUGHPUT_BYTES@ULL };
+		static constexpr uint512_aligner memory_bw_raw{ @BNCH_SWT_MEMORY_BANDWIDTH_BYTES@ULL };
+		static constexpr uint512_aligner alignment_raw{ @BNCH_SWT_GPU_ALIGNMENT@ULL };
+		static constexpr uint512_aligner sm_count_raw{ @BNCH_SWT_SM_COUNT@ULL };
+		static constexpr uint512_aligner max_threads_per_sm_raw{ @BNCH_SWT_MAX_THREADS_PER_SM@ULL };
+		static constexpr uint512_aligner max_threads_per_block_raw{ @BNCH_SWT_MAX_THREADS_PER_BLOCK@ULL };
+		static constexpr uint512_aligner warp_size_raw{ @BNCH_SWT_WARP_SIZE@ULL };
+		static constexpr uint512_aligner l2_cache_size_raw{ @BNCH_SWT_GPU_L2_CACHE_SIZE@ULL };
+		static constexpr uint512_aligner max_persisting_l2_bytes_raw{ @BNCH_SWT_MAX_PERSISTING_L2_BYTES@ULL };
+		static constexpr uint512_aligner shared_mem_per_sm_raw{ @BNCH_SWT_SHARED_MEM_PER_BLOCK@ULL };
+		static constexpr uint512_aligner max_grid_size_x_raw{ @BNCH_SWT_MAX_GRID_SIZE_X@ULL };
+		static constexpr uint512_aligner max_grid_size_y_raw{ @BNCH_SWT_MAX_GRID_SIZE_Y@ULL };
+		static constexpr uint512_aligner max_grid_size_z_raw{ @BNCH_SWT_MAX_GRID_SIZE_Z@ULL };
+		static constexpr uint512_aligner gpu_arch_index_raw{ @BNCH_SWT_GPU_ARCH_INDEX@ULL };
+		static constexpr uint512_aligner total_threads_raw{ @BNCH_SWT_TOTAL_THREADS@ULL };
 
 	  public:
-		static constexpr const uint64_t& sm_count{ *sm_count_raw };
-		static constexpr const uint64_t& max_threads_per_sm{ *max_threads_per_sm_raw };
-		static constexpr const uint64_t& max_threads_per_block{ *max_threads_per_block_raw };
-		static constexpr const uint64_t& warp_size{ *warp_size_raw };
-		static constexpr const uint64_t& l2_cache_size{ *l2_cache_size_raw };
-		static constexpr const uint64_t& shared_mem_per_block{ *shared_mem_per_block_raw };
-		static constexpr const uint64_t& max_grid_size_x{ *max_grid_size_x_raw };
-		static constexpr const uint64_t& max_grid_size_y{ *max_grid_size_y_raw };
-		static constexpr const uint64_t& max_grid_size_z{ *max_grid_size_z_raw };
-		static constexpr const uint64_t& total_threads{ *total_threads_raw };
-		static constexpr const uint64_t& gpu_arch_index{ *gpu_arch_index_raw };
+		static constexpr const uint64_t& arg_alignment{ arg_alignment_raw };
+		static constexpr const uint64_t& flops{ flops_raw };
+		static constexpr const uint64_t& memory_bw{ memory_bw_raw };
+		static constexpr const uint64_t& alignment{ alignment_raw };
+		static constexpr const uint64_t& sm_count{ sm_count_raw };
+		static constexpr const uint64_t& max_threads_per_sm{ max_threads_per_sm_raw };
+		static constexpr const uint64_t& max_threads_per_block{ max_threads_per_block_raw };
+		static constexpr const uint64_t& warp_size{ warp_size_raw };
+		static constexpr const uint64_t& l2_cache_size{ l2_cache_size_raw };
+		static constexpr const uint64_t& max_persisting_l2_bytes{ max_persisting_l2_bytes_raw };
+		static constexpr const uint64_t& shared_mem_per_sm{ shared_mem_per_sm_raw };
+		static constexpr const uint64_t& max_grid_size_x{ max_grid_size_x_raw };
+		static constexpr const uint64_t& max_grid_size_y{ max_grid_size_y_raw };
+		static constexpr const uint64_t& max_grid_size_z{ max_grid_size_z_raw };
+		static constexpr const uint64_t& total_threads{ total_threads_raw };
+		static constexpr const uint64_t& gpu_arch_index{ gpu_arch_index_raw };
 	};
 }
