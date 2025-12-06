@@ -16,19 +16,29 @@ jobs:
             cc: clang
             cxx: clang++
             name: "Ubuntu Clang"
+            cmake_cxx: /usr/bin/clang++-20
           - os: ubuntu-latest
             compiler: gcc
             cc: gcc
             cxx: g++
             name: "Ubuntu GCC"
+            cmake_cxx: /usr/bin/g++-14
           - os: macos-latest
             compiler: clang
             cc: clang
             cxx: clang++
             name: "macOS Clang"
+            cmake_cxx: ""
+          - os: macos-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            name: "macOS GCC"
+            cmake_cxx: ""
           - os: windows-latest
             compiler: msvc
             name: "Windows MSVC"
+            cmake_cxx: ""
     runs-on: ${{ matrix.os }}
     name: Build on ${{ matrix.name }}
     steps:
@@ -51,9 +61,20 @@ jobs:
         sudo apt-get install g++-14
     
     - name: Setup Clang (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-latest' && matrix.compiler == 'clang'
       run: |
         brew install llvm
+    
+    - name: Setup GCC (macOS)
+      if: matrix.os == 'macos-latest' && matrix.compiler == 'gcc'
+      run: |
+        brew install gcc
+        GCC_PATH=$(brew --prefix gcc)
+        GCC_VER=$(ls ${GCC_PATH}/bin/gcc-* 2>/dev/null | grep -oE '[0-9]+$' | sort -rn | head -1)
+        echo "CC=${GCC_PATH}/bin/gcc-${GCC_VER}" >> $GITHUB_ENV
+        echo "CXX=${GCC_PATH}/bin/g++-${GCC_VER}" >> $GITHUB_ENV
+        ${GCC_PATH}/bin/gcc-${GCC_VER} --version
+        ${GCC_PATH}/bin/g++-${GCC_VER} --version
     
     - name: Setup MSVC (Windows)
       if: matrix.os == 'windows-latest'
@@ -61,23 +82,32 @@ jobs:
     
     - name: Create Build Directory
       run: mkdir -p Build
-    - name: Configure CMake (Ubuntu-Gcc)
+    
+    - name: Configure CMake (Ubuntu-GCC)
       if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'gcc'
       run: |
-        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/g++-14 -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.cmake_cxx }} -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
     
     - name: Configure CMake (Ubuntu-Clang)
       if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang'
       run: |
-        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++-20 -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
-    - name: Configure CMake
-      if: matrix.os == 'macos-latest'
+        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.cmake_cxx }} -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+    
+    - name: Configure CMake (macOS-Clang)
+      if: matrix.os == 'macos-latest' && matrix.compiler == 'clang'
       run: |
         cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
-    - name: Configure CMake
+    
+    - name: Configure CMake (macOS-GCC)
+      if: matrix.os == 'macos-latest' && matrix.compiler == 'gcc'
+      run: |
+        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ env.CC }} -DCMAKE_CXX_COMPILER=${{ env.CXX }} -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+    
+    - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+    
     - name: Build the Test
       run: |
             cmake --build ./Build --config=Release
@@ -143,20 +173,23 @@ jobs:
           }
         }
         
-    - name: Install the Test
+    - name: Install the Test (Unix)
       if: matrix.os != 'windows-latest'
       run: |
             sudo cmake --install ./Build --config=Release
-    - name: Install the Test
+    
+    - name: Install the Test (Windows)
       if: matrix.os == 'windows-latest'
       run: |
             cmake --install ./Build --config=Release
-    - name: Run the Test
+    
+    - name: Run the Test (Unix)
       if: matrix.os != 'windows-latest'
       run: |
             sudo chmod +x /usr/local/bin/benchmarksuite-main    
             sudo /usr/local/bin/benchmarksuite-main
-    - name: Run the Test
+    
+    - name: Run the Test (Windows)
       if: matrix.os == 'windows-latest'
       run: |
             & "C:/Program Files (x86)/benchmarksuite/bin/benchmarksuite-main.exe"

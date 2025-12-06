@@ -30,17 +30,14 @@ endif()
 option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
 option(BNCH_SWT_DETECT_CPU_PROPERTIES "Override cpu-cache-size selection" OFF)
 option(BNCH_SWT_DETECT_GPU_PROPERTIES "Override cuda-cache-size selection" OFF)
-option(BNCH_SWT_NO_INSTALL "Install nihilus as a library" OFF)
 option(BNCH_SWT_CUDA "Enable CUDA support" OFF)
-option(BNCH_SWT_DEV "Development mode" OFF)
-option(BNCH_SWT_DEPLOY "Deployment mode" OFF)
-option(BNCH_SWT_CPU "CPU build" OFF)
 
 if(BNCH_SWT_CUDA)
     set(BNCH_SWT_LANGUAGE CUDA)
     project(benchmarksuite
         VERSION 1.0.0
-        DESCRIPTION "benchmarksuite: You trained the model. benchmarksuite gives it a voice."
+        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration,\
+            providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CUDA 
     )
     find_package(CUDAToolkit REQUIRED COMPONENTS cudart)
@@ -53,7 +50,8 @@ else()
     set(BNCH_SWT_LANGUAGE CXX)
     project(benchmarksuite
         VERSION 1.0.0
-        DESCRIPTION "benchmarksuite: You trained the model. benchmarksuite gives it a voice."
+        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration,\
+            providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CXX
     )
     set(BNCH_SWT_MAIN_FILE_EXTENSION .cpp)
@@ -121,36 +119,38 @@ write_basic_package_version_file(
 	COMPATIBILITY AnyNewerVersion
 )
 
-if (NOT BNCH_SWT_NO_INSTALL)
-    install(
-	    FILES
-	    "${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_FILE_NAME}"
-	    "${CMAKE_CURRENT_BINARY_DIR}/${VERSION_FILE_NAME}"
-	    DESTINATION "share/benchmarksuite"
-    )
+install(
+	FILES
+	"${CMAKE_CURRENT_BINARY_DIR}/${CONFIG_FILE_NAME}"
+	"${CMAKE_CURRENT_BINARY_DIR}/${VERSION_FILE_NAME}"
+	DESTINATION "share/benchmarksuite"
+)
 
-    install(
-	    DIRECTORY
-	    "${CMAKE_CURRENT_SOURCE_DIR}/include/"
-	    DESTINATION "include"
-    )
+install(
+	DIRECTORY
+	"${CMAKE_CURRENT_SOURCE_DIR}/include/"
+	DESTINATION "include"
+)
 
-    install(
-	    TARGETS "${PROJECT_NAME}"
-	    EXPORT "${EXPORTED_TARGETS_NAME}"
-    )
+install(
+	TARGETS "${PROJECT_NAME}"
+	EXPORT "${EXPORTED_TARGETS_NAME}"
+)
 
-    install(
-	    EXPORT "${EXPORTED_TARGETS_NAME}"
-	    FILE "${EXPORTED_TARGETS_FILE_NAME}"
-	    NAMESPACE "${PROJECT_NAME}::"
-	    DESTINATION "share/benchmarksuite"
-    )
-endif()
+install(
+	EXPORT "${EXPORTED_TARGETS_NAME}"
+	FILE "${EXPORTED_TARGETS_FILE_NAME}"
+	NAMESPACE "${PROJECT_NAME}::"
+	DESTINATION "share/benchmarksuite"
+)
 
 message(STATUS "benchmarksuite Configuration Summary:")
 message(STATUS "=============================")
 message(STATUS "Version: ${PROJECT_VERSION}")
+message(STATUS "Max Thread Count: ${BNCH_SWT_THREAD_COUNT}")
+message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+message(STATUS "Compiler: ${BNCH_SWT_COMPILER_ID}")
+message(STATUS "CPU Variants: ${BNCH_SWT_INSTRUCTION_SET_NAME}")
 
 if(BNCH_SWT_CUDA)
     message(STATUS "CUDA Architectures: ${CMAKE_CUDA_ARCHITECTURES}")

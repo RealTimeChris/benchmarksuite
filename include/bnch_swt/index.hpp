@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Dec 6, 2024
+
 #pragma once
 
 #include <bnch_swt/benchmarksuite_gpu_properties.hpp>
@@ -61,35 +61,37 @@ namespace bnch_swt {
 			std::cout << "CPU Performance Metrics for: " << stage_name_new << std::endl;
 
 			if (show_metrics) {
-				static const std::string throughput_label = []() {
+				constexpr string_literal throughput_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string("Throughput (") + std::string(metric_name_new) + "/s)";
+						string_literal throughput_label_new{ "Throughput (" + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) + "/s)" };
+						return throughput_label_new;
 					} else {
-						return std::string("Throughput (MB/s)");
+						return string_literal{ "Throughput (MB/s)" };
 					}
 				}();
 
-				static const std::string metric_label = []() {
+				constexpr string_literal metric_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string(metric_name_new) + "s Processed";
+						string_literal metric_label_new{ string_literal{ internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) + "s Processed" } };
+						return metric_label_new;
 					} else {
-						return std::string("Bytes Processed");
+						return string_literal{ "Bytes Processed" };
 					}
 				}();
 
-				static const std::string cycle_label = []() {
+				constexpr string_literal cycle_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string("Cycles per ") + std::string(metric_name_new);
+						return string_literal{ "Cycles per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) } ;
 					} else {
-						return std::string("Cycles per Byte");
+						return string_literal{ "Cycles per Byte" };
 					}
 				}();
 
-				static const std::string instruction_label = []() {
+				constexpr string_literal instruction_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string("Instructions per ") + std::string(metric_name_new);
+						return string_literal{ "Instructions per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) } ;
 					} else {
-						return std::string("Instructions per Byte");
+						return string_literal{ "Instructions per Byte" };
 					}
 				}();
 
@@ -97,7 +99,8 @@ namespace bnch_swt {
 					std::cout << "Metrics for: " << value.name << std::endl;
 					std::cout << std::fixed << std::setprecision(2);
 
-					print_metric("Total Iterations to Stabilize", value.total_iteration_count);
+					print_metric("Total Iterations", value.total_iteration_count);
+					print_metric("Total Iterations to Stabilize", value.iterations_to_stabilize);
 					print_metric("Measured Iterations", value.measured_iteration_count);
 					print_metric(metric_label, value.bytes_processed);
 
@@ -138,35 +141,37 @@ namespace bnch_swt {
 			std::cout << "GPU Performance Metrics for: " << stage_name_new << std::endl;
 
 			if (show_metrics) {
-				static const std::string throughput_label = []() {
+				constexpr string_literal throughput_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string("Throughput (") + std::string(metric_name_new) + "/s)";
+						string_literal throughput_label_new{ "Throughput (" + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) + "/s)" };
+						return throughput_label_new;
 					} else {
-						return std::string("Throughput (MB/s)");
+						return string_literal{ "Throughput (MB/s)" };
 					}
 				}();
 
-				static const std::string metric_label = []() {
+				constexpr string_literal metric_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string(metric_name_new) + "s Processed";
+						string_literal metric_label_new{ string_literal{ internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) + "s Processed" } };
+						return metric_label_new;
 					} else {
-						return std::string("Bytes Processed");
+						return string_literal{ "Bytes Processed" };
 					}
 				}();
 
-				static const std::string cycle_label = []() {
+				constexpr string_literal cycle_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return std::string("GPU Cycles per ") + std::string(metric_name_new);
+						return string_literal{ "GPU Cycles per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) };
 					} else {
-						return std::string("GPU Cycles per Byte");
+						return string_literal{ "GPU Cycles per Byte" };
 					}
 				}();
 
 				for (const auto& value: results_new) {
 					std::cout << "Metrics for: " << value.name << std::endl;
 					std::cout << std::fixed << std::setprecision(2);
-
-					print_metric("Total Iterations to Stabilize", value.total_iteration_count);
+					print_metric("Total Iterations", value.total_iteration_count);
+					print_metric("Total Iterations to Stabilize", value.iterations_to_stabilize);
 					print_metric("Measured Iterations", value.measured_iteration_count);
 					print_metric(metric_label, value.bytes_processed);
 
@@ -253,7 +258,36 @@ namespace bnch_swt {
 			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
 				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
-					  current_global_index);
+					  current_global_index - 1, max_execution_count);
+				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
+			}
+			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
+			return get_results_internal()[subject_name.operator std::string_view()];
+		}
+
+		template<string_literal subject_name_new, auto function, internal::not_invocable... arg_types>
+		BNCH_SWT_HOST static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
+			static constexpr string_literal subject_name{ subject_name_new };
+			if constexpr (benchmark_type == benchmark_types::cpu) {
+				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
+					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
+			}
+			internal::event_collector<max_execution_count, benchmark_type> events{};
+			internal::cache_clearer<benchmark_type> cache_clearer{};
+			performance_metrics<benchmark_type> lowest_results{};
+			performance_metrics<benchmark_type> results_temp{};
+			uint64_t current_global_index{ measured_iteration_count };
+			for (uint64_t x = 0; x < max_execution_count; ++x) {
+				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
+					cache_clearer.evict_caches();
+				}
+				events.template run<function>(std::forward<arg_types>(args)...);
+			}
+			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
+			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
+			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
+				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
+					  current_global_index - 1, max_execution_count);
 				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 			}
 			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
