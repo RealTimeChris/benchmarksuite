@@ -28,17 +28,17 @@ namespace bnch_swt {
 
 	struct gpu_properties {
 	  protected:
-		static constexpr aligned_const sm_count_raw{ 70ull };
-		static constexpr aligned_const max_threads_per_sm_raw{ 1536ull };
-		static constexpr aligned_const max_threads_per_block_raw{ 1024ull };
-		static constexpr aligned_const warp_size_raw{ 32ull };
-		static constexpr aligned_const l2_cache_size_raw{ 50331648ull };
-		static constexpr aligned_const shared_mem_per_block_raw{ 49152ull };
-		static constexpr aligned_const max_grid_size_x_raw{ 2147483647ull };
-		static constexpr aligned_const max_grid_size_y_raw{ 65535ull };
-		static constexpr aligned_const max_grid_size_z_raw{ 65535ull };
-		static constexpr aligned_const gpu_arch_index_raw{ 4ull };
-		static constexpr aligned_const total_threads_raw{ 107520ull };
+		static constexpr aligned_const<uint64_t, 64> sm_count_raw{ 70ULL };
+		static constexpr aligned_const<uint64_t, 64> max_threads_per_sm_raw{ 1536ULL };
+		static constexpr aligned_const<uint64_t, 64> max_threads_per_block_raw{ 1024ULL };
+		static constexpr aligned_const<uint64_t, 64> warp_size_raw{ 32ULL };
+		static constexpr aligned_const<uint64_t, 64> l2_cache_size_raw{ 50331648ULL };
+		static constexpr aligned_const<uint64_t, 64> shared_mem_per_block_raw{ 49152ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_x_raw{ 2147483647ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_y_raw{ 65535ULL };
+		static constexpr aligned_const<uint64_t, 64> max_grid_size_z_raw{ 65535ULL };
+		static constexpr aligned_const<uint64_t, 64> gpu_arch_index_raw{ 4ULL };
+		static constexpr aligned_const<uint64_t, 64> total_threads_raw{ 107520ULL };
 
 	  public:
 		static constexpr const uint64_t& sm_count{ *sm_count_raw };

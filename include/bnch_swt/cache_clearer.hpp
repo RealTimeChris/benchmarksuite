@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Sep 1, 2024
+
 #pragma once
 
 #include <bnch_swt/benchmarksuite_cpu_properties.hpp>
@@ -57,40 +57,53 @@ namespace bnch_swt::internal {
 #if BNCH_SWT_PLATFORM_WINDOWS
 		DWORD buffer_size = 0;
 		GetLogicalProcessorInformation(nullptr, &buffer_size);
-		std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer(buffer_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-		if (!GetLogicalProcessorInformation(buffer.data(), &buffer_size)) {
-			std::cerr << "Failed to retrieve processor information!" << std::endl;
-			return 0;
+
+		std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer_raw(static_cast<uint64_t>(buffer_size) / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+		DWORD actual_size = buffer_size;
+
+		if (!GetLogicalProcessorInformation(buffer_raw.data(), &actual_size)) {
+			return 64;
 		}
 
-		for (const auto& info: buffer) {
+		size_t num_elements = actual_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+
+		const auto* buffer = buffer_raw.data();
+
+		for (size_t i = 0; i < num_elements; ++i) {
+			const auto& info = buffer[i];
 			if (info.Relationship == RelationCache && info.Cache.Level == 1) {
 				return info.Cache.LineSize;
 			}
 		}
+
+		return 64;
+
 #elif BNCH_SWT_PLATFORM_LINUX
 		long line_size = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
 		if (line_size <= 0) {
-			std::cerr << "Failed to retrieve cache line size using sysconf!" << std::endl;
-			return 0;
+			std::cerr << "Failed to retrieve cache line size using sysconf! Falling back to 64." << std::endl;
+			return 64;
 		}
 		return static_cast<size_t>(line_size);
 #elif BNCH_SWT_PLATFORM_MAC
 		size_t line_size = 0;
 		size_t size		 = sizeof(line_size);
 		if (sysctlbyname("hw.cachelinesize", &line_size, &size, nullptr, 0) != 0) {
-			std::cerr << "Failed to retrieve cache line size using sysctl!" << std::endl;
-			return 0;
+			std::cerr << "Failed to retrieve cache line size using sysctl! Falling back to 64." << std::endl;
+			return 64;
 		}
 		return line_size;
 #else
-		std::cerr << "Unsupported platform!" << std::endl;
-		return 0;
+		std::cerr << "Unsupported platform! Falling back to 64." << std::endl;
+		return 64;
 #endif
-		return 0;
+		return 64;
 	}
 
 	BNCH_SWT_HOST static void flush_cache(void* ptr, size_t size, [[maybe_unused]] size_t cache_line_size, bool clear_instruction_cache = false) {
+		if (cache_line_size == 0) {
+			return;
+		}
 #if BNCH_SWT_PLATFORM_MAC
 		if (clear_instruction_cache) {
 			sys_icache_invalidate(ptr, size);
@@ -115,6 +128,7 @@ namespace bnch_swt::internal {
 		for (size_t i = 0; i < size; i += cache_line_size) {
 			__builtin_ia32_clflush(buffer + i);
 		}
+		__builtin_ia32_sfence();
 		#elif BNCH_SWT_ARCH_ARM || BNCH_SWT_ARCH_ARM64
 		for (size_t i = 0; i < size; i += cache_line_size) {
 			#if BNCH_SWT_ARCH_ARM64
@@ -153,8 +167,7 @@ namespace bnch_swt::internal {
 
 		BNCH_SWT_HOST void evict_cache(size_t cache_level) {
 			if (cache_level >= 1 && cache_level <= 3 && cache_sizes[cache_level - 1] > 0 && !evict_buffer.empty()) {
-				size_t target_size = cache_sizes[cache_level - 1] * 4;
-
+				size_t target_size	= cache_sizes[cache_level - 1] * 4;
 				const size_t stride = 4093;
 				volatile char sink	= 0;
 
