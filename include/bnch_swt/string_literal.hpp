@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Sep 1, 2024
+
 #pragma once
 
 #include <bnch_swt/config.hpp>
@@ -39,7 +39,6 @@ namespace bnch_swt {
 		using size_type		  = uint64_t;
 
 		static constexpr size_type length{ size_val > 0 ? size_val - 1 : 0 };
-		static_assert(size_val > 0, "Sorry, but please instantiate string_literal with an actual string!");
 
 		constexpr string_literal() noexcept {
 		}

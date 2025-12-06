@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Dec 6, 2024
+
 // Sampled mostly from https://github.com/fastfloat/fast_float
 #pragma once
 
@@ -168,7 +168,7 @@ namespace bnch_swt::internal {
 			volatile uint64_t cycle_end	  = rdtsc();
 			const auto end_clock		  = clock_type::now();
 			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycle_end - cycle_start);
-			std::vector<event_count>::operator[](current_index).elapsed = end_clock - start_clock;
+			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
 			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);
 			if (has_events()) {
 				if (results.size() != linux_events::temp_result_vec.size()) {
