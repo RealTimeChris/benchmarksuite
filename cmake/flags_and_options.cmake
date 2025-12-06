@@ -28,7 +28,7 @@ set(BNCH_SWT_COMPILE_DEFINITIONS
     BNCH_SWT_PLATFORM_MAC=$<IF:$<PLATFORM_ID:Darwin>,1,0>
     BNCH_SWT_COMPILER_CLANG=$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,1,0>
     BNCH_SWT_COMPILER_MSVC=$<IF:$<CXX_COMPILER_ID:MSVC>,1,0>
-    BNCH_SWT_COMPILER_GNUCXX=$<IF:$<CXX_COMPILER_ID:GNU>,1,0>
+    BNCH_SWT_COMPILER_GCC=$<IF:$<CXX_COMPILER_ID:GNU>,1,0>
     BNCH_SWT_DEV=$<IF:$<STREQUAL:${BNCH_SWT_DEV},TRUE>,1,0>
     BNCH_SWT_CUDA_TENSOR_CORES=$<IF:$<AND:$<CUDA_COMPILER_ID:NVIDIA>,$<VERSION_GREATER_EQUAL:${CMAKE_CUDA_COMPILER_VERSION},11.0>>,1,0>
     BNCH_SWT_CUDA_MAX_REGISTERS=$<IF:$<CUDA_COMPILER_ID:NVIDIA>,128,0>
@@ -61,7 +61,6 @@ set(BNCH_SWT_CLANG_COMPILE_OPTIONS
     -ffp-contract=on
     -fvisibility=hidden
     -fvisibility-inlines-hidden
-    -fno-rtti
     -fno-asynchronous-unwind-tables
     -fno-unwind-tables
     -fno-ident
@@ -94,7 +93,6 @@ set(BNCH_SWT_APPLECLANG_COMPILE_OPTIONS
     -ffp-contract=on
     -fvisibility=hidden
     -fvisibility-inlines-hidden
-    -fno-rtti
     -fno-asynchronous-unwind-tables
     -fno-unwind-tables
     -fno-ident
@@ -131,7 +129,6 @@ set(BNCH_SWT_GNU_COMPILE_OPTIONS
     -fno-keep-inline-functions
     -fno-ident
     -fmerge-all-constants
-    -fno-rtti
     -fgcse-after-reload
     -ftree-loop-distribute-patterns
     -fpredictive-commoning
@@ -172,6 +169,7 @@ set(BNCH_SWT_MSVC_COMPILE_OPTIONS
     /wd4820
     /wd4324
     /wd5002
+    /bigobj
     /Zc:alignedNew
     /Zc:auto
     /Zc:forScope

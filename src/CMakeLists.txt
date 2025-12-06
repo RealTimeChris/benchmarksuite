@@ -71,12 +71,6 @@ target_link_libraries(benchmarksuite-main
         benchmarksuite::benchmarksuite
 )
 
-if(MSVC)
-    set_property(TARGET benchmarksuite-main PROPERTY
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    )
-endif()
-
 install(
     FILES
         $<TARGET_FILE:benchmarksuite-main>
