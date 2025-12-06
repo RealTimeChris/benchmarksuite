@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Dec 6, 2024
+
 #pragma once
 
 #include <bnch_swt/config.hpp>
@@ -35,37 +35,36 @@ namespace bnch_swt {
 		constexpr file_loader() {
 		}
 
-		static std::string loadFile(const std::string& filePath) {
-			std::string directory{ filePath.substr(0, filePath.find_last_of("/") + 1) };
+		static std::string load_file(const std::string& file_path) {
+			std::string directory{ file_path.substr(0, file_path.find_last_of("/") + 1) };
 			if (!std::filesystem::exists(directory)) {
 				std::filesystem::create_directories(directory);
 			}
-
-			if (!std::filesystem::exists(static_cast<std::string>(filePath))) {
-				std::ofstream createFile{ filePath.data() };
-				createFile.close();
+			if (!std::filesystem::exists(static_cast<std::string>(file_path))) {
+				std::ofstream create_file{ file_path.data() };
+				create_file.close();
 			}
-			std::ifstream theStream{ filePath.data(), std::ios::binary | std::ios::in };
-			std::stringstream inputStream{};
-			inputStream << theStream.rdbuf();
-			theStream.close();
-			return inputStream.str();
+			std::ifstream the_stream{ file_path.data(), std::ios::binary | std::ios::in };
+			std::stringstream input_stream{};
+			input_stream << the_stream.rdbuf();
+			the_stream.close();
+			return input_stream.str();
 		}
 
-		static void saveFile(const std::string& fileToSave, const std::string& filePath, bool retry = true) {
-			std::ofstream theStream{ filePath.data(), std::ios::binary | std::ios::out | std::ios::trunc };
-			theStream.write(fileToSave.data(), static_cast<int64_t>(fileToSave.size()));
-			if (theStream.is_open()) {
-				std::cout << "File succesfully written to: " << filePath << std::endl;
+		static void save_file(const std::string& file_to_save, const std::string& file_path, bool retry = true) {
+			std::ofstream the_stream{ file_path.data(), std::ios::binary | std::ios::out | std::ios::trunc };
+			the_stream.write(file_to_save.data(), static_cast<int64_t>(file_to_save.size()));
+			if (the_stream.is_open()) {
+				std::cout << "File succesfully written to: " << file_path << std::endl;
 			} else {
-				std::string directory{ filePath.substr(0, filePath.find_last_of("/") + 1) };
+				std::string directory{ file_path.substr(0, file_path.find_last_of("/") + 1) };
 				if (!std::filesystem::exists(directory) && retry) {
 					std::filesystem::create_directories(directory);
-					return saveFile(fileToSave, filePath, false);
+					return save_file(file_to_save, file_path, false);
 				}
-				std::cerr << "File failed to be written to: " << filePath << std::endl;
+				std::cerr << "File failed to be written to: " << file_path << std::endl;
 			}
-			theStream.close();
+			the_stream.close();
 		}
 	};
 

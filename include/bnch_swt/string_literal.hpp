@@ -20,7 +20,7 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-/// Sep 1, 2024
+
 #pragma once
 
 #include <bnch_swt/config.hpp>
@@ -39,7 +39,6 @@ namespace bnch_swt {
 		using size_type		  = uint64_t;
 
 		static constexpr size_type length{ size_val > 0 ? size_val - 1 : 0 };
-		static_assert(size_val > 0, "Sorry, but please instantiate string_literal with an actual string!");
 
 		constexpr string_literal() noexcept {
 		}
@@ -101,7 +100,7 @@ namespace bnch_swt {
 			return length;
 		}
 
-		template<typename string_type> constexpr operator string_type() const {
+		template<typename string_type> explicit constexpr operator string_type() const {
 			BNCH_SWT_ALIGN(64) string_type return_values{ values, length };
 			return return_values;
 		}
@@ -111,6 +110,11 @@ namespace bnch_swt {
 
 	template<uint64_t size> string_literal(const char (&str)[size]) -> string_literal<size>;
 
+	template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream&, const string_literal<size>& input) noexcept {
+		std::cout << input.operator std::string_view();
+		return std::cout;
+	}
+
 	namespace internal {
 
 		template<uint64_t N, typename string_type> constexpr auto string_literal_from_view(string_type str) noexcept {
@@ -118,11 +122,6 @@ namespace bnch_swt {
 			std::copy_n(str.data(), str.size(), sl.values);
 			sl[N] = '\0';
 			return sl;
-		}
-
-		template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream&, const string_literal<size>& input) noexcept {
-			std::cout << input.operator std::string_view();
-			return std::cout;
 		}
 
 		template<typename value_type> constexpr uint64_t count_digits(value_type number) noexcept {
