@@ -29,22 +29,18 @@ namespace bnch_swt {
 
 	static constexpr uint64_t device_alignment{ [] {
 		if constexpr (BNCH_SWT_COMPILER_CUDA) {
-			return 16ull;
+			return 16ULL;
 		} else {
-			return 64ull;
+			return 64ULL;
 		}
 	}() };
 
-	template<typename value_type_new> struct BNCH_SWT_ALIGN(device_alignment) aligned_const {
-		using value_type = value_type_new;
-		value_type value{};
+	template<typename value_type>
+	concept derivable_from = std::is_class_v<std::remove_cvref_t<value_type>> && !std::is_final_v<std::remove_cvref_t<value_type>>;
 
-		BNCH_SWT_HOST_DEVICE constexpr aligned_const() {
-		}
-		BNCH_SWT_HOST_DEVICE constexpr aligned_const(const value_type& v) : value(v) {
-		}
-		BNCH_SWT_HOST_DEVICE constexpr aligned_const(value_type&& v) : value(std::move(v)) {
-		}
+	template<typename value_type_new, uint64_t alignment = device_alignment> struct BNCH_SWT_ALIGN(alignment) aligned_const {
+		using value_type = value_type_new;
+		BNCH_SWT_ALIGN(device_alignment) value_type value {};
 
 		BNCH_SWT_HOST_DEVICE constexpr operator const value_type&() const& {
 			return value;
@@ -58,19 +54,7 @@ namespace bnch_swt {
 			return std::move(value);
 		}
 
-		BNCH_SWT_HOST_DEVICE constexpr const value_type* get() const {
-			return &value;
-		}
-
-		BNCH_SWT_HOST_DEVICE constexpr value_type* get() {
-			return &value;
-		}
-
 		BNCH_SWT_HOST_DEVICE constexpr const value_type& operator*() const {
-			return value;
-		}
-
-		BNCH_SWT_HOST_DEVICE constexpr value_type& operator*() {
 			return value;
 		}
 
@@ -78,7 +62,11 @@ namespace bnch_swt {
 			value = std::forward<value_type_newer>(value_new);
 		}
 
-		BNCH_SWT_HOST_DEVICE constexpr value_type multiply(const aligned_const& other) const {
+		BNCH_SWT_HOST_DEVICE value_type& operator*() {
+			return value;
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr value_type operator*(const aligned_const& other) const {
 			return value * other.value;
 		}
 
@@ -96,6 +84,42 @@ namespace bnch_swt {
 
 		BNCH_SWT_HOST_DEVICE constexpr bool operator>(const aligned_const& other) const {
 			return value > other.value;
+		}
+	};
+
+	template<derivable_from value_type_new, uint64_t alignment> struct BNCH_SWT_ALIGN(alignment) aligned_const<value_type_new, alignment> : public value_type_new {
+		using value_type = value_type_new;
+
+		BNCH_SWT_HOST_DEVICE constexpr const value_type& operator*() const {
+			return *static_cast<const value_type*>(this);
+		}
+
+		template<typename value_type_newer> BNCH_SWT_HOST_DEVICE constexpr void emplace(value_type_newer&& value_new) {
+			*static_cast<value_type*>(this) = std::forward<value_type_newer>(value_new);
+		}
+
+		BNCH_SWT_HOST_DEVICE value_type& operator*() {
+			return *static_cast<value_type*>(this);
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr value_type operator*(const aligned_const& other) const {
+			return *static_cast<const value_type*>(this) * *static_cast<const value_type*>(&other);
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr bool operator==(const aligned_const& other) const {
+			return *static_cast<const value_type*>(this) == *static_cast<const value_type*>(&other);
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr bool operator!=(const aligned_const& other) const {
+			return *static_cast<const value_type*>(this) != *static_cast<const value_type*>(&other);
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr bool operator<(const aligned_const& other) const {
+			return *static_cast<const value_type*>(this) < *static_cast<const value_type*>(&other);
+		}
+
+		BNCH_SWT_HOST_DEVICE constexpr bool operator>(const aligned_const& other) const {
+			return *static_cast<const value_type*>(this) > *static_cast<const value_type*>(&other);
 		}
 	};
 
