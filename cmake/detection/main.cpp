@@ -130,11 +130,11 @@ inline static uint32_t detect_supported_architectures() {
 }
 
 	#elif BNCH_SWT_ARCH_X64
-static constexpr uint32_t cpuid_avx2_bit	 = 1ul << 5;
-static constexpr uint32_t cpuid_avx512_bit	 = 1ul << 16;
+static constexpr uint64_t cpuid_avx2_bit	 = 1ul << 5;
+static constexpr uint64_t cpuid_avx512_bit	 = 1ul << 16;
 static constexpr uint64_t cpuid_avx256_saved = 1ull << 2;
 static constexpr uint64_t cpuid_avx512_saved = 7ull << 5;
-static constexpr uint32_t cpuid_osx_save	 = (1ul << 26) | (1ul << 27);
+static constexpr uint64_t cpuid_osx_save	 = (1ul << 26) | (1ul << 27);
 
 inline static void cpuid(uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx) {
 		#if BNCH_SWT_COMPILER_MSVC

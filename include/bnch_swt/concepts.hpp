@@ -187,7 +187,7 @@ namespace bnch_swt {
 		template<typename value_type>
 		concept null_t = nullable_t<value_type> || always_null_t<value_type>;
 
-		template<typename value_type> constexpr bool hasSizeEqualToZero{ std::tuple_size_v<std::remove_cvref_t<value_type>> == 0 };
+		template<typename value_type> constexpr bool has_size_equal_to_zero{ std::tuple_size_v<std::remove_cvref_t<value_type>> == 0 };
 
 		template<typename value_type>
 		concept has_get_template = requires(std::remove_cvref_t<value_type> value) {
@@ -196,7 +196,7 @@ namespace bnch_swt {
 
 		template<typename value_type>
 		concept tuple_t = requires(std::remove_cvref_t<value_type> t) { std::tuple_size<std::remove_cvref_t<value_type>>::value; } &&
-			(hasSizeEqualToZero<value_type> || has_get_template<value_type>) && !has_data<value_type>;
+			(has_size_equal_to_zero<value_type> || has_get_template<value_type>) && !has_data<value_type>;
 
 		template<typename value_type>
 		concept optional_t = requires(std::remove_cvref_t<value_type> opt) {
