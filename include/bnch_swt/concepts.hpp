@@ -117,6 +117,9 @@ namespace bnch_swt {
 		};
 
 		template<typename value_type>
+		concept function_pointer_types = std::is_pointer_v<value_type> && std::is_function_v<std::remove_pointer_t<value_type>>;
+
+		template<typename value_type>
 		concept has_find = requires(std::remove_cvref_t<value_type> value) {
 			{ value.find(typename std::remove_cvref_t<value_type>::value_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::size_type>;
 		} || requires(std::remove_cvref_t<value_type> value) {
@@ -187,7 +190,7 @@ namespace bnch_swt {
 		template<typename value_type>
 		concept null_t = nullable_t<value_type> || always_null_t<value_type>;
 
-		template<typename value_type> constexpr bool hasSizeEqualToZero{ std::tuple_size_v<std::remove_cvref_t<value_type>> == 0 };
+		template<typename value_type> constexpr bool has_size_equal_to_zero{ std::tuple_size_v<std::remove_cvref_t<value_type>> == 0 };
 
 		template<typename value_type>
 		concept has_get_template = requires(std::remove_cvref_t<value_type> value) {
@@ -196,7 +199,7 @@ namespace bnch_swt {
 
 		template<typename value_type>
 		concept tuple_t = requires(std::remove_cvref_t<value_type> t) { std::tuple_size<std::remove_cvref_t<value_type>>::value; } &&
-			(hasSizeEqualToZero<value_type> || has_get_template<value_type>) && !has_data<value_type>;
+			(has_size_equal_to_zero<value_type> || has_get_template<value_type>) && !has_data<value_type>;
 
 		template<typename value_type>
 		concept optional_t = requires(std::remove_cvref_t<value_type> opt) {
@@ -211,7 +214,7 @@ namespace bnch_swt {
 		concept enum_t = std::is_enum_v<std::remove_cvref_t<value_type>>;
 
 		template<typename value_type>
-		concept vector_t = vector_subscriptable<value_type> && !string_t<value_type>;
+		concept vector_t = vector_subscriptable<value_type> && !string_t<value_type> && !requires() { value_type::values; };
 
 		template<typename value_type>
 		concept raw_array_t = ( std::is_array_v<std::remove_cvref_t<value_type>> && !std::is_pointer_v<std::remove_cvref_t<value_type>> ) ||

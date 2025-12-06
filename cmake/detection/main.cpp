@@ -20,47 +20,74 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
+
 #if defined(BNCH_SWT_DETECT_GPU_PROPERTIES)
 	#include <cuda_runtime.h>
 	#include <iostream>
+	#include <cstdint>
 
-int32_t main() {
-	cudaDeviceProp device_prop;
-	cudaError_t result = cudaGetDeviceProperties(&device_prop, 0);
+int get_cores_per_sm(int major, int minor) {
+	if (major == 7)
+		return 64;
+	if (major >= 8)
+		return 128;
+	return 128;
+}
 
-	if (result != cudaSuccess) {
+int main() {
+	cudaDeviceProp deviceProp;
+	if (cudaGetDeviceProperties(&deviceProp, 0) != cudaSuccess) {
 		std::cout << "CUDA_ERROR=1" << std::endl;
 		return 1;
 	}
 
+	double mem_clock_hz				  = static_cast<double>(deviceProp.memoryClockRate) * 1000.0;
+	double bus_width_bytes			  = static_cast<double>(deviceProp.memoryBusWidth) / 8.0;
+	long long bandwidth_bytes_per_sec = static_cast<long long>(mem_clock_hz * bus_width_bytes * 2.0);
+
+	int cores_per_sm				 = get_cores_per_sm(deviceProp.major, deviceProp.minor);
+	double core_clock_hz			 = static_cast<double>(deviceProp.clockRate) * 1000.0;
+	double total_flops				 = static_cast<double>(deviceProp.multiProcessorCount) * cores_per_sm * core_clock_hz * 2.0;
+	long long flops_as_bytes_per_sec = static_cast<long long>(total_flops * 4.0);
+
 	uint32_t gpu_arch_index = 0;
-	if (device_prop.major == 9) {
+	if (deviceProp.major == 9) {
 		gpu_arch_index = 1;
-	} else if (device_prop.major == 10) {
+	} else if (deviceProp.major == 10) {
 		gpu_arch_index = 2;
-	} else if (device_prop.major == 11) {
+	} else if (deviceProp.major == 11) {
 		gpu_arch_index = 3;
-	} else if (device_prop.major == 12) {
+	} else if (deviceProp.major == 12) {
 		gpu_arch_index = 4;
 	} else {
 		gpu_arch_index = 0;
 	}
 
-	std::cout << "SM_COUNT=" << device_prop.multiProcessorCount << std::endl;
-	std::cout << "MAX_THREADS_PER_SM=" << device_prop.maxThreadsPerMultiProcessor << std::endl;
-	std::cout << "MAX_THREADS_PER_BLOCK=" << device_prop.maxThreadsPerBlock << std::endl;
-	std::cout << "WARP_SIZE=" << device_prop.warpSize << std::endl;
-	std::cout << "L2_CACHE_SIZE=" << device_prop.l2CacheSize << std::endl;
-	std::cout << "SHARED_MEM_PER_BLOCK=" << device_prop.sharedMemPerBlock << std::endl;
-	std::cout << "MEMORY_BUS_WIDTH=" << device_prop.memoryBusWidth << std::endl;
-	std::cout << "MEMORY_CLOCK_RATE=" << device_prop.memoryClockRate << std::endl;
-	std::cout << "MAJOR_COMPUTE_CAPABILITY=" << device_prop.major << std::endl;
-	std::cout << "MINOR_COMPUTE_CAPABILITY=" << device_prop.minor << std::endl;
-	std::cout << "MAX_GRID_SIZE_X=" << device_prop.maxGridSize[0] << std::endl;
-	std::cout << "MAX_GRID_SIZE_Y=" << device_prop.maxGridSize[1] << std::endl;
-	std::cout << "MAX_GRID_SIZE_Z=" << device_prop.maxGridSize[2] << std::endl;
-	std::cout << "MAX_BLOCK_SIZE_X=" << device_prop.maxThreadsPerBlock << std::endl;
+	std::cout << "MEMORY_BANDWIDTH_BYTES=" << bandwidth_bytes_per_sec << std::endl;
+	std::cout << "FP32_THROUGHPUT_BYTES=" << flops_as_bytes_per_sec << std::endl;
+	std::cout << "SM_COUNT=" << deviceProp.multiProcessorCount << std::endl;
+	std::cout << "ALIGNMENT=" << std::max({ deviceProp.textureAlignment, deviceProp.surfaceAlignment, ( size_t )256 }) << std::endl;
+	std::cout << "MAX_THREADS_PER_SM=" << deviceProp.maxThreadsPerMultiProcessor << std::endl;
+	std::cout << "MAX_THREADS_PER_BLOCK=" << deviceProp.maxThreadsPerBlock << std::endl;
+	std::cout << "WARP_SIZE=" << deviceProp.warpSize << std::endl;
+	std::cout << "L2_CACHE_SIZE=" << deviceProp.l2CacheSize << std::endl;
+	std::cout << "SHARED_MEM_PER_BLOCK=" << deviceProp.sharedMemPerBlock << std::endl;
+	std::cout << "MEMORY_BUS_WIDTH=" << deviceProp.memoryBusWidth << std::endl;
+	int clock_rate;
+	cudaDeviceGetAttribute(&clock_rate, cudaDevAttrClockRate, 0);
+	std::cout << "MEMORY_CLOCK_RATE=" << clock_rate << std::endl;
+	std::cout << "MAJOR_COMPUTE_CAPABILITY=" << deviceProp.major << std::endl;
+	std::cout << "MINOR_COMPUTE_CAPABILITY=" << deviceProp.minor << std::endl;
+	std::cout << "MAX_GRID_SIZE_X=" << deviceProp.maxGridSize[0] << std::endl;
+	std::cout << "MAX_GRID_SIZE_Y=" << deviceProp.maxGridSize[1] << std::endl;
+	std::cout << "MAX_GRID_SIZE_Z=" << deviceProp.maxGridSize[2] << std::endl;
+	std::cout << "MAX_BLOCK_SIZE_X=" << deviceProp.maxThreadsPerBlock << std::endl;
+	std::cout << "MAX_PERSISTING_L2_BYTES=" << deviceProp.persistingL2CacheMaxSize << std::endl;
 	std::cout << "GPU_ARCH_INDEX=" << gpu_arch_index << std::endl;
+	std::cout << "HAS_CUDA_9=" << (deviceProp.major == 9) << std::endl;
+	std::cout << "HAS_CUDA_10=" << (deviceProp.major == 10) << std::endl;
+	std::cout << "HAS_CUDA_11=" << (deviceProp.major == 11) << std::endl;
+	std::cout << "HAS_CUDA_12=" << (deviceProp.major == 12) << std::endl;
 	std::cout << "GPU_SUCCESS=1" << std::endl;
 
 	return 0;
@@ -73,30 +100,32 @@ int32_t main() {
 	#include <thread>
 	#include <vector>
 
-	#if BNCH_SWT_COMPILER_MSVC
+	#if defined(_MSC_VER)
 		#include <intrin.h>
-	#elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
+	#elif defined(__GNUC__) || defined(__clang__)
 		#include <cpuid.h>
 	#endif
 
-	#if BNCH_SWT_PLATFORM_WINDOWS
+	#if defined(_WIN32) || defined(_WIN64)
 		#include <Windows.h>
 	#endif
-	#if BNCH_SWT_PLATFORM_LINUX || BNCH_SWT_PLATFORM_ANDROID
+
+	#if defined(__linux__) || defined(__ANDROID__)
 		#include <fstream>
 		#include <string>
 	#endif
-	#if BNCH_SWT_PLATFORM_MAC
+
+	#if defined(__APPLE__) && defined(__MACH__)
 		#include <sys/sysctl.h>
 		#include <sys/types.h>
 		#include <string>
 	#endif
 
-	#if BNCH_SWT_ARCH_ARM64
-		#if BNCH_SWT_PLATFORM_LINUX
+	#if defined(__aarch64__) || defined(_M_ARM64)
+		#if defined(__linux__)
 			#include <sys/auxv.h>
 			#include <asm/hwcap.h>
-		#elif BNCH_SWT_PLATFORM_MAC
+		#elif defined(__APPLE__)
 			#include <sys/sysctl.h>
 		#endif
 	#endif
@@ -115,11 +144,11 @@ enum class cache_level {
 	three = 3,
 };
 
-	#if BNCH_SWT_ARCH_ARM64
+	#if defined(__aarch64__) || defined(_M_ARM64)
 inline static uint32_t detect_supported_architectures() {
 	uint32_t host_isa = static_cast<uint32_t>(instruction_set::NEON);
 
-		#if BNCH_SWT_PLATFORM_LINUX
+		#if defined(__linux__) && defined(HWCAP_SVE)
 	unsigned long hwcap = getauxval(AT_HWCAP);
 	if (hwcap & HWCAP_SVE) {
 		host_isa |= static_cast<uint32_t>(instruction_set::SVE2);
@@ -129,24 +158,21 @@ inline static uint32_t detect_supported_architectures() {
 	return host_isa;
 }
 
-	#elif BNCH_SWT_ARCH_X64
+	#elif defined(__x86_64__) || defined(_M_X64)
 static constexpr uint32_t cpuid_avx2_bit	 = 1ul << 5;
 static constexpr uint32_t cpuid_avx512_bit	 = 1ul << 16;
-static constexpr uint64_t cpuid_avx256_saved = 1ull << 2;
-static constexpr uint64_t cpuid_avx512_saved = 7ull << 5;
+static constexpr uint64_t cpuid_avx256_saved = 1ULL << 2;
+static constexpr uint64_t cpuid_avx512_saved = 7ULL << 5;
 static constexpr uint32_t cpuid_osx_save	 = (1ul << 26) | (1ul << 27);
 
 inline static void cpuid(uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* edx) {
-		#if BNCH_SWT_COMPILER_MSVC
+		#if defined(_MSC_VER)
 	int32_t cpu_info[4];
 	__cpuidex(cpu_info, *eax, *ecx);
 	*eax = cpu_info[0];
 	*ebx = cpu_info[1];
 	*ecx = cpu_info[2];
 	*edx = cpu_info[3];
-		#elif defined(HAVE_GCC_GET_CPUID) && defined(USE_GCC_GET_CPUID)
-	uint32_t level = *eax;
-	__get_cpuid(level, eax, ebx, ecx, edx);
 		#else
 	uint32_t a = *eax, b, c = *ecx, d;
 	asm volatile("cpuid" : "=a"(a), "=b"(b), "=c"(c), "=d"(d) : "a"(a), "c"(c));
@@ -158,7 +184,7 @@ inline static void cpuid(uint32_t* eax, uint32_t* ebx, uint32_t* ecx, uint32_t* 
 }
 
 inline static uint64_t xgetbv() {
-		#if BNCH_SWT_COMPILER_MSVC
+		#if defined(_MSC_VER)
 	return _xgetbv(0);
 		#else
 	uint32_t eax, edx;
@@ -213,87 +239,94 @@ inline static uint32_t detect_supported_architectures() {
 	#endif
 
 inline uint64_t get_cache_size(cache_level level) {
-	#if BNCH_SWT_PLATFORM_WINDOWS
-	DWORD buffer_size = 0;
+	#if defined(_WIN32) || defined(_WIN64)
+	DWORD bufferSize = 0;
 	std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer{};
-	GetLogicalProcessorInformation(nullptr, &buffer_size);
-	buffer.resize(buffer_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+	GetLogicalProcessorInformation(nullptr, &bufferSize);
+	if (bufferSize == 0)
+		return 0;
+	buffer.resize(bufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
 
-	if (!GetLogicalProcessorInformation(buffer.data(), &buffer_size)) {
+	if (!GetLogicalProcessorInformation(buffer.data(), &bufferSize)) {
 		return 0;
 	}
 
-	const auto info_count = buffer_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-	for (uint64_t i = 0; i < info_count; ++i) {
-		if (buffer[i].Relationship == RelationCache && buffer[i].Cache.Level == static_cast<int32_t>(level)) {
-			if (level == cache_level::one && buffer[i].Cache.Type == CacheData) {
-				return buffer[i].Cache.Size;
-			} else if (level != cache_level::one && buffer[i].Cache.Type == CacheUnified) {
-				return buffer[i].Cache.Size;
+	for (const auto& i: buffer) {
+		if (i.Relationship == RelationCache && i.Cache.Level == static_cast<int32_t>(level)) {
+			if (level == cache_level::one && i.Cache.Type == CacheData) {
+				return i.Cache.Size;
+			} else if (level != cache_level::one && i.Cache.Type == CacheUnified) {
+				return i.Cache.Size;
 			}
 		}
 	}
 	return 0;
 
-	#elif BNCH_SWT_PLATFORM_LINUX || BNCH_SWT_PLATFORM_ANDROID
-	auto get_cache_size_from_file = [](const std::string& index) {
-		const std::string cache_file_path = "/sys/devices/system/cpu/cpu0/cache/index" + index + "/size";
-		std::ifstream file(cache_file_path);
-		if (!file.is_open()) {
-			return static_cast<uint64_t>(0);
-		}
+	#elif defined(__linux__) || defined(__ANDROID__)
+	auto get_cache_size_from_file = [](const std::string& index) -> uint64_t {
+		const std::string cacheFilePath = "/sys/devices/system/cpu/cpu0/cache/index" + index + "/size";
+		std::ifstream file(cacheFilePath);
+		if (!file.is_open())
+			return 0ULL;
 
-		std::string size_str;
-		file >> size_str;
-		file.close();
-
-		uint64_t size = 0;
-		if (size_str.back() == 'K') {
-			size = std::stoul(size_str) * 1024;
-		} else if (size_str.back() == 'M') {
-			size = std::stoul(size_str) * 1024 * 1024;
-		} else {
-			size = std::stoul(size_str);
-		}
-		return size;
+		std::string sizeStr;
+		file >> sizeStr;
+		uint64_t size = std::stoul(sizeStr);
+		if (sizeStr.find('K') != std::string::npos)
+			size *= 1024;
+		else if (sizeStr.find('M') != std::string::npos)
+			size *= 1024 * 1024;
+		return static_cast<uint64_t>(size);
 	};
 
-	if (level == cache_level::one) {
+	if (level == cache_level::one)
 		return get_cache_size_from_file("0");
-	} else {
-		std::string index = (level == cache_level::two) ? "2" : "3";
-		return get_cache_size_from_file(index);
-	}
+	std::string idx = (level == cache_level::two) ? "2" : "3";
+	return get_cache_size_from_file(idx);
 
-	#elif BNCH_SWT_PLATFORM_MAC
-	auto get_cache_size_for_mac = [](const std::string& cache_type) {
-		uint64_t cache_size		 = 0;
-		size_t size			 = sizeof(cache_size);
-		std::string sysctl_query = "hw." + cache_type + "cachesize";
-		if (sysctlbyname(sysctl_query.c_str(), &cache_size, &size, nullptr, 0) != 0) {
-			return uint64_t{ 0 };
-		}
-		return cache_size;
+	#elif defined(__APPLE__)
+	auto get_cache_size_for_mac = [](const char* cacheType) {
+		uint64_t cacheSize = 0;
+		uint64_t size	   = sizeof(cacheSize);
+		std::string query  = std::string("hw.") + cacheType + "cachesize";
+		if (sysctlbyname(query.c_str(), &cacheSize, &size, nullptr, 0) != 0)
+			return 0ULL;
+		return cacheSize;
 	};
 
-	if (level == cache_level::one) {
+	if (level == cache_level::one)
 		return get_cache_size_for_mac("l1d");
-	} else if (level == cache_level::two) {
+	if (level == cache_level::two)
 		return get_cache_size_for_mac("l2");
-	} else {
-		return get_cache_size_for_mac("l3");
-	}
+	return get_cache_size_for_mac("l3");
 	#endif
 
 	return 0;
 }
 
-int32_t main() {
+enum class host_cxx_compilers {
+	clang,
+	gnu,
+	msvc,
+};
+
+int main() {
 	const uint32_t thread_count	 = std::thread::hardware_concurrency();
 	const uint32_t supported_isa = detect_supported_architectures();
 	const uint64_t l1_cache_size = get_cache_size(cache_level::one);
 	const uint64_t l2_cache_size = get_cache_size(cache_level::two);
 	const uint64_t l3_cache_size = get_cache_size(cache_level::three);
+
+	host_cxx_compilers host_cxx_compiler{};
+	#if __clang__
+	host_cxx_compiler = host_cxx_compilers::clang;
+	#elif __GNUC__
+	host_cxx_compiler = host_cxx_compilers::gnu;
+	#elif _MSC_VER
+	host_cxx_compiler = host_cxx_compilers::msvc;
+	#endif
+
+	std::cout << "HOST_CXX_COMPILER=" << static_cast<uint32_t>(host_cxx_compiler) << std::endl;
 	std::cout << "THREAD_COUNT=" << thread_count << std::endl;
 	std::cout << "INSTRUCTION_SET=" << supported_isa << std::endl;
 	std::cout << "HAS_AVX2=" << ((supported_isa & static_cast<uint32_t>(instruction_set::AVX2)) ? 1 : 0) << std::endl;
@@ -307,7 +340,7 @@ int32_t main() {
 	return 0;
 }
 #else
-int32_t main() {
+int main() {
 	return -1;
 }
 #endif
