@@ -33,9 +33,11 @@
 	#define BNCH_SWT_ALIGN(x) alignas(x)
 #endif
 
-using clock_type = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>; 
-
 namespace bnch_swt {
+
+	using clock_type	  = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>;
+	using duration_type	  = std::chrono::duration<double, std::nano>;
+	using time_point_type = std::chrono::time_point<clock_type, duration_type>;
 
 	enum class benchmark_types {
 		cpu,
