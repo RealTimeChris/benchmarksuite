@@ -19,35 +19,35 @@
 #	DEALINGS IN THE SOFTWARE.
 
 if(UNIX OR APPLE)
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_gpu_properties.sh "#!/bin/bash\n"
+    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/BuildFeatureTesterGpuProperties.sh "#!/bin/bash\n"
         "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Gpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DBNCH_SWT_DETECT_GPU_PROPERTIES=TRUE\n"
         "\"${CMAKE_COMMAND}\" --build ./Build-Gpu-Properties --config=Release"
     )
     
     execute_process(
-        COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_gpu_properties.sh
+        COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/BuildFeatureTesterGpuProperties.sh
         RESULT_VARIABLE CHMOD_RESULT
     )
     
     if(NOT CHMOD_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to set executable permissions for build_feature_tester_gpu_properties.sh")
+        message(FATAL_ERROR "Failed to set executable permissions for BuildFeatureTesterGpuProperties.sh")
     endif()
     
     execute_process(
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_gpu_properties.sh
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/BuildFeatureTesterGpuProperties.sh
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
     )
     
     set(FEATURE_TESTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/Build-Gpu-Properties/feature_detector)
     
 elseif(WIN32)
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_gpu_properties.bat
+    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/BuildFeatureTesterGpuProperties.bat
         "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Gpu-Properties -DBNCH_SWT_DETECT_GPU_PROPERTIES=TRUE\n"
         "\"${CMAKE_COMMAND}\" --build ./Build-Gpu-Properties --config=Release"
     )
     
     execute_process(
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_gpu_properties.bat
+        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/BuildFeatureTesterGpuProperties.bat
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
     )
     
@@ -72,10 +72,19 @@ if(NOT DEFINED BNCH_SWT_SM_COUNT OR
         OUTPUT_VARIABLE GPU_PROPERTIES_OUTPUT
         ERROR_VARIABLE FEATURE_TESTER_ERROR
         OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+    )    
+    
+    if(NOT DEFINED BNCH_SWT_GPU_PROPERTIES_ERECTED)
+        set(BNCH_SWT_GPU_PROPERTIES_ERECTED TRUE CACHE BOOL "GPU properties successfully detected" FORCE)
+    endif()
 endif()
 
 if(FEATURE_TESTER_EXIT_CODE EQUAL 0 AND GPU_PROPERTIES_OUTPUT MATCHES "GPU_SUCCESS=1")
+
+    string(REGEX MATCH "ALIGNMENT=([0-9]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_GPU_ALIGNMENT)
+        set(BNCH_SWT_GPU_ALIGNMENT ${CMAKE_MATCH_1} CACHE STRING "GPU alignment" FORCE)
+    endif()
     
     string(REGEX MATCH "SM_COUNT=([0-9]+)" _ ${GPU_PROPERTIES_OUTPUT})
     if(NOT DEFINED BNCH_SWT_SM_COUNT)
@@ -100,6 +109,11 @@ if(FEATURE_TESTER_EXIT_CODE EQUAL 0 AND GPU_PROPERTIES_OUTPUT MATCHES "GPU_SUCCE
     string(REGEX MATCH "L2_CACHE_SIZE=([0-9]+)" _ ${GPU_PROPERTIES_OUTPUT})
     if(NOT DEFINED BNCH_SWT_GPU_L2_CACHE_SIZE)
         set(BNCH_SWT_GPU_L2_CACHE_SIZE ${CMAKE_MATCH_1} CACHE STRING "GPU L2 cache size" FORCE)
+    endif()
+
+    string(REGEX MATCH "MAX_PERSISTING_L2_BYTES=([0-9]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_MAX_PERSISTING_L2_BYTES)
+        set(BNCH_SWT_MAX_PERSISTING_L2_BYTES ${CMAKE_MATCH_1} CACHE STRING "GPU L2 cache size" FORCE)
     endif()
     
     string(REGEX MATCH "SHARED_MEM_PER_BLOCK=([0-9]+)" _ ${GPU_PROPERTIES_OUTPUT})
@@ -136,15 +150,35 @@ if(FEATURE_TESTER_EXIT_CODE EQUAL 0 AND GPU_PROPERTIES_OUTPUT MATCHES "GPU_SUCCE
     if(NOT DEFINED BNCH_SWT_GPU_ARCH_INDEX)
         set(BNCH_SWT_GPU_ARCH_INDEX ${CMAKE_MATCH_1} CACHE STRING "GPU architecture index" FORCE)
     endif()
-    
-    if(NOT DEFINED BNCH_SWT_GPU_PROPERTIES_ERECTED)
-        set(BNCH_SWT_GPU_PROPERTIES_ERECTED TRUE CACHE BOOL "GPU properties successfully detected" FORCE)
+
+    string(REGEX MATCH "HAS_CUDA_9=([0-1]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_9)
+        set(BNCH_SWT_HAS_CUDA_9 ${CMAKE_MATCH_1} CACHE STRING "CUDA 9 AVX2 support" FORCE)
+    endif()
+
+    string(REGEX MATCH "HAS_CUDA_10=([0-1]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_10)
+        set(BNCH_SWT_HAS_CUDA_10 ${CMAKE_MATCH_1} CACHE STRING "CUDA 10 AVX2 support" FORCE)
+    endif()
+
+    string(REGEX MATCH "HAS_CUDA_11=([0-1]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_11)
+        set(BNCH_SWT_HAS_CUDA_11 ${CMAKE_MATCH_1} CACHE STRING "CUDA 11 AVX2 support" FORCE)
+    endif()
+
+    string(REGEX MATCH "HAS_CUDA_12=([0-1]+)" _ ${GPU_PROPERTIES_OUTPUT})
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_12)
+        set(BNCH_SWT_HAS_CUDA_12 ${CMAKE_MATCH_1} CACHE STRING "CUDA 12 AVX2 support" FORCE)
     endif()
     
     message(STATUS "GPU Properties detected successfully")
     
-else()
+elseif(NOT DEFINED BNCH_SWT_GPU_PROPERTIES_ERECTED)
     message(WARNING "GPU feature detector failed, using reasonable default values for unset properties")
+
+    if(NOT DEFINED BNCH_SWT_GPU_ALIGNMENT)
+        set(BNCH_SWT_GPU_ALIGNMENT 16 CACHE STRING "GPU alignment (fallback)" FORCE)
+    endif()
     
     if(NOT DEFINED BNCH_SWT_SM_COUNT)
         set(BNCH_SWT_SM_COUNT 16 CACHE STRING "GPU SM count (fallback)" FORCE)
@@ -164,6 +198,10 @@ else()
     
     if(NOT DEFINED BNCH_SWT_GPU_L2_CACHE_SIZE)
         set(BNCH_SWT_GPU_L2_CACHE_SIZE 2097152 CACHE STRING "GPU L2 cache size (fallback)" FORCE)
+    endif()
+
+    if(NOT DEFINED BNCH_SWT_MAX_PERSISTING_L2_BYTES)
+        set(BNCH_SWT_MAX_PERSISTING_L2_BYTES 1310720 CACHE STRING "GPU L2 cache size (fallback)" FORCE)
     endif()
     
     if(NOT DEFINED BNCH_SWT_SHARED_MEM_PER_BLOCK)
@@ -185,6 +223,22 @@ else()
     if(NOT DEFINED BNCH_SWT_GPU_ARCH_INDEX)
         set(BNCH_SWT_GPU_ARCH_INDEX 0 CACHE STRING "GPU architecture index (fallback)" FORCE)
     endif()
+
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_9)
+        set(BNCH_SWT_HAS_CUDA_9 0 CACHE STRING "CUDA 9 AVX2 support" FORCE)
+    endif()
+
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_10)
+        set(BNCH_SWT_HAS_CUDA_10 0 CACHE STRING "CUDA 10 AVX2 support" FORCE)
+    endif()
+
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_11)
+        set(BNCH_SWT_HAS_CUDA_11 0 CACHE STRING "CUDA 11 AVX2 support" FORCE)
+    endif()
+
+    if(NOT DEFINED BNCH_SWT_HAS_CUDA_12)
+        set(BNCH_SWT_HAS_CUDA_12 0 CACHE STRING "CUDA 12 AVX2 support" FORCE)
+    endif()
 endif()
 
 if(NOT DEFINED BNCH_SWT_TOTAL_THREADS)
@@ -192,7 +246,17 @@ if(NOT DEFINED BNCH_SWT_TOTAL_THREADS)
     set(BNCH_SWT_TOTAL_THREADS ${BNCH_SWT_TOTAL_THREADS} CACHE STRING "GPU total concurrent threads" FORCE)
 endif()
 
-message(STATUS "GPU Configuration: ${BNCH_SWT_SM_COUNT} SMs, ${BNCH_SWT_TOTAL_THREADS} total threads")
+if(BNCH_SWT_HAS_CUDA_12)
+    set(BNCH_SWT_CUDA_DEFINITIONS BNCH_SWT_CUDA_12=1;BNCH_SWT_CUDA_11=0;BNCH_SWT_CUDA_10=0;BNCH_SWT_CUDA_9=0 CACHE STRING "CUDA definitions" FORCE)
+elseif(BNCH_SWT_HAS_CUDA_11)
+    set(BNCH_SWT_CUDA_DEFINITIONS BNCH_SWT_CUDA_12=0;BNCH_SWT_CUDA_11=1;BNCH_SWT_CUDA_10=0;BNCH_SWT_CUDA_9=0 CACHE STRING "CUDA definitions" FORCE)
+elseif(BNCH_SWT_HAS_CUDA_10)
+    set(BNCH_SWT_CUDA_DEFINITIONS BNCH_SWT_CUDA_12=0;BNCH_SWT_CUDA_11=0;BNCH_SWT_CUDA_10=1;BNCH_SWT_CUDA_9=0 CACHE STRING "CUDA definitions" FORCE)
+elseif(BNCH_SWT_HAS_CUDA_9)
+    set(BNCH_SWT_CUDA_DEFINITIONS BNCH_SWT_CUDA_12=0;BNCH_SWT_CUDA_11=0;BNCH_SWT_CUDA_10=0;BNCH_SWT_CUDA_9=1 CACHE STRING "CUDA definitions" FORCE)
+endif()
+
+message(STATUS "GPU Configuration: ${BNCH_SWT_SM_COUNT} SMs, ${BNCH_SWT_TOTAL_THREADS} total threads, CUDA ARCH: ${BNCH_SWT_GPU_ARCH_INDEX}")
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/benchmarksuite_gpu_properties.hpp.in
