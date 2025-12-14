@@ -1,3 +1,4 @@
+#include "DragonBox.hpp"
 #include <bnch_swt/index.hpp>
 #include <cstring>
 #include <random>
@@ -379,6 +380,172 @@ template<std::integral value_type> struct to_chars<value_type> {
 	}
 };
 
+inline constexpr uint8_t decTrailingZeroTable[] = { 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+BNCH_SWT_HOST auto* writeu64Len15To17Trim(auto* buf, uint64_t sig) noexcept {
+	uint32_t tz1, tz2, tz;
+	const uint64_t abbccddee = multiply_and_shift<6189700196426901375ULL, 89ULL>::impl(sig);
+	const uint64_t ffgghhii	 = sig - abbccddee * 100000000;
+	uint32_t abbcc			 = abbccddee / 10000;
+	uint32_t ddee			 = abbccddee - abbcc * 10000;
+	uint32_t abb			 = uint32_t((uint64_t(abbcc) * 167773) >> 24);
+	uint32_t a				 = (abb * 41) >> 12;
+	uint32_t bb				 = abb - a * 100;
+	uint32_t cc				 = abbcc - abb * 100;
+	buf[0]					 = uint8_t(a + '0');
+	buf += a > 0;
+	bool lz = bb < 10 && a == 0;
+	std::memcpy(buf, fiwb<void>::charTable01 + (bb * 2 + lz), 2);
+	buf -= lz;
+	std::memcpy(buf + 2, fiwb<void>::charTable01 + 2 * cc, 2);
+
+	if (ffgghhii) {
+		uint32_t dd	  = (ddee * 5243) >> 19;
+		uint32_t ee	  = ddee - dd * 100;
+		uint32_t ffgg = uint32_t((uint64_t(ffgghhii) * 109951163) >> 40);
+		uint32_t hhii = ffgghhii - ffgg * 10000;
+		uint32_t ff	  = (ffgg * 5243) >> 19;
+		uint32_t gg	  = ffgg - ff * 100;
+		std::memcpy(buf + 4, fiwb<void>::charTable01 + 2 * dd, 2);
+		std::memcpy(buf + 6, fiwb<void>::charTable01 + 2 * ee, 2);
+		std::memcpy(buf + 8, fiwb<void>::charTable01 + 2 * ff, 2);
+		std::memcpy(buf + 10, fiwb<void>::charTable01 + 2 * gg, 2);
+		if (hhii) {
+			uint32_t hh = (hhii * 5243) >> 19;
+			uint32_t ii = hhii - hh * 100;
+			std::memcpy(buf + 12, fiwb<void>::charTable01 + 2 * hh, 2);
+			std::memcpy(buf + 14, fiwb<void>::charTable01 + 2 * ii, 2);
+			tz1 = decTrailingZeroTable[hh];
+			tz2 = decTrailingZeroTable[ii];
+			tz	= ii ? tz2 : (tz1 + 2);
+			buf += 16 - tz;
+			return buf;
+		} else {
+			tz1 = decTrailingZeroTable[ff];
+			tz2 = decTrailingZeroTable[gg];
+			tz	= gg ? tz2 : (tz1 + 2);
+			buf += 12 - tz;
+			return buf;
+		}
+	} else {
+		if (ddee) {
+			uint32_t dd = (ddee * 5243) >> 19;
+			uint32_t ee = ddee - dd * 100;
+			std::memcpy(buf + 4, fiwb<void>::charTable01 + 2 * dd, 2);
+			std::memcpy(buf + 6, fiwb<void>::charTable01 + 2 * ee, 2);
+			tz1 = decTrailingZeroTable[dd];
+			tz2 = decTrailingZeroTable[ee];
+			tz	= ee ? tz2 : (tz1 + 2);
+			buf += 8 - tz;
+			return buf;
+		} else {
+			tz1 = decTrailingZeroTable[bb];
+			tz2 = decTrailingZeroTable[cc];
+			tz	= cc ? tz2 : (tz1 + tz2);
+			buf += 4 - tz;
+			return buf;
+		}
+	}
+}
+
+consteval uint32_t numbits(uint32_t x) noexcept {
+	return x < 2 ? x : 1 + numbits(x >> 1);
+}
+
+BNCH_SWT_HOST static int64_t abs_new(int64_t value) noexcept {
+	const uint64_t temp = static_cast<uint64_t>(value >> 63);
+	value ^= temp;
+	value += temp & 1;
+	return value;
+}
+
+template<std::floating_point value_type> struct to_chars<value_type> {
+	BNCH_SWT_HOST static char* impl(char* buf, value_type val) noexcept {
+		static_assert(std::numeric_limits<value_type>::is_iec559);
+		static_assert(std::numeric_limits<value_type>::radix == 2);
+		static_assert(std::is_same_v<float, value_type> || std::is_same_v<double, value_type>);
+		static_assert(sizeof(float) == 4 && sizeof(double) == 8);
+		constexpr bool is_float = std::is_same_v<float, value_type>;
+		using Raw				= std::conditional_t<std::is_same_v<float, value_type>, uint32_t, uint64_t>;
+
+		if (val == 0.0) {
+			*buf = '-';
+			buf += (std::bit_cast<Raw>(val) >> (sizeof(value_type) * 8 - 1));
+			*buf = '0';
+			return buf + 1;
+		}
+
+		using Conversion						 = jsonifier_jkj::dragonbox::default_float_bit_carrier_conversion_traits<value_type>;
+		using FormatTraits						 = jsonifier_jkj::dragonbox::ieee754_binary_traits<typename Conversion::format, typename Conversion::carrier_uint>;
+		static constexpr uint32_t exp_bits_count = numbits(std::numeric_limits<value_type>::max_exponent - std::numeric_limits<value_type>::min_exponent + 1);
+		const auto float_bits					 = jsonifier_jkj::dragonbox::make_float_bits<value_type, Conversion, FormatTraits>(val);
+		const auto exp_bits						 = float_bits.extract_exponent_bits();
+		const auto s							 = float_bits.remove_exponent_bits();
+
+		if (exp_bits == (uint32_t(1) << exp_bits_count) - 1) [[unlikely]] {
+			std::memcpy(buf, "null", 4);
+			return buf + 4;
+		}
+
+		*buf				= '-';
+		constexpr auto zero = value_type(0.0);
+		buf += (val < zero);
+
+		const auto v =
+			jsonifier_jkj::dragonbox::to_decimal_ex(s, exp_bits, jsonifier_jkj::dragonbox::policy::sign::ignore, jsonifier_jkj::dragonbox::policy::trailing_zero::ignore);
+
+		uint64_t sig_dec = v.significand;
+		int32_t exp_dec	 = v.exponent;
+
+		int32_t sig_len = 17;
+		sig_len -= (sig_dec < 100000000ull * 100000000ull);
+		sig_len -= (sig_dec < 100000000ull * 10000000ull);
+		int32_t dot_pos = sig_len + exp_dec;
+
+		if (-6 < dot_pos && dot_pos <= 21) {
+			if (dot_pos <= 0) {
+				auto num_hdr = buf + (2 - dot_pos);
+				auto num_end = writeu64Len15To17Trim(num_hdr, sig_dec);
+				buf[0]		 = '0';
+				buf[1]		 = '.';
+				buf += 2;
+				std::memset(buf, '0', size_t(num_hdr - buf));
+				return num_end;
+			} else {
+				std::memset(buf, '0', 24);
+				auto num_hdr = buf + 1;
+				auto num_end = writeu64Len15To17Trim(num_hdr, sig_dec);
+				std::memmove(buf, buf + 1, size_t(dot_pos));
+				buf[dot_pos] = '.';
+				return ((num_end - num_hdr) <= dot_pos) ? buf + dot_pos : num_end;
+			}
+		} else {
+			auto end = writeu64Len15To17Trim(buf + 1, sig_dec);
+			end -= (end == buf + 2);
+			exp_dec += sig_len - 1;
+			buf[0] = buf[1];
+			buf[1] = '.';
+			end[0] = 'E';
+			buf	   = end + 1;
+			buf[0] = '-';
+			buf += exp_dec < 0;
+			exp_dec = abs_new(exp_dec);
+			if (exp_dec < 100) {
+				uint32_t lz = exp_dec < 10;
+				std::memcpy(buf, fiwb<void>::charTable01 + (exp_dec * 2 + lz), 2);
+				return buf + 2 - lz;
+			} else {
+				const uint32_t hi = (uint32_t(exp_dec) * 656) >> 16;
+				const uint32_t lo = uint32_t(exp_dec) - hi * 100;
+				buf[0]			  = uint8_t(hi) + '0';
+				std::memcpy(&buf[1], fiwb<void>::charTable01 + (lo * 2), 2);
+				return buf + 3;
+			}
+		}
+	}
+};
+
 template<class value_type>
 	requires std::same_as<std::remove_cvref_t<value_type>, uint32_t>
 auto* to_chars_glz(auto* buf, value_type val) noexcept {
@@ -603,90 +770,155 @@ auto* to_chars_glz(auto* buf, value_type x) noexcept {
 	return to_chars_glz(buf + (x < 0), uint64_t(x ^ (x >> 63)) - (x >> 63));
 }
 
-template<typename value_type> BNCH_SWT_HOST value_type max_value_for_digits(uint64_t num_digits) noexcept {
-	if (num_digits <= 0) {
-		return value_type(0);
+BNCH_SWT_HOST std::string generate_integer_part(uint64_t min_length = 1, uint64_t max_length = 15) {
+	uint64_t length = bnch_swt::random_generator<uint64_t>::impl(min_length, max_length);
+
+	if (length == 1 && bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0 && bnch_swt::random_generator<uint64_t>::impl(0, 9) == 0)
+		return "0";
+
+	std::string s;
+	s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(1, 9));
+
+	for (uint64_t i = 1; i < length; ++i) {
+		s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(0, 9));
 	}
-	long double power_of_10		= std::pow(10.0L, num_digits);
-	long double theoretical_max = power_of_10 - 1.0L;
-	const value_type type_max	= std::numeric_limits<value_type>::max();
+	return s;
+}
 
-	if constexpr (std::is_unsigned_v<value_type>) {
-		if (theoretical_max >= type_max) {
-			return type_max;
-		}
-		return static_cast<value_type>(theoretical_max);
+BNCH_SWT_HOST std::string maybe_add_sign(const std::string& s) {
+	return (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 1) ? ("-" + s) : s;
+}
 
+BNCH_SWT_HOST std::string generate_1_simple_integer() {
+	return maybe_add_sign(generate_integer_part(1, 10));
+}
+
+BNCH_SWT_HOST std::string generate_2_simple_float() {
+	std::string s = generate_integer_part(1, 5);
+	s += ".";
+
+	uint64_t fractional_length = bnch_swt::random_generator<uint64_t>::impl(1, 10);
+	for (uint64_t i = 0; i < fractional_length; ++i) {
+		s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(0, 9));
+	}
+	return maybe_add_sign(s);
+}
+
+BNCH_SWT_HOST std::string generate_3_scientific() {
+	std::string s;
+
+	if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0) {
+		s = generate_integer_part(1, 3) + ".";
+		s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(0, 9));
 	} else {
-		if (theoretical_max >= type_max) {
-			return type_max;
-		}
-		return static_cast<value_type>(theoretical_max);
-	}
-}
-
-template<typename value_type> value_type get_min_value_requiring_digits(uint64_t num_digits) noexcept {
-	if (num_digits <= 0)
-		return value_type(0);
-	long double min_val = std::pow(10.0L, num_digits - 1);
-
-	const value_type type_max = std::numeric_limits<value_type>::max();
-	if (min_val >= type_max)
-		return type_max;
-
-	return static_cast<value_type>(std::min<long double>(static_cast<long double>(min_val), static_cast<long double>(type_max)));
-}
-
-template<typename value_type> value_type get_max_value_for_digits(uint64_t num_digits) noexcept {
-	if (num_digits <= 0)
-		return value_type(0);
-	long double max_val = std::pow(10.0L, num_digits) - 1.0L;
-
-	const value_type type_max = std::numeric_limits<value_type>::max();
-	if (max_val >= type_max)
-		return type_max;
-
-	return static_cast<value_type>(max_val);
-}
-
-template<typename value_type> std::vector<value_type> generate_digit_vector(size_t vector_size, uint64_t min_digits, uint64_t max_digits) {
-	if (max_digits < min_digits) {
-		std::swap(max_digits, min_digits);
+		s = generate_integer_part(1, 5);
 	}
 
-	if (min_digits < 1) {
-		min_digits = 1;
-	}
+	s += (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0 ? 'e' : 'E');
+	s += (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0 ? '+' : '-');
+	uint64_t exponent = bnch_swt::random_generator<uint64_t>::impl(1, 100);
+	s += std::to_string(exponent);
 
-	value_type absolute_min = get_min_value_requiring_digits<value_type>(min_digits);
+	return maybe_add_sign(s);
+}
 
-	value_type absolute_max = get_max_value_for_digits<value_type>(max_digits);
+BNCH_SWT_HOST std::string generate_4_min_max_boundary() {
+	if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0) {
+		double mantissa	  = bnch_swt::random_generator<double>::impl(1.0, 9.9);
+		uint64_t exponent = bnch_swt::random_generator<uint64_t>::impl(300, 308);
+		double val		  = mantissa * std::pow(10.0, exponent);
+		if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 1)
+			val = -val;
 
-	if constexpr (std::is_signed_v<value_type>) {
-		std::vector<value_type> result;
-		result.reserve(vector_size);
-
-		value_type negative_min = static_cast<value_type>(-absolute_max);
-		value_type negative_max = static_cast<value_type>(-absolute_min);
-
-		for (size_t i = 0; i < vector_size; ++i) {
-			if (i % 2 == 0) {
-				result.push_back(bnch_swt::random_generator<value_type>::impl(absolute_min, absolute_max));
-			} else {
-				result.push_back(bnch_swt::random_generator<value_type>::impl(negative_min, negative_max));
-			}
-		}
-		return result;
-
+		std::stringstream ss;
+		ss << std::scientific << std::setprecision(16) << val;
+		return ss.str();
 	} else {
-		std::vector<value_type> result;
-		result.reserve(vector_size);
+		double mantissa	  = bnch_swt::random_generator<double>::impl(1.0, 9.9);
+		uint64_t exponent = bnch_swt::random_generator<uint64_t>::impl(300, 308);
+		double val		  = mantissa * std::pow(10.0, static_cast<double>(-static_cast<int64_t>(exponent)));
+		if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 1)
+			val = -val;
 
-		for (size_t i = 0; i < vector_size; ++i) {
-			result.push_back(bnch_swt::random_generator<value_type>::impl(absolute_min, absolute_max));
-		}
-		return result;
+		std::stringstream ss;
+		ss << std::scientific << std::setprecision(16) << val;
+		return ss.str();
 	}
+}
+
+BNCH_SWT_HOST std::string generate_5_precision_boundary() {
+	std::string s;
+	s += maybe_add_sign(std::to_string(bnch_swt::random_generator<uint64_t>::impl(1, 9)));
+	s += ".";
+
+	for (uint64_t i = 0; i < 18; ++i) {
+		s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(0, 9));
+	}
+
+	if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0) {
+		s += 'e';
+		s += std::to_string(bnch_swt::random_generator<uint64_t>::impl(1, 100));
+	}
+	return s;
+}
+
+BNCH_SWT_HOST std::string generate_6_zero_subnormal() {
+	if (bnch_swt::random_generator<uint64_t>::impl(0, 1) == 0) {
+		static constexpr std::array zero_forms = { "0", "0.0", "-0.0", "0e0", "-0e5", "0.0e-10" };
+		uint64_t index						   = bnch_swt::random_generator<uint64_t>::impl(0, zero_forms.size() - 1);
+		return zero_forms[index];
+	} else {
+		double mantissa = bnch_swt::random_generator<double>::impl(1.0, 9.9);
+		double val		= mantissa * std::pow(10.0, -315);
+
+		std::stringstream ss;
+		ss << std::scientific << std::setprecision(16) << val;
+		return maybe_add_sign(ss.str());
+	}
+}
+
+BNCH_SWT_HOST std::string generate_7_structural_edge() {
+	static constexpr std::array edge_forms = { "1e10", "-9e-10", "0.1", "-9.0", "1.2e0", "-3e+0", "123.000000", "0.0000001" };
+	uint64_t index						   = bnch_swt::random_generator<uint64_t>::impl(0, edge_forms.size() - 1);
+	return edge_forms[index];
+}
+
+BNCH_SWT_HOST std::string generate_random_double_string() {
+	static constexpr std::array weights = { 40.0, 30.0, 10.0, 5.0, 5.0, 5.0, 5.0 };
+
+	static constexpr std::array generators = { generate_1_simple_integer, generate_2_simple_float, generate_3_scientific, generate_4_min_max_boundary,
+		generate_5_precision_boundary, generate_6_zero_subnormal, generate_7_structural_edge };
+
+	uint64_t roll = bnch_swt::random_generator<uint64_t>::impl(0, 99);
+
+	uint64_t cumulative_weight = 0;
+	for (size_t i = 0; i < weights.size(); ++i) {
+		cumulative_weight += static_cast<uint64_t>(weights[i]);
+		if (roll < cumulative_weight) {
+			return generators[i]();
+		}
+	}
+	return generators.back()();
+}
+
+BNCH_SWT_HOST double generate_random_double() {
+	double test_double;
+	do {
+		std::string test_string = generate_random_double_string();
+		auto new_ptr			= test_string.data() + test_string.size();
+		test_double				= strtod(test_string.data(), &new_ptr);
+	} while (test_double == std::numeric_limits<double>::infinity() || test_double == std::numeric_limits<double>::quiet_NaN() ||
+		test_double == -std::numeric_limits<double>::infinity());
+	return test_double;
+}
+
+template<typename value_type> std::vector<value_type> generate_digit_vector(size_t vector_size) {
+	std::vector<value_type> return_values{};
+	return_values.resize(vector_size);
+	for (size_t i = 0; i < vector_size; ++i) {
+		return_values[i] = bnch_swt::random_generator<value_type>::impl(std::numeric_limits<value_type>::min(), std::numeric_limits<value_type>::max());
+	}
+	return return_values;
 }
 
 static constexpr auto max_iterations{ 20 };
@@ -710,7 +942,7 @@ template<typename value_type> struct benchmark_jsonifier_to_chars {
 		uint64_t current_index) {
 		uint64_t currentCount{};
 		for (uint64_t x = 0; x < count; ++x) {
-			to_chars<uint64_t>::impl(resultsTest[current_index][x].data(), randomIntegers[current_index][x]);
+			to_chars<value_type>::impl(resultsTest[current_index][x].data(), randomIntegers[current_index][x]);
 			bnch_swt::do_not_optimize_away(resultsTest[current_index][x]);
 			currentCount += resultsTest[current_index][x].size();
 		}
@@ -746,7 +978,7 @@ template<typename value_type> struct benchmark_std_to_string {
 
 template<bnch_swt::string_literal stage_name, typename benchmark_type, bnch_swt::string_literal benchmark_name>
 BNCH_SWT_HOST void run_and_validate(auto& resultsTest, const auto& resultsReal, const auto& randomIntegers, uint64_t count, uint64_t& current_index) {
-	using benchmark = bnch_swt::benchmark_stage<stage_name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, false>;
+	using benchmark = bnch_swt::benchmark_stage<stage_name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, true>;
 
 	benchmark::template run_benchmark<benchmark_name, benchmark_type>(resultsTest, randomIntegers, count, current_index);
 
@@ -763,7 +995,7 @@ template<typename value_type, bnch_swt::string_literal name, uint64_t min_length
 	std::vector<std::vector<value_type>> randomIntegers{};
 	randomIntegers.resize(max_iterations);
 	for (uint64_t x = 0; x < max_iterations; ++x) {
-		randomIntegers[x] = generate_digit_vector<value_type>(count, min_length, max_length);
+		randomIntegers[x] = generate_digit_vector<value_type>(count);
 	}
 	std::vector<std::vector<std::string>> resultsReal{};
 	std::vector<std::vector<std::string>> resultsTest{};
@@ -781,59 +1013,15 @@ template<typename value_type, bnch_swt::string_literal name, uint64_t min_length
 	uint64_t currentIndex{};
 	run_and_validate<name, benchmark_std_to_string<value_type>, "std::to_string">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	run_and_validate<name, benchmark_glz_to_chars<value_type>, "glz::to_chars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
-	currentIndex = 0;
 	run_and_validate<name, benchmark_std_to_chars<value_type>, "std::to_chars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
 	run_and_validate<name, benchmark_jsonifier_to_chars<value_type>, "toChars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	bnch_swt::benchmark_stage<name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, false>::print_results(true, true);
+	bnch_swt::benchmark_stage<name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, true>::print_results(true, true);
 }
 
 int32_t main() {
-	testFunction<int32_t, "int32-test-0-to-5", 0, 5, 1000000>();
-	testFunction<int32_t, "int32-test-0-to-10", 0, 10, 1000000>();
-	testFunction<int32_t, "int32-test-0-to-15", 0, 15, 1000000>();
-	testFunction<int32_t, "int32-test-0-to-20", 0, 20, 1000000>();
-	testFunction<int32_t, "int32-test-5-to-10", 5, 10, 1000000>();
-	testFunction<int32_t, "int32-test-5-to-15", 5, 15, 1000000>();
-	testFunction<int32_t, "int32-test-5-to-20", 5, 20, 1000000>();
-	testFunction<int32_t, "int32-test-10-to-15", 10, 15, 1000000>();
-	testFunction<int32_t, "int32-test-10-to-20", 10, 19, 1000000>();
-	testFunction<int32_t, "int32-test-15-to-20", 15, 19, 1000000>();
-	testFunction<int32_t, "int32-test-20", 20, 19, 1000000>();
-	testFunction<uint32_t, "uint32-test-0-to-5", 0, 5, 1000000>();
-	testFunction<uint32_t, "uint32-test-0-to-10", 0, 10, 1000000>();
-	testFunction<uint32_t, "uint32-test-0-to-15", 0, 15, 1000000>();
-	testFunction<uint32_t, "uint32-test-0-to-20", 0, 20, 1000000>();
-	testFunction<uint32_t, "uint32-test-5-to-10", 5, 10, 1000000>();
-	testFunction<uint32_t, "uint32-test-5-to-15", 5, 15, 1000000>();
-	testFunction<uint32_t, "uint32-test-5-to-20", 5, 20, 1000000>();
-	testFunction<uint32_t, "uint32-test-10-to-15", 10, 15, 1000000>();
-	testFunction<uint32_t, "uint32-test-10-to-20", 10, 20, 1000000>();
-	testFunction<uint32_t, "uint32-test-15-to-20", 15, 20, 1000000>();
-	testFunction<uint32_t, "uint32-test-20", 20, 20, 1000000>();
-	testFunction<uint64_t, "uint64-test-0-to-5", 0, 5, 1000000>();
-	testFunction<uint64_t, "uint64-test-0-to-10", 0, 10, 1000000>();
-	testFunction<uint64_t, "uint64-test-0-to-15", 0, 15, 1000000>();
-	testFunction<uint64_t, "uint64-test-0-to-20", 0, 20, 1000000>();
-	testFunction<uint64_t, "uint64-test-5-to-10", 5, 10, 1000000>();
-	testFunction<uint64_t, "uint64-test-5-to-15", 5, 15, 1000000>();
-	testFunction<uint64_t, "uint64-test-5-to-20", 5, 20, 1000000>();
-	testFunction<uint64_t, "uint64-test-10-to-15", 10, 15, 1000000>();
-	testFunction<uint64_t, "uint64-test-10-to-20", 10, 20, 1000000>();
-	testFunction<uint64_t, "uint64-test-15-to-20", 15, 20, 1000000>();
-	testFunction<uint64_t, "uint64-test-20", 20, 20, 1000000>();
-	testFunction<int64_t, "int64-test-0-to-5", 0, 5, 1000000>();
-	testFunction<int64_t, "int64-test-0-to-10", 0, 10, 1000000>();
-	testFunction<int64_t, "int64-test-0-to-15", 0, 15, 1000000>();
-	testFunction<int64_t, "int64-test-0-to-20", 0, 20, 1000000>();
-	testFunction<int64_t, "int64-test-5-to-10", 5, 10, 1000000>();
-	testFunction<int64_t, "int64-test-5-to-15", 5, 15, 1000000>();
-	testFunction<int64_t, "int64-test-5-to-20", 5, 20, 1000000>();
-	testFunction<int64_t, "int64-test-10-to-15", 10, 15, 1000000>();
-	testFunction<int64_t, "int64-test-10-to-20", 10, 19, 1000000>();
-	testFunction<int64_t, "int64-test-15-to-20", 15, 19, 1000000>();
-	testFunction<int64_t, "int64-test-20", 20, 19, 1000000>();
+	testFunction<float, "float", 0, 5, 10000>();
+	testFunction<double, "double", 0, 10, 10000>();
 	return 0;
 }
