@@ -157,7 +157,7 @@ namespace bnch_swt {
 			const double throughput_avg = valid_throughput_count > 0 ? throughput_total / static_cast<double>(valid_throughput_count) : 0.0;
 			if (valid_throughput_count > 0 && throughput_avg > epsilon) {
 				metrics.bytes_processed					= bytes_processed_avg;
-				metrics.throughput_mb_per_sec			= throughput_avg;
+				metrics.throughput_mb_per_sec			= calculate_throughput_mbps(ns_total, static_cast<double>(bytes_processed_total));
 				metrics.throughput_percentage_deviation = ((throughput_avg - throughput_min) * 100.0) / throughput_avg;
 			}
 
