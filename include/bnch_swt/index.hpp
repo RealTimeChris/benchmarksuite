@@ -38,25 +38,29 @@
 
 namespace bnch_swt {
 
-	template<benchmark_types benchmark_type, const std::string_view& stage_name_new, const std::string_view& metric_name_new> struct result_printer;
+	template<benchmark_types benchmark_type, const std::string_view& stage_name_new, const std::string_view& metric_name_new,
+		performance_metrics_presence<benchmark_type> metrics_presence>
+	struct result_printer;
 
-	template<typename value_type> BNCH_SWT_HOST static auto print_metric(std::string_view label, const value_type& value_new) {
+	template<bool printed, typename value_type> BNCH_SWT_HOST static auto print_metric(std::string_view label, const value_type& value_new) {
 		static constexpr uint64_t LABEL_WIDTH = 60;
-
-		if constexpr (internal::optional_t<value_type>) {
-			if (value_new.has_value()) {
+		if constexpr (printed) {
+			if constexpr (internal::optional_t<value_type>) {
+				if (value_new.has_value()) {
+					std::cout << std::left << std::setw(LABEL_WIDTH) << label << ": ";
+					std::cout << value_new.value();
+					std::cout << std::endl;
+				}
+			} else {
 				std::cout << std::left << std::setw(LABEL_WIDTH) << label << ": ";
-				std::cout << value_new.value();
+				std::cout << value_new;
 				std::cout << std::endl;
 			}
-		} else {
-			std::cout << std::left << std::setw(LABEL_WIDTH) << label << ": ";
-			std::cout << value_new;
-			std::cout << std::endl;
 		}
 	}
 
-	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new> struct result_printer<benchmark_types::cpu, stage_name_new, metric_name_new> {
+	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new, performance_metrics_presence<benchmark_types::cpu> metrics_presence>
+	struct result_printer<benchmark_types::cpu, stage_name_new, metric_name_new, metrics_presence> {
 		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cpu>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "CPU Performance Metrics for: " << stage_name_new << std::endl;
 
@@ -81,7 +85,7 @@ namespace bnch_swt {
 
 				constexpr string_literal cycle_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return string_literal{ "Cycles per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) } ;
+						return string_literal{ "Cycles per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) };
 					} else {
 						return string_literal{ "Cycles per Byte" };
 					}
@@ -89,38 +93,38 @@ namespace bnch_swt {
 
 				constexpr string_literal instruction_label = []() {
 					if constexpr (metric_name_new.size() > 0) {
-						return string_literal{ "Instructions per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) } ;
+						return string_literal{ "Instructions per " + internal::string_literal_from_view<metric_name_new.size()>(metric_name_new) };
 					} else {
 						return string_literal{ "Instructions per Byte" };
 					}
 				}();
 
 				for (const auto& value: results_new) {
-					std::cout << "Metrics for: " << value.name << std::endl;
+					print_metric<metrics_presence.name>("Metrics for: ", value.name);
 					std::cout << std::fixed << std::setprecision(2);
 
-					print_metric("Total Iterations", value.total_iteration_count);
-					print_metric("Total Iterations to Stabilize", value.iterations_to_stabilize);
-					print_metric("Measured Iterations", value.measured_iteration_count);
-					print_metric(metric_label, value.bytes_processed);
+					print_metric<metrics_presence.total_iteration_count>("Total Iterations", value.total_iteration_count);
+					print_metric<metrics_presence.iterations_to_stabilize>("Total Iterations to Stabilize", value.iterations_to_stabilize);
+					print_metric<metrics_presence.measured_iteration_count>("Measured Iterations", value.measured_iteration_count);
+					print_metric<metrics_presence.bytes_processed>(metric_label, value.bytes_processed);
 
-					print_metric("Nanoseconds per Execution", value.time_in_ns);
-					print_metric("Frequency (GHz)", value.frequency_ghz);
+					print_metric<metrics_presence.time_in_ns>("Nanoseconds per Execution", value.time_in_ns);
+					print_metric<metrics_presence.frequency_ghz>("Frequency (GHz)", value.frequency_ghz);
 
-					print_metric(throughput_label, value.throughput_mb_per_sec);
+					print_metric<metrics_presence.throughput_mb_per_sec>(throughput_label, value.throughput_mb_per_sec);
 
-					print_metric("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
-					print_metric("Cycles per Execution", value.cycles_per_execution);
-					print_metric(cycle_label, value.cycles_per_byte);
+					print_metric<metrics_presence.throughput_percentage_deviation>("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
+					print_metric<metrics_presence.cycles_per_execution>("Cycles per Execution", value.cycles_per_execution);
+					print_metric<metrics_presence.cycles_per_byte>(cycle_label, value.cycles_per_byte);
 
-					print_metric("Instructions per Execution", value.instructions_per_execution);
-					print_metric("Instructions per Cycle", value.instructions_per_cycle);
-					print_metric(instruction_label, value.instructions_per_byte);
+					print_metric<metrics_presence.instructions_per_execution>("Instructions per Execution", value.instructions_per_execution);
+					print_metric<metrics_presence.instructions_per_cycle>("Instructions per Cycle", value.instructions_per_cycle);
+					print_metric<metrics_presence.instructions_per_byte>(instruction_label, value.instructions_per_byte);
 
-					print_metric("Branches per Execution", value.branches_per_execution);
-					print_metric("Branch Misses per Execution", value.branch_misses_per_execution);
-					print_metric("Cache References per Execution", value.cache_references_per_execution);
-					print_metric("Cache Misses per Execution", value.cache_misses_per_execution);
+					print_metric<metrics_presence.branches_per_execution>("Branches per Execution", value.branches_per_execution);
+					print_metric<metrics_presence.branch_misses_per_execution>("Branch Misses per Execution", value.branch_misses_per_execution);
+					print_metric<metrics_presence.cache_references_per_execution>("Cache References per Execution", value.cache_references_per_execution);
+					print_metric<metrics_presence.cache_misses_per_execution>("Cache Misses per Execution", value.cache_misses_per_execution);
 
 					std::cout << "----------------------------------------" << std::endl;
 				}
@@ -136,7 +140,8 @@ namespace bnch_swt {
 		}
 	};
 
-	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new> struct result_printer<benchmark_types::cuda, stage_name_new, metric_name_new> {
+	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new, performance_metrics_presence<benchmark_types::cuda> metrics_presence>
+	struct result_printer<benchmark_types::cuda, stage_name_new, metric_name_new, metrics_presence> {
 		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cuda>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "GPU Performance Metrics for: " << stage_name_new << std::endl;
 
@@ -168,21 +173,21 @@ namespace bnch_swt {
 				}();
 
 				for (const auto& value: results_new) {
-					std::cout << "Metrics for: " << value.name << std::endl;
+					print_metric<metrics_presence.name>("Metrics for: ", value.name);
 					std::cout << std::fixed << std::setprecision(2);
-					print_metric("Total Iterations", value.total_iteration_count);
-					print_metric("Total Iterations to Stabilize", value.iterations_to_stabilize);
-					print_metric("Measured Iterations", value.measured_iteration_count);
-					print_metric(metric_label, value.bytes_processed);
+					print_metric<metrics_presence.total_iteration_count>("Total Iterations", value.total_iteration_count);
+					print_metric<metrics_presence.iterations_to_stabilize>("Total Iterations to Stabilize", value.iterations_to_stabilize);
+					print_metric<metrics_presence.measured_iteration_count>("Measured Iterations", value.measured_iteration_count);
+					print_metric<metrics_presence.bytes_processed>(metric_label, value.bytes_processed);
 
-					print_metric("Milliseconds per Execution", value.cuda_event_ms_avg);
-					print_metric("Nanoseconds per Execution", value.time_in_ns);
+					print_metric<metrics_presence.cuda_event_ms_avg>("Milliseconds per Execution", value.cuda_event_ms_avg);
+					print_metric<metrics_presence.time_in_ns>("Nanoseconds per Execution", value.time_in_ns);
 
-					print_metric(throughput_label, value.throughput_mb_per_sec);
+					print_metric<metrics_presence.throughput_mb_per_sec>(throughput_label, value.throughput_mb_per_sec);
 
-					print_metric("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
-					print_metric("Cycles per Execution", value.cycles_per_execution);
-					print_metric(cycle_label, value.cycles_per_byte);
+					print_metric<metrics_presence.throughput_percentage_deviation>("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
+					print_metric<metrics_presence.cycles_per_execution>("Cycles per Execution", value.cycles_per_execution);
+					print_metric<metrics_presence.cycles_per_byte>(cycle_label, value.cycles_per_byte);
 
 					std::cout << "(CPU metrics like instructions/branches/cache are not available on GPU)" << std::endl;
 
@@ -212,6 +217,7 @@ namespace bnch_swt {
 
 		static constexpr bool use_non_mbps_metric{ metric_name_new.size() == 0 };
 
+		template<performance_metrics_presence<benchmark_type> metrics_presence = performance_metrics_presence<benchmark_type>{}>
 		BNCH_SWT_HOST static void print_results(bool show_comparison = true, bool show_metrics = true) {
 			std::vector<performance_metrics<benchmark_type>> results_new{};
 			for (const auto& [key, value]: get_results_internal()) {
@@ -221,7 +227,7 @@ namespace bnch_swt {
 				std::sort(results_new.begin(), results_new.end(), std::greater<performance_metrics<benchmark_type>>{});
 				static constexpr std::string_view stage_name_newer{ stage_name_new.operator std::string_view() };
 				static constexpr std::string_view metric_name_newer{ metric_name_new.operator std::string_view() };
-				result_printer<benchmark_type, stage_name_newer, metric_name_newer>::impl(results_new, show_comparison, show_metrics);
+				result_printer<benchmark_type, stage_name_newer, metric_name_newer, metrics_presence>::impl(results_new, show_comparison, show_metrics);
 			}
 		}
 
