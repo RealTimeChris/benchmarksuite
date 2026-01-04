@@ -26,17 +26,245 @@ constexpr char char_table[200] = { '0', '0', '0', '1', '0', '2', '0', '3', '0', 
 	'6', '7', '6', '8', '6', '9', '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', '7', '5', '7', '6', '7', '7', '7', '8', '7', '9', '8', '0', '8', '1', '8', '2', '8', '3', '8',
 	'4', '8', '5', '8', '6', '8', '7', '8', '8', '8', '9', '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', '9', '5', '9', '6', '9', '7', '9', '8', '9', '9' };
 
-template<typename value_type>
-concept uns64_t = std::unsigned_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 8;
+template<class value_type>
+	requires std::same_as<std::remove_cvref_t<value_type>, uint32_t>
+auto* to_chars_glz(auto* buf, value_type value) noexcept {
+	/* The maximum value of uint32_t is 4294967295 (10 digits), */
+	/* these digits are named as 'aabbccddee' here.             */
+	uint32_t aa, bb, cc, dd, ee, aabb, bbcc, ccdd, ddee, aabbcc;
 
-template<typename value_type>
-concept sig64_t = std::signed_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 8;
+	/* Leading zero count in the first pair.                    */
+	uint32_t lz;
 
-template<typename value_type>
-concept uns32_t = std::unsigned_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 4;
+	/* Although most compilers may convert the "division by     */
+	/* constant value" into "multiply and shift", manual        */
+	/* conversion can still help some compilers generate        */
+	/* fewer and better instructions.                           */
 
-template<typename value_type>
-concept sig32_t = std::signed_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 4;
+	if (value < 100) { /* 1-2 digits: aa */
+		lz = value < 10;
+		std::memcpy(buf, char_table + (value * 2 + lz), 2);
+		buf -= lz;
+		return buf + 2;
+	} else if (value < 10000) { /* 3-4 digits: aabb */
+		aa = (value * 5243) >> 19; /* (value / 100) */
+		bb = value - aa * 100; /* (value % 100) */
+		lz = aa < 10;
+		std::memcpy(buf, char_table + (aa * 2 + lz), 2);
+		buf -= lz;
+		std::memcpy(&buf[2], char_table + (2 * bb), 2);
+
+		return buf + 4;
+	} else if (value < 1000000) { /* 5-6 digits: aabbcc */
+		aa	 = uint32_t((uint64_t(value) * 429497) >> 32); /* (value / 10000) */
+		bbcc = value - aa * 10000; /* (value % 10000) */
+		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
+		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
+		lz	 = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		return buf + 6;
+	} else if (value < 100000000) { /* 7~8 digits: aabbccdd */
+		/* (value / 10000) */
+		aabb = uint32_t((uint64_t(value) * 109951163) >> 40);
+		ccdd = value - aabb * 10000; /* (value % 10000) */
+		aa	 = (aabb * 5243) >> 19; /* (aabb / 100) */
+		cc	 = (ccdd * 5243) >> 19; /* (ccdd / 100) */
+		bb	 = aabb - aa * 100; /* (aabb % 100) */
+		dd	 = ccdd - cc * 100; /* (ccdd % 100) */
+		lz	 = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		std::memcpy(buf + 6, char_table + dd * 2, 2);
+		return buf + 8;
+	} else { /* 9~10 digits: aabbccddee */
+		/* (value / 10000) */
+		aabbcc = uint32_t((uint64_t(value) * 3518437209ul) >> 45);
+		/* (aabbcc / 10000) */
+		aa	 = uint32_t((uint64_t(aabbcc) * 429497) >> 32);
+		ddee = value - aabbcc * 10000; /* (value % 10000) */
+		bbcc = aabbcc - aa * 10000; /* (aabbcc % 10000) */
+		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
+		dd	 = (ddee * 5243) >> 19; /* (ddee / 100) */
+		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
+		ee	 = ddee - dd * 100; /* (ddee % 100) */
+		lz	 = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		std::memcpy(buf + 6, char_table + dd * 2, 2);
+		std::memcpy(buf + 8, char_table + ee * 2, 2);
+		return buf + 10;
+	}
+}
+
+template<class value_type>
+	requires std::same_as<std::remove_cvref_t<value_type>, int32_t>
+auto* to_chars_glz(auto* buf, value_type x) noexcept {
+	*buf = '-';
+	// shifts are necessary to have the numeric_limits<int32_t>::min case
+	return to_chars_glz(buf + (x < 0), uint32_t(x ^ (x >> 31)) - (x >> 31));
+}
+
+template<class value_type>
+	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
+BNCH_SWT_HOST auto* to_chars_u64_len_8(auto* buf, value_type value) noexcept {
+	/* 8 digits: aabbccdd */
+	const uint32_t aabb = uint32_t((uint64_t(value) * 109951163) >> 40); /* (value / 10000) */
+	const uint32_t ccdd = value - aabb * 10000; /* (value % 10000) */
+	const uint32_t aa	= (aabb * 5243) >> 19; /* (aabb / 100) */
+	const uint32_t cc	= (ccdd * 5243) >> 19; /* (ccdd / 100) */
+	const uint32_t bb	= aabb - aa * 100; /* (aabb % 100) */
+	const uint32_t dd	= ccdd - cc * 100; /* (ccdd % 100) */
+	std::memcpy(buf, char_table + aa * 2, 2);
+	std::memcpy(buf + 2, char_table + bb * 2, 2);
+	std::memcpy(buf + 4, char_table + cc * 2, 2);
+	std::memcpy(buf + 6, char_table + dd * 2, 2);
+	return buf + 8;
+}
+
+template<class value_type>
+	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
+BNCH_SWT_HOST auto* to_chars_u64_len_4(auto* buf, value_type value) noexcept {
+	/* 4 digits: aabb */
+	const uint32_t aa = (value * 5243) >> 19; /* (value / 100) */
+	const uint32_t bb = value - aa * 100; /* (value % 100) */
+	std::memcpy(buf, char_table + aa * 2, 2);
+	std::memcpy(buf + 2, char_table + bb * 2, 2);
+	return buf + 4;
+}
+
+template<class value_type>
+	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
+inline auto* to_chars_u64_len_1_8(auto* buf, value_type value) noexcept {
+	uint32_t aa, bb, cc, dd, aabb, bbcc, ccdd, lz;
+
+	if (value < 100) { /* 1-2 digits: aa */
+		lz = value < 10;
+		std::memcpy(buf, char_table + value * 2 + lz, 2);
+		buf -= lz;
+		return buf + 2;
+	} else if (value < 10000) { /* 3-4 digits: aabb */
+		aa = (value * 5243) >> 19; /* (value / 100) */
+		bb = value - aa * 100; /* (value % 100) */
+		lz = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		return buf + 4;
+	} else if (value < 1000000) { /* 5-6 digits: aabbcc */
+		aa	 = uint32_t((uint64_t(value) * 429497) >> 32); /* (value / 10000) */
+		bbcc = value - aa * 10000; /* (value % 10000) */
+		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
+		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
+		lz	 = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		return buf + 6;
+	} else { /* 7-8 digits: aabbccdd */
+		/* (value / 10000) */
+		aabb = uint32_t((uint64_t(value) * 109951163) >> 40);
+		ccdd = value - aabb * 10000; /* (value % 10000) */
+		aa	 = (aabb * 5243) >> 19; /* (aabb / 100) */
+		cc	 = (ccdd * 5243) >> 19; /* (ccdd / 100) */
+		bb	 = aabb - aa * 100; /* (aabb % 100) */
+		dd	 = ccdd - cc * 100; /* (ccdd % 100) */
+		lz	 = aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		std::memcpy(buf + 6, char_table + dd * 2, 2);
+		return buf + 8;
+	}
+}
+
+template<class value_type>
+	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
+auto* to_chars_u64_len_5_8(auto* buf, value_type value) noexcept {
+	if (value < 1000000) { /* 5-6 digits: aabbcc */
+		const uint32_t aa	= uint32_t((uint64_t(value) * 429497) >> 32); /* (value / 10000) */
+		const uint32_t bbcc = value - aa * 10000; /* (value % 10000) */
+		const uint32_t bb	= (bbcc * 5243) >> 19; /* (bbcc / 100) */
+		const uint32_t cc	= bbcc - bb * 100; /* (bbcc % 100) */
+		const uint32_t lz	= aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		return buf + 6;
+	} else { /* 7-8 digits: aabbccdd */
+		/* (value / 10000) */
+		const uint32_t aabb = uint32_t((uint64_t(value) * 109951163) >> 40);
+		const uint32_t ccdd = value - aabb * 10000; /* (value % 10000) */
+		const uint32_t aa	= (aabb * 5243) >> 19; /* (aabb / 100) */
+		const uint32_t cc	= (ccdd * 5243) >> 19; /* (ccdd / 100) */
+		const uint32_t bb	= aabb - aa * 100; /* (aabb % 100) */
+		const uint32_t dd	= ccdd - cc * 100; /* (ccdd % 100) */
+		const uint32_t lz	= aa < 10;
+		std::memcpy(buf, char_table + aa * 2 + lz, 2);
+		buf -= lz;
+		std::memcpy(buf + 2, char_table + bb * 2, 2);
+		std::memcpy(buf + 4, char_table + cc * 2, 2);
+		std::memcpy(buf + 6, char_table + dd * 2, 2);
+		return buf + 8;
+	}
+}
+
+template<class value_type>
+	requires(std::same_as<std::remove_cvref_t<value_type>, uint64_t>)
+auto* to_chars_glz(auto* buf, value_type value) noexcept {
+	if (value < 100000000) { /* 1-8 digits */
+		buf = to_chars_u64_len_1_8(buf, uint32_t(value));
+		return buf;
+	} else if (value < 100000000ULL * 100000000ULL) { /* 9-16 digits */
+		const uint64_t hgh = value / 100000000;
+		const auto low	   = uint32_t(value - hgh * 100000000); /* (value % 100000000) */
+		buf				   = to_chars_u64_len_1_8(buf, uint32_t(hgh));
+		buf				   = to_chars_u64_len_8(buf, low);
+		return buf;
+	} else { /* 17-20 digits */
+		const uint64_t tmp = value / 100000000;
+		const auto low	   = uint32_t(value - tmp * 100000000); /* (value % 100000000) */
+		const auto hgh	   = uint32_t(tmp / 10000);
+		const auto mid	   = uint32_t(tmp - hgh * 10000); /* (tmp % 10000) */
+		buf				   = to_chars_u64_len_5_8(buf, hgh);
+		buf				   = to_chars_u64_len_4(buf, mid);
+		buf				   = to_chars_u64_len_8(buf, low);
+		return buf;
+	}
+}
+
+template<class value_type>
+	requires std::same_as<std::remove_cvref_t<value_type>, int64_t>
+auto* to_chars_glz(auto* buf, value_type x) noexcept {
+	*buf = '-';
+	// shifts are necessary to have the numeric_limits<int64_t>::min case
+	return to_chars_glz(buf + (x < 0), uint64_t(x ^ (x >> 63)) - (x >> 63));
+}
+
+namespace concepts {
+
+	template<typename value_type>
+	concept uns64_t = std::unsigned_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 8;
+
+	template<typename value_type>
+	concept sig64_t = std::signed_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 8;
+
+	template<typename value_type>
+	concept uns32_t = std::unsigned_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 4;
+
+	template<typename value_type>
+	concept sig32_t = std::signed_integral<std::remove_cvref_t<value_type>> && sizeof(std::remove_cvref_t<value_type>) == 4;
+
+}
 
 template<class value_type_new, value_type_new valueNew> struct integral_constant {
 	BNCH_SWT_ALIGN(64ULL) static constexpr value_type_new value = valueNew;
@@ -53,140 +281,147 @@ template<class value_type_new, value_type_new valueNew> struct integral_constant
 	}
 };
 
-struct uint_pair {
-	uint64_t multiplier;
-	uint64_t shift;
+template<typename value_type> struct uint_pair {
+	value_type multiplicand;
+	value_type shift;
 };
 
-template<uint64_t divisor_new> struct uint128_t {
-	uint64_t lo{};
-	uint64_t hi{};
+template<typename value_type, value_type divisor_new> struct uint_type;
 
-	constexpr uint128_t() {
+template<concepts::uns64_t value_type, value_type divisor_new> struct uint_type<value_type, divisor_new> {
+	value_type lo{};
+	value_type hi{};
+
+	constexpr uint_type() {
 	}
 
-	constexpr uint128_t(uint64_t l) : lo{ l } {
+	constexpr uint_type(value_type l) : lo{ l } {
 	}
 
-	constexpr uint128_t(uint64_t h, uint64_t l) : lo{ l }, hi{ h } {
+	constexpr uint_type(value_type h, value_type l) : lo{ l }, hi{ h } {
 	}
 
-	constexpr explicit operator uint64_t() const {
+	constexpr explicit operator value_type() const {
 		return lo;
 	}
 
-	constexpr bool operator==(const uint128_t& other) const {
+	constexpr bool operator==(const uint_type& other) const {
 		return lo == other.lo && hi == other.hi;
 	}
 
-	constexpr bool operator!=(const uint128_t& other) const {
+	constexpr bool operator!=(const uint_type& other) const {
 		return !(*this == other);
 	}
 
-	constexpr bool operator<(const uint128_t& other) const {
-		if (hi != other.hi)
+	constexpr bool operator<(const uint_type& other) const {
+		if (hi != other.hi) {
 			return hi < other.hi;
+		}
 		return lo < other.lo;
 	}
 
-	constexpr bool operator>(const uint128_t& other) const {
+	constexpr bool operator>(const uint_type& other) const {
 		return other < *this;
 	}
 
-	constexpr bool operator<=(const uint128_t& other) const {
+	constexpr bool operator<=(const uint_type& other) const {
 		return !(*this > other);
 	}
 
-	constexpr bool operator>=(const uint128_t& other) const {
+	constexpr bool operator>=(const uint_type& other) const {
 		return !(*this < other);
 	}
 
-	constexpr uint128_t operator~() const {
-		return uint128_t(~hi, ~lo);
+	constexpr uint_type operator~() const {
+		return uint_type{ ~hi, ~lo };
 	}
 
-	constexpr uint128_t operator+(const uint128_t& other) const {
-		uint64_t new_lo = lo + other.lo;
-		uint64_t new_hi = hi + other.hi + (new_lo < lo ? 1 : 0);
-		return uint128_t(new_hi, new_lo);
+	constexpr uint_type operator+(const uint_type& other) const {
+		value_type new_lo = lo + other.lo;
+		value_type new_hi = hi + other.hi + (new_lo < lo ? 1 : 0);
+		return uint_type{ new_hi, new_lo };
 	}
 
-	friend constexpr uint128_t operator+(uint64_t lhs, const uint128_t& other) {
+	friend constexpr uint_type operator+(value_type lhs, const uint_type& other) {
 		return other + lhs;
 	}
 
-	constexpr uint128_t operator-(const uint128_t& other) const {
-		uint64_t new_lo = lo - other.lo;
-		uint64_t new_hi = hi - other.hi - (lo < other.lo ? 1 : 0);
-		return uint128_t(new_hi, new_lo);
+	constexpr uint_type operator-(const uint_type& other) const {
+		value_type new_lo = lo - other.lo;
+		value_type new_hi = hi - other.hi - (lo < other.lo ? 1 : 0);
+		return uint_type{ new_hi, new_lo };
 	}
 
-	constexpr uint128_t operator<<(int shift) const {
-		if (shift == 0)
+	constexpr uint_type operator<<(int32_t shift) const {
+		if (shift == 0) {
 			return *this;
-		if (shift >= 128)
-			return uint128_t(0, 0);
-		if (shift >= 64) {
-			return uint128_t(lo << (shift - 64), 0);
 		}
-		return uint128_t((hi << shift) | (lo >> (64 - shift)), lo << shift);
+		if (shift >= 128) {
+			return uint_type{ 0, 0 };
+		}
+		if (shift >= 64) {
+			return uint_type{ lo << (shift - 64), 0 };
+		}
+		return uint_type{ (hi << shift) | (lo >> (64 - shift)), lo << shift };
 	}
 
-	constexpr uint128_t operator>>(int shift) const {
-		if (shift == 0)
+	constexpr uint_type operator>>(int32_t shift) const {
+		if (shift == 0) {
 			return *this;
-		if (shift >= 128)
-			return uint128_t(0, 0);
-		if (shift >= 64) {
-			return uint128_t(0, hi >> (shift - 64));
 		}
-		return uint128_t(hi >> shift, (lo >> shift) | (hi << (64 - shift)));
+		if (shift >= 128) {
+			return uint_type{ 0, 0 };
+		}
+		if (shift >= 64) {
+			return uint_type{ 0, hi >> (shift - 64) };
+		}
+		return uint_type{ hi >> shift, (lo >> shift) | (hi << (64 - shift)) };
 	}
 
-	constexpr uint128_t operator*(const uint128_t& other) const {
-		uint64_t u1 = lo >> 32;
-		uint64_t u0 = lo & 0xFFFFFFFF;
-		uint64_t v1 = other.lo >> 32;
-		uint64_t v0 = other.lo & 0xFFFFFFFF;
+	constexpr uint_type operator*(const uint_type& other) const {
+		value_type u1 = lo >> 32;
+		value_type u0 = lo & 0xFFFFFFFF;
+		value_type v1 = other.lo >> 32;
+		value_type v0 = other.lo & 0xFFFFFFFF;
 
-		uint64_t t	= u0 * v0;
-		uint64_t w0 = t & 0xFFFFFFFF;
-		uint64_t k	= t >> 32;
+		value_type t  = u0 * v0;
+		value_type w0 = t & 0xFFFFFFFF;
+		value_type k  = t >> 32;
 
-		t			= (u1 * v0) + k;
-		uint64_t w1 = t & 0xFFFFFFFF;
-		uint64_t w2 = t >> 32;
+		t			  = (u1 * v0) + k;
+		value_type w1 = t & 0xFFFFFFFF;
+		value_type w2 = t >> 32;
 
 		t = (u0 * v1) + w1;
 		k = t >> 32;
 
-		uint64_t split_hi = (u1 * v1) + w2 + k;
-		uint64_t split_lo = (t << 32) + w0;
+		value_type split_hi = (u1 * v1) + w2 + k;
+		value_type split_lo = (t << 32) + w0;
 
-		uint64_t cross_1 = lo * other.hi;
-		uint64_t cross_2 = hi * other.lo;
+		value_type cross_1 = lo * other.hi;
+		value_type cross_2 = hi * other.lo;
 
-		return uint128_t(split_hi + cross_1 + cross_2, split_lo);
+		return uint_type{ split_hi + cross_1 + cross_2, split_lo };
 	}
 
-	constexpr uint128_t operator/(const uint128_t& other) const {
+	constexpr uint_type operator/(const uint_type& other) const {
 		if (other.hi == 0 && other.lo == 0) {
-			return uint128_t(0, 0);
+			return uint_type{ 0, 0 };
 		}
 
 		if (other > *this) {
-			return uint128_t(0, 0);
+			return uint_type{ 0, 0 };
 		}
 
 		if (other == *this) {
-			return uint128_t(0, 1);
+			return uint_type{ 0, 1 };
 		}
 
-		uint128_t quotient(0, 0);
-		uint128_t remainder(0, 0);
-		uint128_t divisor = other;
+		uint_type quotient{ 0, 0 };
+		uint_type remainder{ 0, 0 };
+		const uint_type divisor = other;
 
-		for (int i = 127; i >= 0; --i) {
+		for (int32_t i = 127; i >= 0; --i) {
 			remainder = remainder << 1;
 
 			if ((i >= 64 && (hi & (1ULL << (i - 64)))) || (i < 64 && (lo & (1ULL << i)))) {
@@ -205,35 +440,40 @@ template<uint64_t divisor_new> struct uint128_t {
 		return quotient;
 	}
 
-	constexpr uint128_t& operator+=(const uint128_t& other) {
+	constexpr uint_type& operator+=(const uint_type& other) {
 		*this = *this + other;
 		return *this;
 	}
-	constexpr uint128_t& operator-=(const uint128_t& other) {
+
+	constexpr uint_type& operator-=(const uint_type& other) {
 		*this = *this - other;
 		return *this;
 	}
-	constexpr uint128_t& operator*=(const uint128_t& other) {
+
+	constexpr uint_type& operator*=(const uint_type& other) {
 		*this = *this * other;
 		return *this;
 	}
-	constexpr uint128_t& operator/=(const uint128_t& other) {
+
+	constexpr uint_type& operator/=(const uint_type& other) {
 		*this = *this / other;
 		return *this;
 	}
-	constexpr uint128_t& operator<<=(int shift) {
+
+	constexpr uint_type& operator<<=(int32_t shift) {
 		*this = *this << shift;
 		return *this;
 	}
-	constexpr uint128_t& operator>>=(int shift) {
+
+	constexpr uint_type& operator>>=(int32_t shift) {
 		*this = *this >> shift;
 		return *this;
 	}
 
-	constexpr int lzcnt() const {
+	constexpr value_type lzcnt() const {
 		if (hi != 0) {
-			uint64_t x = hi;
-			int n	   = 0;
+			value_type x = hi;
+			value_type n = 0;
 			if (x <= 0x00000000FFFFFFFF) {
 				n += 32;
 				x <<= 32;
@@ -259,10 +499,11 @@ template<uint64_t divisor_new> struct uint128_t {
 			}
 			return n;
 		} else {
-			uint64_t x = lo;
-			int n	   = 64;
-			if (x == 0)
+			value_type x = lo;
+			value_type n = 64;
+			if (x == 0) {
 				return 128;
+			}
 			if (x <= 0x00000000FFFFFFFF) {
 				n += 32;
 				x <<= 32;
@@ -290,16 +531,191 @@ template<uint64_t divisor_new> struct uint128_t {
 		}
 	}
 
-	consteval static uint_pair collect_values() {
-		uint_pair return_value{};
-		uint128_t div_temp(divisor_new);
-		uint128_t div_minus_1(divisor_new - 1);
-		uint64_t l				= 127 - div_minus_1.lzcnt();
-		uint128_t numerator		= uint128_t(1) << (64 + static_cast<int>(l));
-		uint128_t m_128			= (numerator + div_temp - 1) / div_temp;
-		return_value.multiplier = static_cast<uint64_t>(m_128);
-		return_value.shift		= 64 + l;
-		return return_value;
+	consteval static uint_pair<value_type> collect_values() {
+		constexpr uint_type div_temp	= divisor_new;
+		constexpr uint_type div_minus_1 = divisor_new - 1;
+		constexpr value_type l			= 127 - div_minus_1.lzcnt();
+		constexpr uint_type numerator	= uint_type{ 1 } << (64 + static_cast<value_type>(l));
+		constexpr uint_type m_128		= (numerator + div_temp - 1) / div_temp;
+		return uint_pair<value_type>{ static_cast<value_type>(m_128), 64 + l };
+	}
+};
+
+template<concepts::uns32_t value_type, value_type divisor_new> struct uint_type<value_type, divisor_new> {
+	uint64_t value{};
+
+	constexpr uint_type() {
+	}
+
+	constexpr uint_type(uint64_t v) : value{ v } {
+	}
+
+	constexpr explicit operator value_type() const {
+		return static_cast<value_type>(value);
+	}
+
+	constexpr bool operator==(const uint_type& other) const {
+		return value == other.value;
+	}
+
+	constexpr bool operator!=(const uint_type& other) const {
+		return !(*this == other);
+	}
+
+	constexpr bool operator<(const uint_type& other) const {
+		return value < other.value;
+	}
+
+	constexpr bool operator>(const uint_type& other) const {
+		return other < *this;
+	}
+
+	constexpr bool operator<=(const uint_type& other) const {
+		return !(*this > other);
+	}
+
+	constexpr bool operator>=(const uint_type& other) const {
+		return !(*this < other);
+	}
+
+	constexpr uint_type operator~() const {
+		return uint_type{ ~value };
+	}
+
+	constexpr uint_type operator+(const uint_type& other) const {
+		return uint_type{ value + other.value };
+	}
+
+	friend constexpr uint_type operator+(uint64_t lhs, const uint_type& other) {
+		return other + lhs;
+	}
+
+	constexpr uint_type operator-(const uint_type& other) const {
+		return uint_type{ value - other.value };
+	}
+
+	constexpr uint_type operator<<(int32_t shift) const {
+		if (shift == 0) {
+			return *this;
+		}
+		if (shift >= 64) {
+			return uint_type{ 0 };
+		}
+		return uint_type{ value << shift };
+	}
+
+	constexpr uint_type operator>>(int32_t shift) const {
+		if (shift == 0) {
+			return *this;
+		}
+		if (shift >= 64) {
+			return uint_type{ 0 };
+		}
+		return uint_type{ value >> shift };
+	}
+
+	constexpr uint_type operator*(const uint_type& other) const {
+		return uint_type{ value * other.value };
+	}
+
+	constexpr uint_type operator/(const uint_type& other) const {
+		if (other.value == 0) {
+			return uint_type{ 0 };
+		}
+		if (other > *this) {
+			return uint_type{ 0 };
+		}
+		if (other == *this) {
+			return uint_type{ 1 };
+		}
+		uint64_t quotient  = 0;
+		uint64_t remainder = 0;
+		uint64_t divisor   = other.value;
+
+		for (int32_t i = 63; i >= 0; --i) {
+			remainder = remainder << 1;
+
+			if (value & (1ULL << i)) {
+				remainder |= 1;
+			}
+
+			if (remainder >= divisor) {
+				remainder = remainder - divisor;
+				quotient |= (1ULL << i);
+			}
+		}
+		return uint_type{ quotient };
+	}
+
+	constexpr uint_type& operator+=(const uint_type& other) {
+		*this = *this + other;
+		return *this;
+	}
+
+	constexpr uint_type& operator-=(const uint_type& other) {
+		*this = *this - other;
+		return *this;
+	}
+
+	constexpr uint_type& operator*=(const uint_type& other) {
+		*this = *this * other;
+		return *this;
+	}
+
+	constexpr uint_type& operator/=(const uint_type& other) {
+		*this = *this / other;
+		return *this;
+	}
+
+	constexpr uint_type& operator<<=(int32_t shift) {
+		*this = *this << shift;
+		return *this;
+	}
+
+	constexpr uint_type& operator>>=(int32_t shift) {
+		*this = *this >> shift;
+		return *this;
+	}
+
+	constexpr value_type lzcnt() const {
+		if (value == 0) {
+			return 64;
+		}
+		uint64_t x	 = value;
+		value_type n = 0;
+		if (x <= 0x00000000FFFFFFFF) {
+			n += 32;
+			x <<= 32;
+		}
+		if (x <= 0x0000FFFFFFFFFFFF) {
+			n += 16;
+			x <<= 16;
+		}
+		if (x <= 0x00FFFFFFFFFFFFFF) {
+			n += 8;
+			x <<= 8;
+		}
+		if (x <= 0x0FFFFFFFFFFFFFFF) {
+			n += 4;
+			x <<= 4;
+		}
+		if (x <= 0x3FFFFFFFFFFFFFFF) {
+			n += 2;
+			x <<= 2;
+		}
+		if (x <= 0x7FFFFFFFFFFFFFFF) {
+			n += 1;
+		}
+		return n;
+	}
+
+	consteval static uint_pair<value_type> collect_values() {
+		constexpr uint_type div_temp	= divisor_new;
+		constexpr uint_type div_minus_1 = divisor_new - 1;
+		constexpr value_type l			= 63 - div_minus_1.lzcnt();
+		constexpr uint_type numerator	= uint_type{ 1 } << (32 + static_cast<value_type>(l));
+		constexpr uint_type m_128		= (numerator + div_temp - 1) / div_temp;
+		return uint_pair<value_type>{ static_cast<value_type>(m_128), 32 + l };
 	}
 };
 
@@ -347,310 +763,350 @@ template<uint64_t shift, std::integral value_type> BNCH_SWT_HOST constexpr value
 	return arg = arg >> integral_constant<uint64_t, shift>{};
 }
 
-template<uint64_t divisor> struct multiply_and_shift {
-	static constexpr uint_pair multiplier_and_shift{ uint128_t<divisor>::collect_values() };
-	template<typename value_type> BNCH_SWT_HOST static uint64_t impl(value_type value) noexcept {
+template<typename value_type, value_type divisor> struct multiply_and_shift;
+
+template<concepts::uns64_t value_type, value_type divisor> struct multiply_and_shift<value_type, divisor> {
+	static constexpr uint_pair multiplicand_and_shift{ uint_type<value_type, divisor>::collect_values() };
+	BNCH_SWT_HOST static value_type impl(value_type value) noexcept {
 #if BNCH_SWT_COMPILER_CLANG || BNCH_SWT_COMPILER_GCC
-		const __uint128_t product = static_cast<__uint128_t>(value) * multiplier_and_shift.multiplier;
-		return static_cast<uint64_t>(product >> integral_constant<uint64_t, multiplier_and_shift.shift>{});
+		const __uint128_t product = static_cast<__uint128_t>(value) * multiplicand_and_shift.multiplicand;
+		return static_cast<value_type>(product >> integral_constant<value_type, multiplicand_and_shift.shift>{});
 #elif BNCH_SWT_COMPILER_MSVC
-		uint64_t high_part;
-		uint64_t low_part = _umul128(multiplier_and_shift.multiplier, value, &high_part);
-		if constexpr (multiplier_and_shift.shift < 64ULL) {
-			return static_cast<uint64_t>(
-				(low_part >> integral_constant<uint64_t, multiplier_and_shift.shift>{}) | (high_part << integral_constant<uint64_t, 64ULL - multiplier_and_shift.shift>{}));
+		value_type high_part;
+		value_type low_part = _umul128(multiplicand_and_shift.multiplicand, value, &high_part);
+		if constexpr (multiplicand_and_shift.shift < 64ULL) {
+			return static_cast<value_type>(
+				(low_part >> integral_constant<value_type, multiplicand_and_shift.shift>{}) | (high_part << integral_constant<value_type, 64ULL - multiplicand_and_shift.shift>{}));
 		} else {
-			return static_cast<uint64_t>(high_part >> integral_constant<uint64_t, multiplier_and_shift.shift - 64ULL>{});
+			return static_cast<value_type>(high_part >> integral_constant<value_type, multiplicand_and_shift.shift - 64ULL>{});
 		}
 #else
-		uint64_t high_part;
-		const uint64_t low_part = mul128Generic(value, multiplier_and_shift.multiplier, &high_part);
-		if constexpr (multiplier_and_shift.shift < 64ULL) {
-			return static_cast<uint64_t>(
-				(low_part >> integral_constant<uint64_t, multiplier_and_shift.shift>{}) | (high_part << integral_constant<uint64_t, 64ULL - multiplier_and_shift.shift>{}));
+		value_type high_part;
+		const value_type low_part = mul128Generic(value, multiplicand_and_shift.multiplicand, &high_part);
+		if constexpr (multiplicand_and_shift.shift < 64ULL) {
+			return static_cast<value_type>(
+				(low_part >> integral_constant<value_type, multiplicand_and_shift.shift>{}) | (high_part << integral_constant<value_type, 64ULL - multiplicand_and_shift.shift>{}));
 		} else {
-			return static_cast<uint64_t>(high_part >> integral_constant<uint64_t, multiplier_and_shift.shift - 64ULL>{});
+			return static_cast<value_type>(high_part >> integral_constant<value_type, multiplicand_and_shift.shift - 64ULL>{});
 		}
 #endif
 	}
 };
 
-template<uint32_t divisor> struct multiply_and_shift_32 {
-	static constexpr uint_pair multiplier_and_shift{ uint128_t<divisor>::collect_values() };
-	BNCH_SWT_HOST static uint32_t impl(uint32_t value) noexcept {
-#if BNCH_SWT_COMPILER_MSVC
-		return static_cast<uint32_t>(multiply_and_shift<divisor>::impl(value));
-#else
-		uint64_t t = static_cast<uint64_t>(value) * multiplier_and_shift.multiplier;
-		return static_cast<uint32_t>(t >> multiplier_and_shift.shift);
-#endif
+template<concepts::uns32_t value_type, value_type divisor> struct multiply_and_shift<value_type, divisor> {
+	static constexpr uint_pair multiplicand_and_shift{ uint_type<value_type, divisor>::collect_values() };
+	BNCH_SWT_HOST static value_type impl(value_type value) noexcept {
+		return static_cast<uint32_t>((static_cast<uint64_t>(value) * multiplicand_and_shift.multiplicand) >> multiplicand_and_shift.shift);
 	}
-};
-
-template<uint64_t size> struct char_holder {
-	char values[size]{};
 };
 
 template<typename value_type, uint64_t digit_length> struct to_chars_impl;
 
-template<uns32_t value_type> struct to_chars_impl<value_type, 2ULL> {
-	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		const uint32_t lz						= value < 10U;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (value * 2U + lz));
-		buf -= lz;
-		return buf + 2U;
-	}
-};
-
-template<uns32_t value_type> struct to_chars_impl<value_type, 4ULL> {
-	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		BNCH_SWT_ALIGN(64U) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
-		const uint32_t aa						= (value * 5243ULL) >> integral_constant<uint32_t, 19ULL>{};
-		const uint32_t lz						= value < 1000U;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2U + lz));
-		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2U) = *reinterpret_cast<const char_holder<2>*>(int16_table + (value - aa * 100U));
-		return buf + 4U;
-	}
-};
-
-template<uns32_t value_type> struct to_chars_impl<value_type, 6ULL> {
-	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		BNCH_SWT_ALIGN(64U) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint32_t aa								= (value * 429497ULL) >> integral_constant<uint32_t, 32ULL>{};
-		const uint32_t lz						= value < 100000U;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2U + lz));
-		buf -= lz;
-		const uint32_t remainder					 = value - aa * 10000U;
-		*reinterpret_cast<char_holder<4>*>(buf + 2U) = *reinterpret_cast<const char_holder<4>*>(int32_table + remainder);
-		return buf + 6U;
-	}
-};
-
-template<uns32_t value_type> struct to_chars_impl<value_type, 8ULL> {
-	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		BNCH_SWT_ALIGN(64U) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
-		BNCH_SWT_ALIGN(64U) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint64_t aabb							= (value * 109951163ULL) >> integral_constant<uint32_t, 40ULL>{};
-		uint32_t aa								= (aabb * 5243ULL) >> integral_constant<uint32_t, 19ULL>{};
-		const uint32_t lz						= value < 10000000U;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2U + lz));
-		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2U) = *reinterpret_cast<const char_holder<2>*>(int16_table + (aabb - aa * 100U));
-		const uint32_t ccdd							 = value - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 4U) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
-		return buf + 8U;
-	}
-};
-
-template<uns32_t value_type> struct to_chars_impl<value_type, 10ULL> {
-	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		BNCH_SWT_ALIGN(64U) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint64_t high					= multiply_and_shift_32<100000000ULL>::impl(value);
-		const uint32_t low						= value - high * 100000000ULL;
-		const uint32_t lz						= high < 10U;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (high * 2U + lz));
-		buf -= lz;
-		const uint32_t aabb							 = (low * 109951163ULL) >> integral_constant<uint32_t, 40ULL>{};
-		const uint32_t ccdd							 = low - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 2U) = *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 6U) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
-		return buf + 10U;
-	}
-};
-
-template<uns64_t value_type> struct to_chars_impl<value_type, 2ULL> {
+template<concepts::uns32_t value_type> struct to_chars_impl<value_type, 2ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
-		const uint64_t lz						= value < 10ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (value * 2ULL + lz));
+		const uint32_t lz = value < 10U;
+		std::memcpy(buf, char_table_ptr + (value * 2U + lz), 2ULL);
 		buf -= lz;
 		return buf + 2ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 4ULL> {
+template<concepts::uns32_t value_type> struct to_chars_impl<value_type, 4ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
-		const uint64_t aa						= (value * 5243ULL) >> integral_constant<uint64_t, 19ULL>{};
-		const uint64_t lz						= value < 1000ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint32_t aa = multiply_and_shift<value_type, 100U>::impl(value);
+		const uint32_t lz = value < 1000U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2ULL) = *reinterpret_cast<const char_holder<2>*>(int16_table + (value - aa * 100ULL));
+		std::memcpy(buf + 2ULL, int16_table + (value - aa * 100U), 2ULL);
 		return buf + 4ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 6ULL> {
+template<concepts::uns32_t value_type> struct to_chars_impl<value_type, 6ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+#if !BNCH_SWT_COMPILER_MSVC
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint64_t aa								= (value * 429497ULL) >> integral_constant<uint64_t, 32ULL>{};
-		const uint64_t lz						= value < 100000ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint32_t aa = multiply_and_shift<value_type, 10000U>::impl(value);
+		const uint32_t lz = value < 100000U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
 		buf -= lz;
-		const uint64_t remainder					   = value - aa * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 2ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + remainder);
+		const uint32_t remainder = value - aa * 10000U;
+		std::memcpy(buf + 2ULL, int32_table + remainder, 4ULL);
+#else
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
+		const uint32_t aa	= multiply_and_shift<value_type, 10000U>::impl(value);
+		const uint32_t bbcc = value - aa * 10000U;
+		const uint32_t bb	= multiply_and_shift<value_type, 100U>::impl(bbcc);
+		const uint32_t cc	= bbcc - bb * 100U;
+		const uint32_t lz	= aa < 10U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
+		buf -= lz;
+		std::memcpy(buf + 2ULL, int16_table + bb, 2ULL);
+		std::memcpy(buf + 4ULL, int16_table + cc, 2ULL);
+#endif
 		return buf + 6ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 8ULL> {
+template<concepts::uns32_t value_type> struct to_chars_impl<value_type, 8ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
+#if !BNCH_SWT_COMPILER_MSVC
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint64_t aabb							= (value * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		uint64_t aa								= (aabb * 5243ULL) >> integral_constant<uint64_t, 19ULL>{};
-		const uint64_t lz						= value < 10000000ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint32_t aabb = multiply_and_shift<value_type, 10000U>::impl(value);
+		const uint32_t aa	= multiply_and_shift<value_type, 100U>::impl(aabb);
+		const uint32_t lz	= value < 10000000U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2ULL) = *reinterpret_cast<const char_holder<2>*>(int16_table + (aabb - aa * 100ULL));
-		const uint64_t ccdd							   = value - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 4ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
+		std::memcpy(buf + 2ULL, int16_table + (aabb - aa * 100U), 2ULL);
+		const uint32_t ccdd = value - aabb * 10000U;
+		std::memcpy(buf + 4ULL, int32_table + ccdd, 4ULL);
+#else
+		const uint32_t aabb = multiply_and_shift<value_type, 10000U>::impl(value);
+		const uint32_t ccdd = value - aabb * 10000U;
+		const uint32_t aa	= multiply_and_shift<value_type, 100U>::impl(aabb);
+		const uint32_t cc	= multiply_and_shift<value_type, 100U>::impl(ccdd);
+		const uint32_t bb	= aabb - aa * 100U;
+		const uint32_t dd	= ccdd - cc * 100U;
+		const uint32_t lz	= aa < 10U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
+		buf -= lz;
+		std::memcpy(buf + 2ULL, int16_table + bb, 2ULL);
+		std::memcpy(buf + 4ULL, int16_table + cc, 2ULL);
+		std::memcpy(buf + 6ULL, int16_table + dd, 2ULL);
+#endif
 		return buf + 8ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 10ULL> {
+template<concepts::uns32_t value_type> struct to_chars_impl<value_type, 10ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+#if !BNCH_SWT_COMPILER_MSVC
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		const uint64_t lz						= high < 10ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (high * 2ULL + lz));
+		const uint32_t high = multiply_and_shift<value_type, 100000000U>::impl(value);
+		const uint32_t low	= value - high * 100000000U;
+		const uint32_t lz	= high < 10U;
+		std::memcpy(buf, char_table_ptr + (high * 2U + lz), 2ULL);
 		buf -= lz;
-		const uint64_t aabb							   = (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t ccdd							   = low - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 2ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 6ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
+		const uint32_t aabb = multiply_and_shift<value_type, 10000U>::impl(low);
+		const uint32_t ccdd = low - aabb * 10000U;
+		std::memcpy(buf + 2ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 6ULL, int32_table + ccdd, 4ULL);
+#else
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
+		const uint32_t aabbcc = multiply_and_shift<value_type, 10000U>::impl(value);
+		const uint32_t aa	  = multiply_and_shift<value_type, 10000U>::impl(aabbcc);
+		const uint32_t ddee	  = value - aabbcc * 10000U;
+		const uint32_t bbcc	  = aabbcc - aa * 10000U;
+		const uint32_t bb	  = multiply_and_shift<value_type, 100U>::impl(bbcc);
+		const uint32_t dd	  = multiply_and_shift<value_type, 100U>::impl(ddee);
+		const uint32_t cc	  = bbcc - bb * 100U;
+		const uint32_t ee	  = ddee - dd * 100U;
+		const uint32_t lz	  = aa < 10U;
+		std::memcpy(buf, char_table_ptr + (aa * 2U + lz), 2ULL);
+		buf -= lz;
+		std::memcpy(buf + 2ULL, int16_table + bb, 2ULL);
+		std::memcpy(buf + 4ULL, int16_table + cc, 2ULL);
+		std::memcpy(buf + 6ULL, int16_table + dd, 2ULL);
+		std::memcpy(buf + 8ULL, int16_table + ee, 2ULL);
+#endif
 		return buf + 10ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 12ULL> {
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 2ULL> {
+	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
+		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+		const uint64_t lz = value < 10ULL;
+		std::memcpy(buf, char_table_ptr + (value * 2ULL + lz), 2ULL);
+		buf -= lz;
+		return buf + 2ULL;
+	}
+};
+
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 4ULL> {
+	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
+		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
+		const uint64_t aa = multiply_and_shift<value_type, 100ULL>::impl(value);
+		const uint64_t lz = value < 1000ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
+		buf -= lz;
+		std::memcpy(buf + 2ULL, int16_table + (value - aa * 100ULL), 2ULL);
+		return buf + 4ULL;
+	}
+};
+
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 6ULL> {
+	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
+		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
+		const uint64_t aa = multiply_and_shift<value_type, 10000ULL>::impl(value);
+		const uint64_t lz = value < 100000ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
+		buf -= lz;
+		const uint64_t remainder = value - aa * 10000ULL;
+		std::memcpy(buf + 2ULL, int32_table + remainder, 4ULL);
+		return buf + 6ULL;
+	}
+};
+
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 8ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		uint64_t aa								= (high * 5243ULL) >> integral_constant<uint64_t, 19ULL>{};
-		const uint64_t lz						= aa < 10ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(value);
+		const uint64_t aa	= multiply_and_shift<value_type, 100ULL>::impl(aabb);
+		const uint64_t lz	= value < 10000000ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2ULL) = *reinterpret_cast<const char_holder<2>*>(int16_table + (high - aa * 100ULL));
-		const uint64_t aabb							   = (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t ccdd							   = low - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 4ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 8ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
+		std::memcpy(buf + 2ULL, int16_table + (aabb - aa * 100ULL), 2ULL);
+		const uint64_t ccdd = value - aabb * 10000ULL;
+		std::memcpy(buf + 4ULL, int32_table + ccdd, 4ULL);
+		return buf + 8ULL;
+	}
+};
+
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 10ULL> {
+	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
+		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
+		const uint64_t high = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	= value - high * 100000000ULL;
+		const uint64_t lz	= high < 10ULL;
+		std::memcpy(buf, char_table_ptr + (high * 2ULL + lz), 2ULL);
+		buf -= lz;
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t ccdd = low - aabb * 10000ULL;
+		std::memcpy(buf + 2ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 6ULL, int32_table + ccdd, 4ULL);
+		return buf + 10ULL;
+	}
+};
+
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 12ULL> {
+	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
+		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
+		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
+		const uint64_t high = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	= value - high * 100000000ULL;
+		const uint64_t aa	= multiply_and_shift<value_type, 100ULL>::impl(high);
+		const uint64_t lz	= aa < 10ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
+		buf -= lz;
+		std::memcpy(buf + 2ULL, int16_table + (high - aa * 100ULL), 2ULL);
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t ccdd = low - aabb * 10000ULL;
+		std::memcpy(buf + 4ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 8ULL, int32_table + ccdd, 4ULL);
 		return buf + 12ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 14ULL> {
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 14ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		uint64_t aa								= (high * 429497ULL) >> integral_constant<uint64_t, 32ULL>{};
-		const uint64_t lz						= aa < 10ULL;
-		const uint64_t bbcc						= high - aa * 10000ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint64_t high = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	= value - high * 100000000ULL;
+		const uint64_t aa	= multiply_and_shift<value_type, 10000ULL>::impl(high);
+		const uint64_t lz	= aa < 10ULL;
+		const uint64_t bbcc = high - aa * 10000ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<4>*>(buf + 2ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + bbcc);
-		const uint64_t aabb								= (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t ccdd								= low - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 6ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 10ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
+		std::memcpy(buf + 2ULL, int32_table + bbcc, 4ULL);
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t ccdd = low - aabb * 10000ULL;
+		std::memcpy(buf + 6ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 10ULL, int32_table + ccdd, 4ULL);
 		return buf + 14ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 16ULL> {
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 16ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		uint64_t aabb							= (high * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		uint64_t ccdd							= high - aabb * 10000ULL;
-		uint64_t aa								= (aabb * 5243ULL) >> integral_constant<uint64_t, 19ULL>{};
-		const uint64_t lz						= aa < 10ULL;
-		const uint64_t bb						= aabb - aa * 100ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint64_t high = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	= value - high * 100000000ULL;
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(high);
+		const uint64_t ccdd = high - aabb * 10000ULL;
+		const uint64_t aa	= multiply_and_shift<value_type, 100ULL>::impl(aabb);
+		const uint64_t lz	= aa < 10ULL;
+		const uint64_t bb	= aabb - aa * 100ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2ULL)	= *reinterpret_cast<const char_holder<2>*>(int16_table + bb);
-		*reinterpret_cast<char_holder<4>*>(buf + 4ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
-		aabb											= (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		ccdd											= low - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 8ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 12ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
+		std::memcpy(buf + 2ULL, int16_table + bb, 2ULL);
+		std::memcpy(buf + 4ULL, int32_table + ccdd, 4ULL);
+		const uint64_t eeff = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t gghh = low - eeff * 10000ULL;
+		std::memcpy(buf + 8ULL, int32_table + eeff, 4ULL);
+		std::memcpy(buf + 12ULL, int32_table + gghh, 4ULL);
 		return buf + 16ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 18ULL> {
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 18ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		const uint64_t high10					= multiply_and_shift<100000000ULL>::impl(high);
-		const uint64_t low10					= high - high10 * 100000000ULL;
-		const uint64_t lz						= high10 < 10ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (high10 * 2ULL + lz));
+		const uint64_t high	  = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	  = value - high * 100000000ULL;
+		const uint64_t high10 = multiply_and_shift<value_type, 100000000ULL>::impl(high);
+		const uint64_t low10  = high - high10 * 100000000ULL;
+		const uint64_t lz	  = high10 < 10ULL;
+		std::memcpy(buf, char_table_ptr + (high10 * 2ULL + lz), 2ULL);
 		buf -= lz;
-		const uint64_t aabb								= (low10 * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t ccdd								= low10 - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 2ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 6ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
-		const uint64_t eeff								= (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t gghh								= low - eeff * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 10ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + eeff);
-		*reinterpret_cast<char_holder<4>*>(buf + 14ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + gghh);
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(low10);
+		const uint64_t ccdd = low10 - aabb * 10000ULL;
+		std::memcpy(buf + 2ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 6ULL, int32_table + ccdd, 4ULL);
+		const uint64_t eeff = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t gghh = low - eeff * 10000ULL;
+		std::memcpy(buf + 10ULL, int32_table + eeff, 4ULL);
+		std::memcpy(buf + 14ULL, int32_table + gghh, 4ULL);
 		return buf + 18ULL;
 	}
 };
 
-template<uns64_t value_type> struct to_chars_impl<value_type, 20ULL> {
+template<concepts::uns64_t value_type> struct to_chars_impl<value_type, 20ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64ULL) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
 		BNCH_SWT_ALIGN(64ULL) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint64_t high						= multiply_and_shift<100000000ULL>::impl(value);
-		const uint64_t low						= value - high * 100000000ULL;
-		const uint64_t high12					= multiply_and_shift<100000000ULL>::impl(high);
-		const uint64_t low12					= high - high12 * 100000000ULL;
-		uint64_t aa								= (high12 * 5243ULL) >> integral_constant<uint64_t, 19ULL>{};
-		const uint64_t lz						= aa < 10ULL;
-		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2ULL + lz));
+		const uint64_t high	  = multiply_and_shift<value_type, 100000000ULL>::impl(value);
+		const uint64_t low	  = value - high * 100000000ULL;
+		const uint64_t high12 = multiply_and_shift<value_type, 100000000ULL>::impl(high);
+		const uint64_t low12  = high - high12 * 100000000ULL;
+		const uint64_t aa	  = multiply_and_shift<value_type, 100ULL>::impl(high12);
+		const uint64_t lz	  = aa < 10ULL;
+		std::memcpy(buf, char_table_ptr + (aa * 2ULL + lz), 2ULL);
 		buf -= lz;
-		*reinterpret_cast<char_holder<2>*>(buf + 2ULL)	= *reinterpret_cast<const char_holder<2>*>(int16_table + (high12 - aa * 100ULL));
-		const uint64_t aabb								= (low12 * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t ccdd								= low12 - aabb * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 4ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
-		*reinterpret_cast<char_holder<4>*>(buf + 8ULL)	= *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
-		const uint64_t eeff								= (low * 109951163ULL) >> integral_constant<uint64_t, 40ULL>{};
-		const uint64_t gghh								= low - eeff * 10000ULL;
-		*reinterpret_cast<char_holder<4>*>(buf + 12ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + eeff);
-		*reinterpret_cast<char_holder<4>*>(buf + 16ULL) = *reinterpret_cast<const char_holder<4>*>(int32_table + gghh);
+		std::memcpy(buf + 2ULL, int16_table + (high12 - aa * 100ULL), 2ULL);
+		const uint64_t aabb = multiply_and_shift<value_type, 10000ULL>::impl(low12);
+		const uint64_t ccdd = low12 - aabb * 10000ULL;
+		std::memcpy(buf + 4ULL, int32_table + aabb, 4ULL);
+		std::memcpy(buf + 8ULL, int32_table + ccdd, 4ULL);
+		const uint64_t eeff = multiply_and_shift<value_type, 10000ULL>::impl(low);
+		const uint64_t gghh = low - eeff * 10000ULL;
+		std::memcpy(buf + 12ULL, int32_table + eeff, 4ULL);
+		std::memcpy(buf + 16ULL, int32_table + gghh, 4ULL);
 		return buf + 20ULL;
 	}
 };
 
 template<typename value_type> struct to_chars;
 
-template<uns64_t value_type> struct to_chars<value_type> {
+template<concepts::uns64_t value_type> struct to_chars<value_type> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		if (value < 10000ULL) {
 			if (value < 100ULL) {
@@ -684,16 +1140,16 @@ template<uns64_t value_type> struct to_chars<value_type> {
 	}
 };
 
-template<sig64_t value_type> struct to_chars<value_type> {
+template<concepts::sig64_t value_type> struct to_chars<value_type> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		constexpr auto shift_amount = sizeof(value_type) * 8ULL - 1ULL;
-		using unsigned_type			= std::make_unsigned_t<value_type>;
-		*buf						= '-';
-		return to_chars<unsigned_type>::impl(buf + (value < 0), static_cast<uint64_t>((static_cast<unsigned_type>(value) ^ (value >> shift_amount)) - (value >> shift_amount)));
+		using unsigned_type					 = std::make_unsigned_t<value_type>;
+		constexpr unsigned_type shift_amount = sizeof(value_type) * 8ULL - 1ULL;
+		*buf								 = '-';
+		return to_chars<unsigned_type>::impl(buf + (value < 0), (static_cast<unsigned_type>(value) ^ (value >> shift_amount)) - (value >> shift_amount));
 	}
 };
 
-template<uns32_t value_type> struct to_chars<value_type> {
+template<concepts::uns32_t value_type> struct to_chars<value_type> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		if (value < 10000U) {
 			if (value < 100U) {
@@ -713,242 +1169,18 @@ template<uns32_t value_type> struct to_chars<value_type> {
 	}
 };
 
-template<sig32_t value_type> struct to_chars<value_type> {
+template<concepts::sig32_t value_type> struct to_chars<value_type> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
-		constexpr auto shift_amount = sizeof(value_type) * 8ULL - 1ULL;
-		using unsigned_type			= std::make_unsigned_t<value_type>;
-		*buf						= '-';
-		return to_chars<unsigned_type>::impl(buf + (value < 0), static_cast<uint32_t>((static_cast<unsigned_type>(value) ^ (value >> shift_amount)) - (value >> shift_amount)));
+		using unsigned_type					 = std::make_unsigned_t<value_type>;
+		constexpr unsigned_type shift_amount = static_cast<unsigned_type>(sizeof(value_type) * 8ULL - 1ULL);
+		*buf								 = '-';
+		return to_chars<unsigned_type>::impl(buf + (value < 0), (static_cast<unsigned_type>(value) ^ (value >> shift_amount)) - (value >> shift_amount));
 	}
 };
 
-template<class value_type>
-	requires std::same_as<std::remove_cvref_t<value_type>, uint32_t>
-auto* to_chars_glz(auto* buf, value_type val) noexcept {
-	/* The maximum value of uint32_t is 4294967295 (10 digits), */
-	/* these digits are named as 'aabbccddee' here.             */
-	uint32_t aa, bb, cc, dd, ee, aabb, bbcc, ccdd, ddee, aabbcc;
-
-	/* Leading zero count in the first pair.                    */
-	uint32_t lz;
-
-	/* Although most compilers may convert the "division by     */
-	/* constant value" into "multiply and shift", manual        */
-	/* conversion can still help some compilers generate        */
-	/* fewer and better instructions.                           */
-
-	if (val < 100) { /* 1-2 digits: aa */
-		lz = val < 10;
-		std::memcpy(buf, char_table + (val * 2 + lz), 2);
-		buf -= lz;
-		return buf + 2;
-	} else if (val < 10000) { /* 3-4 digits: aabb */
-		aa = (val * 5243) >> 19; /* (val / 100) */
-		bb = val - aa * 100; /* (val % 100) */
-		lz = aa < 10;
-		std::memcpy(buf, char_table + (aa * 2 + lz), 2);
-		buf -= lz;
-		std::memcpy(&buf[2], char_table + (2 * bb), 2);
-
-		return buf + 4;
-	} else if (val < 1000000) { /* 5-6 digits: aabbcc */
-		aa	 = uint32_t((uint64_t(val) * 429497) >> 32); /* (val / 10000) */
-		bbcc = val - aa * 10000; /* (val % 10000) */
-		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
-		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
-		lz	 = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		return buf + 6;
-	} else if (val < 100000000) { /* 7~8 digits: aabbccdd */
-		/* (val / 10000) */
-		aabb = uint32_t((uint64_t(val) * 109951163) >> 40);
-		ccdd = val - aabb * 10000; /* (val % 10000) */
-		aa	 = (aabb * 5243) >> 19; /* (aabb / 100) */
-		cc	 = (ccdd * 5243) >> 19; /* (ccdd / 100) */
-		bb	 = aabb - aa * 100; /* (aabb % 100) */
-		dd	 = ccdd - cc * 100; /* (ccdd % 100) */
-		lz	 = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		std::memcpy(buf + 6, char_table + dd * 2, 2);
-		return buf + 8;
-	} else { /* 9~10 digits: aabbccddee */
-		/* (val / 10000) */
-		aabbcc = uint32_t((uint64_t(val) * 3518437209ul) >> 45);
-		/* (aabbcc / 10000) */
-		aa	 = uint32_t((uint64_t(aabbcc) * 429497) >> 32);
-		ddee = val - aabbcc * 10000; /* (val % 10000) */
-		bbcc = aabbcc - aa * 10000; /* (aabbcc % 10000) */
-		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
-		dd	 = (ddee * 5243) >> 19; /* (ddee / 100) */
-		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
-		ee	 = ddee - dd * 100; /* (ddee % 100) */
-		lz	 = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		std::memcpy(buf + 6, char_table + dd * 2, 2);
-		std::memcpy(buf + 8, char_table + ee * 2, 2);
-		return buf + 10;
-	}
-}
-
-template<class value_type>
-	requires std::same_as<std::remove_cvref_t<value_type>, int32_t>
-auto* to_chars_glz(auto* buf, value_type x) noexcept {
-	*buf = '-';
-	// shifts are necessary to have the numeric_limits<int32_t>::min case
-	return to_chars_glz(buf + (x < 0), uint32_t(x ^ (x >> 31)) - (x >> 31));
-}
-
-template<class value_type>
-	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
-BNCH_SWT_HOST auto* to_chars_u64_len_8(auto* buf, value_type val) noexcept {
-	/* 8 digits: aabbccdd */
-	const uint32_t aabb = uint32_t((uint64_t(val) * 109951163) >> 40); /* (val / 10000) */
-	const uint32_t ccdd = val - aabb * 10000; /* (val % 10000) */
-	const uint32_t aa	= (aabb * 5243) >> 19; /* (aabb / 100) */
-	const uint32_t cc	= (ccdd * 5243) >> 19; /* (ccdd / 100) */
-	const uint32_t bb	= aabb - aa * 100; /* (aabb % 100) */
-	const uint32_t dd	= ccdd - cc * 100; /* (ccdd % 100) */
-	std::memcpy(buf, char_table + aa * 2, 2);
-	std::memcpy(buf + 2, char_table + bb * 2, 2);
-	std::memcpy(buf + 4, char_table + cc * 2, 2);
-	std::memcpy(buf + 6, char_table + dd * 2, 2);
-	return buf + 8;
-}
-
-template<class value_type>
-	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
-BNCH_SWT_HOST auto* to_chars_u64_len_4(auto* buf, value_type val) noexcept {
-	/* 4 digits: aabb */
-	const uint32_t aa = (val * 5243) >> 19; /* (val / 100) */
-	const uint32_t bb = val - aa * 100; /* (val % 100) */
-	std::memcpy(buf, char_table + aa * 2, 2);
-	std::memcpy(buf + 2, char_table + bb * 2, 2);
-	return buf + 4;
-}
-
-template<class value_type>
-	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
-inline auto* to_chars_u64_len_1_8(auto* buf, value_type val) noexcept {
-	uint32_t aa, bb, cc, dd, aabb, bbcc, ccdd, lz;
-
-	if (val < 100) { /* 1-2 digits: aa */
-		lz = val < 10;
-		std::memcpy(buf, char_table + val * 2 + lz, 2);
-		buf -= lz;
-		return buf + 2;
-	} else if (val < 10000) { /* 3-4 digits: aabb */
-		aa = (val * 5243) >> 19; /* (val / 100) */
-		bb = val - aa * 100; /* (val % 100) */
-		lz = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		return buf + 4;
-	} else if (val < 1000000) { /* 5-6 digits: aabbcc */
-		aa	 = uint32_t((uint64_t(val) * 429497) >> 32); /* (val / 10000) */
-		bbcc = val - aa * 10000; /* (val % 10000) */
-		bb	 = (bbcc * 5243) >> 19; /* (bbcc / 100) */
-		cc	 = bbcc - bb * 100; /* (bbcc % 100) */
-		lz	 = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		return buf + 6;
-	} else { /* 7-8 digits: aabbccdd */
-		/* (val / 10000) */
-		aabb = uint32_t((uint64_t(val) * 109951163) >> 40);
-		ccdd = val - aabb * 10000; /* (val % 10000) */
-		aa	 = (aabb * 5243) >> 19; /* (aabb / 100) */
-		cc	 = (ccdd * 5243) >> 19; /* (ccdd / 100) */
-		bb	 = aabb - aa * 100; /* (aabb % 100) */
-		dd	 = ccdd - cc * 100; /* (ccdd % 100) */
-		lz	 = aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		std::memcpy(buf + 6, char_table + dd * 2, 2);
-		return buf + 8;
-	}
-}
-
-template<class value_type>
-	requires(std::same_as<std::remove_cvref_t<value_type>, uint32_t>)
-auto* to_chars_u64_len_5_8(auto* buf, value_type val) noexcept {
-	if (val < 1000000) { /* 5-6 digits: aabbcc */
-		const uint32_t aa	= uint32_t((uint64_t(val) * 429497) >> 32); /* (val / 10000) */
-		const uint32_t bbcc = val - aa * 10000; /* (val % 10000) */
-		const uint32_t bb	= (bbcc * 5243) >> 19; /* (bbcc / 100) */
-		const uint32_t cc	= bbcc - bb * 100; /* (bbcc % 100) */
-		const uint32_t lz	= aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		return buf + 6;
-	} else { /* 7-8 digits: aabbccdd */
-		/* (val / 10000) */
-		const uint32_t aabb = uint32_t((uint64_t(val) * 109951163) >> 40);
-		const uint32_t ccdd = val - aabb * 10000; /* (val % 10000) */
-		const uint32_t aa	= (aabb * 5243) >> 19; /* (aabb / 100) */
-		const uint32_t cc	= (ccdd * 5243) >> 19; /* (ccdd / 100) */
-		const uint32_t bb	= aabb - aa * 100; /* (aabb % 100) */
-		const uint32_t dd	= ccdd - cc * 100; /* (ccdd % 100) */
-		const uint32_t lz	= aa < 10;
-		std::memcpy(buf, char_table + aa * 2 + lz, 2);
-		buf -= lz;
-		std::memcpy(buf + 2, char_table + bb * 2, 2);
-		std::memcpy(buf + 4, char_table + cc * 2, 2);
-		std::memcpy(buf + 6, char_table + dd * 2, 2);
-		return buf + 8;
-	}
-}
-
-template<class value_type>
-	requires(std::same_as<std::remove_cvref_t<value_type>, uint64_t>)
-auto* to_chars_glz(auto* buf, value_type val) noexcept {
-	if (val < 100000000) { /* 1-8 digits */
-		buf = to_chars_u64_len_1_8(buf, uint32_t(val));
-		return buf;
-	} else if (val < 100000000ULL * 100000000ULL) { /* 9-16 digits */
-		const uint64_t hgh = val / 100000000;
-		const auto low	   = uint32_t(val - hgh * 100000000); /* (val % 100000000) */
-		buf				   = to_chars_u64_len_1_8(buf, uint32_t(hgh));
-		buf				   = to_chars_u64_len_8(buf, low);
-		return buf;
-	} else { /* 17-20 digits */
-		const uint64_t tmp = val / 100000000;
-		const auto low	   = uint32_t(val - tmp * 100000000); /* (val % 100000000) */
-		const auto hgh	   = uint32_t(tmp / 10000);
-		const auto mid	   = uint32_t(tmp - hgh * 10000); /* (tmp % 10000) */
-		buf				   = to_chars_u64_len_5_8(buf, hgh);
-		buf				   = to_chars_u64_len_4(buf, mid);
-		buf				   = to_chars_u64_len_8(buf, low);
-		return buf;
-	}
-}
-
-template<class value_type>
-	requires std::same_as<std::remove_cvref_t<value_type>, int64_t>
-auto* to_chars_glz(auto* buf, value_type x) noexcept {
-	*buf = '-';
-	// shifts are necessary to have the numeric_limits<int64_t>::min case
-	return to_chars_glz(buf + (x < 0), uint64_t(x ^ (x >> 63)) - (x >> 63));
-}
-
 template<typename value_type> BNCH_SWT_HOST value_type max_value_for_digits(uint64_t num_digits) noexcept {
 	if (num_digits <= 0) {
-		return value_type(0);
+		return value_type{ 0 };
 	}
 	long double power_of_10		= std::pow(10.0L, num_digits);
 	long double theoretical_max = power_of_10 - 1.0L;
@@ -970,7 +1202,7 @@ template<typename value_type> BNCH_SWT_HOST value_type max_value_for_digits(uint
 
 template<typename value_type> value_type get_min_value_requiring_digits(uint64_t num_digits) noexcept {
 	if (num_digits <= 0)
-		return value_type(0);
+		return value_type{ 0 };
 	long double min_val = std::pow(10.0L, num_digits - 1);
 
 	const value_type type_max = std::numeric_limits<value_type>::max();
@@ -982,7 +1214,7 @@ template<typename value_type> value_type get_min_value_requiring_digits(uint64_t
 
 template<typename value_type> value_type get_max_value_for_digits(uint64_t num_digits) noexcept {
 	if (num_digits <= 0)
-		return value_type(0);
+		return value_type{ 0 };
 	long double max_val = std::pow(10.0L, num_digits) - 1.0L;
 
 	const value_type type_max = std::numeric_limits<value_type>::max();
@@ -1108,58 +1340,54 @@ template<typename value_type, bnch_swt::string_literal name, uint64_t min_length
 	for (uint64_t x = 0; x < max_iterations; ++x) {
 		randomIntegers[x] = generate_digit_vector<value_type>(count, min_length, max_length);
 	}
+	using benchmark = bnch_swt::benchmark_stage<name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, false>;
 	std::vector<std::vector<std::string>> resultsReal{};
-	std::vector<std::vector<std::string>> resultsTest{};
+	std::vector<std::vector<std::string>> resultsTest01{};
+	std::vector<std::vector<std::string>> resultsTest02{};
+	std::vector<std::vector<std::string>> resultsTest03{};
+	std::vector<std::vector<std::string>> resultsTest04{};
 	resultsReal.resize(max_iterations);
-	resultsTest.resize(max_iterations);
+	resultsTest01.resize(max_iterations);
+	resultsTest02.resize(max_iterations);
+	resultsTest03.resize(max_iterations);
+	resultsTest04.resize(max_iterations);
 	for (uint64_t x = 0; x < max_iterations; ++x) {
-		resultsTest[x].resize(count);
+		resultsTest01[x].resize(count);
+		resultsTest02[x].resize(count);
+		resultsTest03[x].resize(count);
+		resultsTest04[x].resize(count);
 		resultsReal[x].resize(count);
 
 		for (uint64_t y = 0; y < count; ++y) {
 			resultsReal[x][y] = std::to_string(randomIntegers[x][y]);
-			resultsTest[x][y].resize(resultsReal[x][y].size());
+			resultsTest01[x][y].resize(resultsReal[x][y].size());
+			resultsTest02[x][y].resize(resultsReal[x][y].size());
+			resultsTest03[x][y].resize(resultsReal[x][y].size());
+			resultsTest04[x][y].resize(resultsReal[x][y].size());
 		}
 	}
 	uint64_t currentIndex{};
-	run_and_validate<name, benchmark_std_to_string<value_type>, "std::to_string">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
+	bnch_swt::internal::cache_clearer<bnch_swt::benchmark_types::cpu> cache_clearer{};
+	cache_clearer.evict_caches();
+	run_and_validate<name, benchmark_std_to_string<value_type>, "std::to_string">(resultsTest01, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	run_and_validate<name, benchmark_glz_to_chars<value_type>, "glz::to_chars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
+	cache_clearer.evict_caches();
+	run_and_validate<name, benchmark_glz_to_chars<value_type>, "glz::to_chars">(resultsTest02, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	run_and_validate<name, benchmark_std_to_chars<value_type>, "std::to_chars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
+	cache_clearer.evict_caches();
+	run_and_validate<name, benchmark_std_to_chars<value_type>, "std::to_chars">(resultsTest03, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	run_and_validate<name, benchmark_jsonifier_to_chars<value_type>, "toChars">(resultsTest, resultsReal, randomIntegers, count, currentIndex);
+	cache_clearer.evict_caches();
+	run_and_validate<name, benchmark_jsonifier_to_chars<value_type>, "jsonifier::to_chars">(resultsTest04, resultsReal, randomIntegers, count, currentIndex);
 	currentIndex = 0;
-	bnch_swt::benchmark_stage<name, max_iterations, measured_iterations, bnch_swt::benchmark_types::cpu, false>::print_results(true, true);
+	static constexpr bnch_swt::performance_metrics_presence<bnch_swt::benchmark_types::cpu> presences{ .throughput_mb_per_sec = true,
+		.bytes_processed																									  = true,
+		.cycles_per_byte																									  = true,
+		.name																												  = true };
+	benchmark::template print_results<presences>(true, true);
 }
 
 int32_t main() {
-	std::string result{};
-	result.resize(20);
-	to_chars<int64_t>::impl(result.data(), -int64_t(9223372036854775808LL));
-	std::cout << "VALUE: " << result << std::endl;
-	testFunction<int32_t, "int32-test-0-to-5", 0, 5, 10000>();
-	testFunction<int32_t, "int32-test-0-to-10", 0, 10, 10000>();
-	testFunction<int32_t, "int32-test-0-to-15", 0, 15, 10000>();
-	testFunction<int32_t, "int32-test-0-to-20", 0, 20, 10000>();
-	testFunction<int32_t, "int32-test-5-to-10", 5, 10, 10000>();
-	testFunction<int32_t, "int32-test-5-to-15", 5, 15, 10000>();
-	testFunction<int32_t, "int32-test-5-to-20", 5, 20, 10000>();
-	testFunction<int32_t, "int32-test-10-to-15", 10, 15, 10000>();
-	testFunction<int32_t, "int32-test-10-to-20", 10, 19, 10000>();
-	testFunction<int32_t, "int32-test-15-to-20", 15, 19, 10000>();
-	testFunction<int32_t, "int32-test-20", 20, 19, 10000>();
-	testFunction<uint32_t, "uint32-test-0-to-5", 0, 5, 10000>();
-	testFunction<uint32_t, "uint32-test-0-to-10", 0, 10, 10000>();
-	testFunction<uint32_t, "uint32-test-0-to-15", 0, 15, 10000>();
-	testFunction<uint32_t, "uint32-test-0-to-20", 0, 20, 10000>();
-	testFunction<uint32_t, "uint32-test-5-to-10", 5, 10, 10000>();
-	testFunction<uint32_t, "uint32-test-5-to-15", 5, 15, 10000>();
-	testFunction<uint32_t, "uint32-test-5-to-20", 5, 20, 10000>();
-	testFunction<uint32_t, "uint32-test-10-to-15", 10, 15, 10000>();
-	testFunction<uint32_t, "uint32-test-10-to-20", 10, 20, 10000>();
-	testFunction<uint32_t, "uint32-test-15-to-20", 15, 20, 10000>();
-	testFunction<uint32_t, "uint32-test-20", 20, 20, 10000>();
 	testFunction<int64_t, "int64-test-0-to-5", 0, 5, 10000>();
 	testFunction<int64_t, "int64-test-0-to-10", 0, 10, 10000>();
 	testFunction<int64_t, "int64-test-0-to-15", 0, 15, 10000>();
@@ -1182,5 +1410,11 @@ int32_t main() {
 	testFunction<uint64_t, "uint64-test-10-to-20", 10, 20, 10000>();
 	testFunction<uint64_t, "uint64-test-15-to-20", 15, 20, 10000>();
 	testFunction<uint64_t, "uint64-test-20", 20, 20, 10000>();
+	testFunction<int32_t, "int32-test-0-to-5", 0, 5, 10000>();
+	testFunction<int32_t, "int32-test-0-to-10", 0, 10, 10000>();
+	testFunction<int32_t, "int32-test-5-to-10", 5, 10, 10000>();
+	testFunction<uint32_t, "uint32-test-0-to-5", 0, 5, 10000>();
+	testFunction<uint32_t, "uint32-test-0-to-10", 0, 10, 10000>();
+	testFunction<uint32_t, "uint32-test-5-to-10", 5, 10, 10000>();
 	return 0;
 }
