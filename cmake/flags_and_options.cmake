@@ -46,13 +46,25 @@ set(BNCH_SWT_COMPILE_DEFINITIONS
     ${BNCH_SWT_SIMD_DEFINITIONS}
 )
 
+# Updated to include UBSan for Clang and GCC
+# Note: Sanitizers usually require -fno-omit-frame-pointer for clear stack traces
+
+set(BNCH_SWT_UBSAN_FLAGS
+    -fsanitize=undefined
+    -fsanitize=float-divide-by-zero
+    -fsanitize=float-cast-overflow
+    -fno-sanitize-recover=all
+    -fno-omit-frame-pointer
+)
+
 set(BNCH_SWT_CLANG_COMPILE_OPTIONS
     -O3
+    ${BNCH_SWT_UBSAN_FLAGS}
     -funroll-loops
     -fvectorize
     -fslp-vectorize
     -finline-functions
-    -fomit-frame-pointer
+    # -fomit-frame-pointer # Removed to allow UBSan traces
     -fmerge-all-constants
     -ffunction-sections
     -fdata-sections
@@ -80,11 +92,12 @@ set(BNCH_SWT_CLANG_COMPILE_OPTIONS
 
 set(BNCH_SWT_APPLECLANG_COMPILE_OPTIONS 
     -O3
+    ${BNCH_SWT_UBSAN_FLAGS}
     -funroll-loops
     -fvectorize
     -fslp-vectorize
     -finline-functions
-    -fomit-frame-pointer
+    # -fomit-frame-pointer # Removed to allow UBSan traces
     -fmerge-all-constants
     -ffunction-sections
     -fdata-sections
@@ -113,9 +126,10 @@ set(BNCH_SWT_APPLECLANG_COMPILE_OPTIONS
 
 set(BNCH_SWT_GNU_COMPILE_OPTIONS 
     -O3
+    ${BNCH_SWT_UBSAN_FLAGS}
     -funroll-loops
     -finline-functions
-    -fomit-frame-pointer
+    # -fomit-frame-pointer # Removed to allow UBSan traces
     -fno-math-errno
     -falign-functions=32
     -falign-loops=32
@@ -146,75 +160,11 @@ set(BNCH_SWT_GNU_COMPILE_OPTIONS
     -Wdouble-promotion
 )
 
-set(BNCH_SWT_MSVC_RELEASE_FLAGS
-    /Ob3
-    /Ot
-    /Oy
-    /GT
-    $<$<NOT:$<CUDA_COMPILER_ID:NVIDIA>>:/GL>
-    /fp:precise
-    /Qpar
-    /GS-
-)
-
-set(BNCH_SWT_MSVC_COMPILE_OPTIONS
-    /Gy    
-    /Gw
-    $<$<NOT:$<CUDA_COMPILER_ID:NVIDIA>>:/Zc:inline>    
-    /Zc:throwingNew
-    /W4
-    $<$<NOT:$<CUDA_COMPILER_ID:NVIDIA>>:/bigobj>
-    /permissive-
-    /Zc:__cplusplus
-    /wd4820
-    /wd4324
-    /wd5002
-    /Zc:alignedNew
-    /Zc:auto
-    /Zc:forScope
-    /Zc:implicitNoexcept
-    /Zc:noexceptTypes
-    /Zc:referenceBinding
-    /Zc:rvalueCast
-    /Zc:sizedDealloc
-    /Zc:strictStrings
-    /Zc:ternary
-    /Zc:wchar_t
-    $<$<CONFIG:Release>:${BNCH_SWT_MSVC_RELEASE_FLAGS}>
-)
-
-string(TOUPPER "${CMAKE_CUDA_HOST_COMPILER_ID}" BNCH_SWT_HOST_COMPILER_ID)
-
-set(BNCH_SWT_NVCC_HOST_FLAGS "")
-foreach(flag ${BNCH_SWT_${BNCH_SWT_HOST_COMPILER_ID}_COMPILE_OPTIONS})
-    list(APPEND BNCH_SWT_NVCC_HOST_FLAGS "-Xcompiler=${flag}")
-endforeach()
-
-set(BNCH_SWT_NVCC_COMPILE_OPTIONS
-    ${BNCH_SWT_NVCC_HOST_FLAGS}
-    $<$<CONFIG:Debug>:-g -G>
-    $<$<NOT:$<CONFIG:Debug>>:-O3>
-    --fmad=false
-    --prec-div=true
-    --prec-sqrt=true
-    --restrict
-    --extended-lambda
-)
-
-set(BNCH_SWT_CXX_COMPILE_OPTIONS
-    $<$<CXX_COMPILER_ID:Clang>:${BNCH_SWT_CLANG_COMPILE_OPTIONS}>
-    $<$<CXX_COMPILER_ID:AppleClang>:${BNCH_SWT_APPLECLANG_COMPILE_OPTIONS}>
-    $<$<CXX_COMPILER_ID:GNU>:${BNCH_SWT_GNU_COMPILE_OPTIONS}>
-    $<$<CXX_COMPILER_ID:MSVC>:${BNCH_SWT_MSVC_COMPILE_OPTIONS}>
-)
-
-set(BNCH_SWT_COMPILE_OPTIONS
-    $<$<COMPILE_LANGUAGE:CXX>:${BNCH_SWT_CXX_COMPILE_OPTIONS}>
-    $<$<COMPILE_LANGUAGE:CUDA>:${BNCH_SWT_NVCC_COMPILE_OPTIONS}>
-    ${BNCH_SWT_SIMD_FLAGS}
-)
-
+# You must also link against the UBSan runtime
 set(BNCH_SWT_LINK_OPTIONS
+    # Let the compiler driver handle the sanitizer runtime injection
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>,$<CXX_COMPILER_ID:GNU>>:-fsanitize=undefined>
+    
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<PLATFORM_ID:Darwin>>:
         -Wl,-dead_strip
         -Wl,-x
@@ -225,10 +175,9 @@ set(BNCH_SWT_LINK_OPTIONS
         -Wl,-x
         -Wl,-S
     >
+    # Remove -static-libubsan and let GCC try to use the dynamic runtime
     $<$<AND:$<CXX_COMPILER_ID:GNU>,$<PLATFORM_ID:Darwin>>:
         -Wl,-dead_strip
-        -Wl,-x
-        -Wl,-S
     >
     $<$<AND:$<CXX_COMPILER_ID:Clang>,$<PLATFORM_ID:Linux>>:
         -Wl,--gc-sections
@@ -253,11 +202,5 @@ set(BNCH_SWT_LINK_OPTIONS
         /INCREMENTAL:NO
         /MACHINE:X64
         /LTCG
-    >
-    $<$<AND:$<CUDA_COMPILER_ID:NVIDIA>,$<PLATFORM_ID:Linux>>:
-        -lcudart_static
-        -lrt
-        -ldl
-        -lpthread
     >
 )

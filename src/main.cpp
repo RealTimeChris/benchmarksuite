@@ -407,7 +407,7 @@ template<uns32_t value_type> struct to_chars_impl<value_type, 4ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64U) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
-		const uint32_t aa						= (value * 5243U) >> integral_constant<uint32_t, 19ULL>{};
+		const uint32_t aa						= (value * 5243ULL) >> integral_constant<uint32_t, 19ULL>{};
 		const uint32_t lz						= value < 1000U;
 		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2U + lz));
 		buf -= lz;
@@ -435,13 +435,13 @@ template<uns32_t value_type> struct to_chars_impl<value_type, 8ULL> {
 		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64U) static constexpr const uint16_t* int16_table{ fiwb<void>::charTable02 };
 		BNCH_SWT_ALIGN(64U) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		uint32_t aabb							= (value * 109951163ULL) >> integral_constant<uint32_t, 40ULL>{};
-		uint32_t aa								= (aabb * 5243U) >> integral_constant<uint32_t, 19ULL>{};
+		uint64_t aabb							= (value * 109951163ULL) >> integral_constant<uint32_t, 40ULL>{};
+		uint32_t aa								= (aabb * 5243ULL) >> integral_constant<uint32_t, 19ULL>{};
 		const uint32_t lz						= value < 10000000U;
 		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (aa * 2U + lz));
 		buf -= lz;
 		*reinterpret_cast<char_holder<2>*>(buf + 2U) = *reinterpret_cast<const char_holder<2>*>(int16_table + (aabb - aa * 100U));
-		const uint32_t ccdd							 = value - aabb * 10000U;
+		const uint32_t ccdd							 = value - aabb * 10000ULL;
 		*reinterpret_cast<char_holder<4>*>(buf + 4U) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
 		return buf + 8U;
 	}
@@ -451,13 +451,13 @@ template<uns32_t value_type> struct to_chars_impl<value_type, 10ULL> {
 	BNCH_SWT_HOST static char* impl(char* buf, const value_type value) noexcept {
 		BNCH_SWT_ALIGN(64U) static constexpr const char* char_table_ptr{ fiwb<void>::charTable01 };
 		BNCH_SWT_ALIGN(64U) static constexpr const uint32_t* int32_table{ fiwb<void>::charTable04.data() };
-		const uint32_t high						= multiply_and_shift_32<100000000ULL>::impl(value);
+		uint64_t high					= multiply_and_shift_32<100000000ULL>::impl(value);
 		const uint32_t low						= value - high * 100000000ULL;
 		const uint32_t lz						= high < 10U;
 		*reinterpret_cast<char_holder<2>*>(buf) = *reinterpret_cast<const char_holder<2>*>(char_table_ptr + (high * 2U + lz));
 		buf -= lz;
 		const uint32_t aabb							 = (low * 109951163ULL) >> integral_constant<uint32_t, 40ULL>{};
-		const uint32_t ccdd							 = low - aabb * 10000U;
+		const uint32_t ccdd							 = low - aabb * 10000ULL;
 		*reinterpret_cast<char_holder<4>*>(buf + 2U) = *reinterpret_cast<const char_holder<4>*>(int32_table + aabb);
 		*reinterpret_cast<char_holder<4>*>(buf + 6U) = *reinterpret_cast<const char_holder<4>*>(int32_table + ccdd);
 		return buf + 10U;
