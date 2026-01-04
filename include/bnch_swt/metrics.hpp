@@ -200,14 +200,13 @@ namespace bnch_swt {
 		std::optional<double> cycles_per_execution{};
 		std::optional<double> cuda_event_ms_avg{};
 		std::optional<double> cycles_per_byte{};
-
 		uint64_t measured_iteration_count{};
 		uint64_t iterations_to_stabilize{};
 		uint64_t total_iteration_count{};
 		double throughput_mb_per_sec{};
 		uint64_t bytes_processed{};
-		std::string name{};
 		double time_in_ns{};
+		std::string name{};
 
 		BNCH_SWT_HOST bool operator>(const performance_metrics& other) const {
 			return throughput_mb_per_sec > other.throughput_mb_per_sec;
@@ -289,5 +288,42 @@ namespace bnch_swt {
 			}
 			return metrics;
 		}
+	};	
+
+	template<benchmark_types benchmark_type> struct performance_metrics_presence {};
+
+	template<> struct performance_metrics_presence<benchmark_types::cpu> {
+		bool throughput_percentage_deviation{ true };
+		bool cache_references_per_execution{ false };
+		bool branch_misses_per_execution{ false };
+		bool instructions_per_execution{ false };
+		bool cache_misses_per_execution{ false };
+		bool measured_iteration_count{ true };
+		bool iterations_to_stabilize{ true };
+		bool instructions_per_cycle{ false };
+		bool branches_per_execution{ false };
+		bool instructions_per_byte{ false };
+		bool total_iteration_count{ true };
+		bool throughput_mb_per_sec{ true };
+		bool cycles_per_execution{ false };
+		bool bytes_processed{ true };
+		bool cycles_per_byte{ true };
+		bool frequency_ghz{ false };
+		bool time_in_ns{ false };
+		bool name{ true };
+	};
+
+	template<> struct performance_metrics_presence<benchmark_types::cuda> {
+		bool throughput_percentage_deviation{ true };
+		bool measured_iteration_count{ true };
+		bool iterations_to_stabilize{ true };
+		bool total_iteration_count{ true };
+		bool throughput_mb_per_sec{ true };
+		bool cycles_per_execution{ false };
+		bool cuda_event_ms_avg{ false };
+		bool cycles_per_byte{ true };
+		bool bytes_processed{ true };
+		bool time_in_ns{ false };
+		bool name{ true };
 	};
 }

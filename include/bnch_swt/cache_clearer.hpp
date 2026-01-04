@@ -151,7 +151,7 @@ namespace bnch_swt::internal {
 #endif
 	}
 
-	template<benchmark_types benchmark_type> class cache_clearer {
+	template<benchmark_types benchmark_type> struct cache_clearer {
 		size_t cache_line_size{ get_cache_line_size() };
 		std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
