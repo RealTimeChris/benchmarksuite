@@ -45,6 +45,29 @@ namespace bnch_swt {
 
 	template<benchmark_types benchmark_type> struct performance_metrics;
 
+	template<benchmark_types benchmark_type> struct performance_metrics_presence {};
+
+	template<> struct performance_metrics_presence<benchmark_types::cpu> {
+		bool throughput_percentage_deviation{ false };
+		bool cache_references_per_execution{ false };
+		bool branch_misses_per_execution{ false };
+		bool instructions_per_execution{ false };
+		bool cache_misses_per_execution{ false };
+		bool measured_iteration_count{ false };
+		bool iterations_to_stabilize{ false };
+		bool instructions_per_cycle{ false };
+		bool branches_per_execution{ false };
+		bool instructions_per_byte{ false };
+		bool total_iteration_count{ false };
+		bool throughput_mb_per_sec{ false };
+		bool cycles_per_execution{ false };
+		bool bytes_processed{ false };
+		bool cycles_per_byte{ false };
+		bool frequency_ghz{ false };
+		bool time_in_ns{ false };
+		bool name{ false };
+	};
+
 	template<> struct performance_metrics<benchmark_types::cpu> {
 		double throughput_percentage_deviation{ std::numeric_limits<double>::max() };
 		std::optional<double> cache_references_per_execution{};
