@@ -689,8 +689,17 @@ namespace bnch_swt {
 			const auto s							 = float_bits.remove_exponent_bits();
 
 			if (exp_bits == (uint32_t(1) << exp_bits_count) - 1) [[unlikely]] {
-				std::memcpy(buf, "null", 4);
-				return buf + 4;
+				if (s.u == 0) {
+					if (float_bits.is_negative()) {
+						std::memcpy(buf, "-inf", 4);
+						return buf + 4;
+					}
+					std::memcpy(buf, "inf", 3);
+					return buf + 3;
+				} else {
+					std::memcpy(buf, "nan", 3);
+					return buf + 3;
+				}
 			}
 
 			*buf				= '-';

@@ -142,49 +142,12 @@ template<typename value_type, bnch_swt::string_literal name, uint64_t count> inl
 	benchmark::print_results(true, true);
 }
 
-template<typename T> void verify_float_roundtrip(T val, const std::string& label) {
-	char buf[64];
-	auto* end = bnch_swt::to_chars<T>::impl(buf, val);
-
-	T parsed_val;
-	auto [ptr, ec] = std::from_chars(buf, end, parsed_val);
-
-	if (ec != std::errc{} || std::bit_cast<uint64_t>(static_cast<double>(val)) != std::bit_cast<uint64_t>(static_cast<double>(parsed_val))) {
-		// Handle NaN specifically as bit patterns can vary
-		if (std::isnan(val) && std::isnan(parsed_val))
-			return;
-
-		std::cerr << "ROUND-TRIP FAILURE [" << label << "]\n"
-				  << "Original: " << std::scientific << std::setprecision(17) << val << "\n"
-				  << "String  : " << std::string(buf, end - buf) << "\n"
-				  << "Parsed  : " << parsed_val << "\n"
-				  << "Bits Orig: " << std::hex << std::bit_cast<uint64_t>(static_cast<double>(val)) << "\n"
-				  << "Bits Pars: " << std::hex << std::bit_cast<uint64_t>(static_cast<double>(parsed_val)) << std::dec << "\n";
-		std::exit(1);
-	}
-}
-
-void run_rigorous_float_tests() {
-	std::cout << "Starting Rigorous Round-Trip Verification...\n";
-
-	std::vector<double> edge_cases = { 0.0, -0.0, 1.0, -1.0, std::numeric_limits<double>::min(), std::numeric_limits<double>::max(), std::numeric_limits<double>::epsilon(),
-		std::pow(2.0, -52),// Smallest subnormal significand
-		0.3333333333333333, 1.2345678901234567e-20, 1.2345678901234567e+20 };
-
-	for (auto v: edge_cases) {
-		verify_float_roundtrip<double>(v, "Edge Case Double");
-		verify_float_roundtrip<float>(static_cast<float>(v), "Edge Case Float");
-	}
-
-	std::mt19937_64 rng(42);
-	std::uniform_real_distribution<double> dist(-1e30, 1e30);
-	for (int i = 0; i < 1000000; ++i) {
-		verify_float_roundtrip<double>(dist(rng), "Fuzz Double");
-	}
-
-	std::cout << "All Round-Trip Tests Passed!\n";
-}
-
 int32_t main() {
-	run_rigorous_float_tests();
+	// Benchmark for Doubles
+	testFloatFunction<double, "double-test-random", 10000>();
+
+	// Benchmark for Floats
+	testFloatFunction<float, "float-test-random", 10000>();
+
+	return 0;
 }
