@@ -656,7 +656,7 @@ template<typename derived_type, typename value_type, value_type divisor> struct 
 		multiplicand_and_shift = uint_type<value_type>::collect_values(d);
 	}
 
-	BNCH_SWT_HOST_DEVICE value_type div(value_type val) const {
+	BNCH_SWT_HOST_DEVICE constexpr value_type div(value_type val) const {
 		if (get_value() == 1) {
 			return val;
 		}
@@ -676,39 +676,39 @@ template<typename derived_type, typename value_type, value_type divisor> struct 
 #endif
 	}
 
-	BNCH_SWT_HOST_DEVICE value_type mod(value_type val) const {
+	BNCH_SWT_HOST_DEVICE constexpr value_type mod(value_type val) const {
 		return val - (div(val) * get_value());
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator<(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator<(value_type lhs, const div_mod_logic& rhs) {
 		return lhs < rhs.value.value;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator>(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator>(value_type lhs, const div_mod_logic& rhs) {
 		return lhs > rhs.value.value;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator>=(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator>=(value_type lhs, const div_mod_logic& rhs) {
 		return lhs >= rhs.value.value;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator>=(const div_mod_logic& lhs, value_type rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator>=(const div_mod_logic& lhs, value_type rhs) {
 		return lhs.value.value >= rhs;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator/(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator/(value_type lhs, const div_mod_logic& rhs) {
 		return rhs.div(lhs);
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator*(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator*(value_type lhs, const div_mod_logic& rhs) {
 		return lhs * rhs.value.value;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator*(const div_mod_logic& lhs, value_type rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator*(const div_mod_logic& lhs, value_type rhs) {
 		return lhs.value.value * rhs;
 	}
 
-	BNCH_SWT_HOST_DEVICE friend value_type operator%(value_type lhs, const div_mod_logic& rhs) {
+	BNCH_SWT_HOST_DEVICE friend constexpr value_type operator%(value_type lhs, const div_mod_logic& rhs) {
 		return rhs.mod(lhs);
 	}
 };
@@ -737,12 +737,12 @@ template<typename derived_type, typename value_type, value_type divisor> struct 
 
 	static constexpr uint_pair<value_type> multiplicand_and_shift{ uint_type<value_type, divisor>::collect_values() };
 
-	BNCH_SWT_HOST_DEVICE value_type div(value_type val) const {
+	BNCH_SWT_HOST_DEVICE constexpr value_type div(value_type val) const {
 		if constexpr (divisor == 1ULL) {
 			return val;
 		}
 		if constexpr (is_power_of_2(divisor)) {
-			static constexpr value_type shift_amount{ log2_ct(divisor) };
+			constexpr value_type shift_amount{ log2_ct(divisor) };
 			return val >> shift_amount;
 		} else {
 #if BNCH_SWT_COMPILER_CUDA && defined(__CUDA_ARCH__)
@@ -769,7 +769,7 @@ template<typename derived_type, typename value_type, value_type divisor> struct 
 		}
 	}
 
-	BNCH_SWT_HOST_DEVICE value_type mod(value_type val) const {
+	BNCH_SWT_HOST_DEVICE constexpr value_type mod(value_type val) const {
 		if constexpr (is_power_of_2(divisor)) {
 			return val & (divisor - 1);
 		} else {
@@ -898,16 +898,16 @@ static constexpr const std::string_view kernel_types_names[static_cast<uint64_t>
 struct model_traits {
 	static constexpr float layer_norm_rms_epsilon	  = 1e-5f;
 	static constexpr float rope_freq_base			  = 500000.0f;
-	static constexpr uint32_t vocab_size			  = 128256;
-	static constexpr uint32_t embedding_length		  = 8192;
-	static constexpr uint32_t block_count			  = 126;
-	static constexpr uint32_t feed_forward_length	  = 53248;
-	static constexpr uint32_t attention_head_count	  = 128;
-	static constexpr uint32_t attention_head_count_kv = 8;
-	static constexpr uint32_t rope_dimension_count	  = embedding_length / attention_head_count;
-	static constexpr uint32_t context_length		  = 131072;
-	static constexpr uint32_t n_embd_kv_gqa			  = rope_dimension_count * attention_head_count_kv;
-	static constexpr uint32_t sequence_length		  = 2;
+	static constexpr uint64_t vocab_size			  = 128256;
+	static constexpr uint64_t embedding_length		  = 8192;
+	static constexpr uint64_t block_count			  = 126;
+	static constexpr uint64_t feed_forward_length	  = 53248;
+	static constexpr uint64_t attention_head_count	  = 128;
+	static constexpr uint64_t attention_head_count_kv = 8;
+	static constexpr uint64_t rope_dimension_count	  = embedding_length / attention_head_count;
+	static constexpr uint64_t context_length		  = 131072;
+	static constexpr uint64_t n_embd_kv_gqa			  = rope_dimension_count * attention_head_count_kv;
+	static constexpr uint64_t sequence_length		  = 2;
 };
 
 template<auto multiple, typename value_type_01 = decltype(multiple)> BNCH_SWT_HOST constexpr value_type_01 round_up_to_multiple(value_type_01 value) noexcept {
@@ -1210,7 +1210,7 @@ template<> struct type_traits<bf16_t> : public type_traits_base<type_traits<bf16
 };
 
 #if BNCH_SWT_COMPILER_CUDA
-template<> struct type_traits<half> : public type_traits_base<type_traits<half>>, public get_dynamic_type_traits<type_traits<half>> {
+template<> struct type_traits<half*> : public type_traits_base<type_traits<half*>>, public get_dynamic_type_traits<type_traits<half*>> {
 	using value_type = half;
 	using quant_type = half;
 	inline static constexpr uint64_t type_size{ sizeof(half) };
@@ -1291,7 +1291,9 @@ template<> struct type_traits<double> : public type_traits_base<type_traits<doub
 };
 
 
-template<typename value_type> struct get_value_type;
+template<typename value_type> struct get_value_type {
+	using type = ushort4;
+};
 
 template<> struct get_value_type<float> {
 	using type = float4;
@@ -1301,7 +1303,7 @@ template<> struct get_value_type<double> {
 	using type = double4;
 };
 
-template<> struct get_value_type<half> {
+template<> struct get_value_type<__half*> {
 	using type = ushort4;
 };
 
@@ -1889,12 +1891,6 @@ struct cpu_buffer {
 	}
 };
 
-template<uint32_types value_type> BNCH_SWT_DEVICE value_type fast_min(value_type value_01, value_type value_02) {
-	uint32_t res;
-	asm("min.u32 %0, %1, %2;" : "=r"(res) : "r"(value_01), "r"(value_02));
-	return res;
-}
-
 template<uint64_types value_type> BNCH_SWT_DEVICE value_type fast_min(value_type value_01, value_type value_02) {
 	uint64_t res;
 	asm("min.u64 %0, %1, %2;" : "=l"(res) : "l"(value_01), "l"(value_02));
@@ -1905,7 +1901,7 @@ template<typename value_type, kernel_types> struct cuda_kernel_traits_impl {};
 
 template<typename value_type, typename, kernel_types...> struct cuda_sub_kernel;
 
-template<typename value_type, kernel_types kernel_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new, uint32_t max_values>
+template<typename value_type, kernel_types kernel_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new, uint64_t max_values>
 struct cpu_baseline;
 
 template<typename value_type, kernel_types kernel_type> struct cuda_kernel_traits : public cuda_kernel_traits_impl<value_type, kernel_type> {
@@ -1929,27 +1925,27 @@ template<typename value_type, size_t... indices> struct cuda_sub_kernel<value_ty
 	};
 };
 
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new, kernel_types... kernel_types>
+template<typename value_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new, kernel_types... kernel_types>
 	requires(((kernel_types == kernel_types::add) || ...))
 BNCH_SWT_GLOBAL void test_function(value_type* __restrict __grid_constant__ input_01, value_type* __restrict __grid_constant__ input_02,
 	value_type* __restrict __grid_constant__ output) {
-	constexpr uint32_t vectors_per_thread			= cuda_kernel_traits<value_type, kernel_types::add>::total_executions;
-	const uint32_t global_thread_id					= blockIdx.x * blockDim.x + threadIdx.x;
-	const uint32_t total_threads					= gridDim.x * blockDim.x;
-	static constexpr uint32_t total_scalar_elements = dim_00_new * dim_01_new * dim_02_new * dim_03_new;
-	static constexpr uint32_t total_vector_elements = (total_scalar_elements + 3) / 4;
-	static constexpr uint32_t total_chunks			= (total_vector_elements + vectors_per_thread - 1) / vectors_per_thread;
-	for (uint32_t chunk_id = global_thread_id; chunk_id < total_chunks; chunk_id += total_threads) {
-		uint32_t base_offset = fast_min(chunk_id * vectors_per_thread, total_vector_elements);
+	constexpr uint64_t vectors_per_thread			= cuda_kernel_traits<value_type, kernel_types::add>::total_executions;
+	const uint64_t global_thread_id					= blockIdx.x * blockDim.x + threadIdx.x;
+	const uint64_t total_threads					= gridDim.x * blockDim.x;
+	static constexpr uint64_t total_scalar_elements = dim_00_new * dim_01_new * dim_02_new * dim_03_new;
+	static constexpr uint64_t total_vector_elements = (total_scalar_elements + 3) / 4;
+	static constexpr uint64_t total_chunks			= (total_vector_elements + vectors_per_thread - 1) / vectors_per_thread;
+	for (uint64_t chunk_id = global_thread_id; chunk_id < total_chunks; chunk_id += total_threads) {
+		uint64_t base_offset = fast_min(chunk_id * vectors_per_thread, total_vector_elements);
 		cuda_sub_kernel<value_type, std::make_index_sequence<vectors_per_thread>, kernel_types...>::impl(input_01 + base_offset, input_02 + base_offset, output + base_offset);
 	}
 };
 
 template<typename value_type> struct cuda_sub_kernel_runtime_add {
 	BNCH_SWT_DEVICE static void impl(value_type* __restrict __grid_constant__ input_01, value_type* __restrict __grid_constant__ input_02,
-		value_type* __restrict __grid_constant__ output, uint32_t base_offset, uint32_t max_elements, uint32_t vectors_per_thread) {
-		for (uint32_t i = 0; i < vectors_per_thread; ++i) {
-			uint32_t idx = base_offset + i;
+		value_type* __restrict __grid_constant__ output, uint64_t base_offset, uint64_t max_elements, uint64_t vectors_per_thread) {
+		for (uint64_t i = 0; i < vectors_per_thread; ++i) {
+			uint64_t idx = base_offset + i;
 			if (idx < max_elements) {
 				output[idx] = input_01[idx] + input_02[idx];
 			}
@@ -1957,21 +1953,21 @@ template<typename value_type> struct cuda_sub_kernel_runtime_add {
 	}
 };
 
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new> BNCH_SWT_GLOBAL void test_function_branched(
+template<typename value_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new> BNCH_SWT_GLOBAL void test_function_branched(
 	value_type* __restrict __grid_constant__ input_01, value_type* __restrict __grid_constant__ input_02, value_type* __restrict __grid_constant__ output) {
-	constexpr uint32_t vectors_per_thread = cuda_kernel_traits<value_type, kernel_types::add>::total_executions;
+	constexpr uint64_t vectors_per_thread = cuda_kernel_traits<value_type, kernel_types::add>::total_executions;
 
-	const uint32_t global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-	const uint32_t total_threads	= gridDim.x * blockDim.x;
+	const uint64_t global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
+	const uint64_t total_threads	= gridDim.x * blockDim.x;
 
-	static constexpr uint32_t total_scalar_elements = dim_00_new * dim_01_new * dim_02_new * dim_03_new;
+	static constexpr uint64_t total_scalar_elements = dim_00_new * dim_01_new * dim_02_new * dim_03_new;
 
-	static constexpr uint32_t total_vector_elements = (total_scalar_elements + 3) / 4;
+	static constexpr uint64_t total_vector_elements = (total_scalar_elements + 3) / 4;
 
-	static constexpr uint32_t total_chunks = (total_vector_elements + vectors_per_thread - 1) / vectors_per_thread;
+	static constexpr uint64_t total_chunks = (total_vector_elements + vectors_per_thread - 1) / vectors_per_thread;
 
-	for (uint32_t chunk_id = global_thread_id; chunk_id < total_chunks; chunk_id += total_threads) {
-		uint32_t base_offset = chunk_id * vectors_per_thread;
+	for (uint64_t chunk_id = global_thread_id; chunk_id < total_chunks; chunk_id += total_threads) {
+		uint64_t base_offset = chunk_id * vectors_per_thread;
 		if (base_offset >= total_vector_elements) {
 			return;
 		}
@@ -1979,7 +1975,7 @@ template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t
 	}
 }
 
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new, uint32_t max_values>
+template<typename value_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new, uint64_t max_values>
 struct cpu_baseline<value_type, kernel_types::add, dim_00_new, dim_01_new, dim_02_new, dim_03_new, max_values> {
 	BNCH_SWT_HOST static uint64_t impl(value_type* cpu_input_01, value_type* cpu_input_02, value_type* cpu_output, uint64_t output_element_count) {
 		for (uint64_t i = 0; i < output_element_count; ++i) {
@@ -2079,14 +2075,14 @@ cuda_buffer buffer{ [] {
 	return return_values;
 }() };
 
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new, uint32_t max_values>
+template<typename value_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new, uint64_t max_values>
 struct cpu_baseline<value_type, kernel_types::mul_mat_add, dim_00_new, dim_01_new, dim_02_new, dim_03_new, max_values> {
-	BNCH_SWT_HOST static uint64_t impl(value_type* cpu_input_A, value_type* cpu_input_B, value_type* cpu_input_C, value_type* cpu_output, uint32_t M, uint32_t K, uint32_t N) {
-		uint32_t current_count{};
-		for (uint32_t m = 0; m < M; ++m) {
-			for (uint32_t n = 0; n < N; ++n) {
+	BNCH_SWT_HOST static uint64_t impl(value_type* cpu_input_A, value_type* cpu_input_B, value_type* cpu_input_C, value_type* cpu_output, uint64_t M, uint64_t K, uint64_t N) {
+		uint64_t current_count{};
+		for (uint64_t m = 0; m < M; ++m) {
+			for (uint64_t n = 0; n < N; ++n) {
 				value_type accumulator = 0;
-				for (uint32_t k = 0; k < K; ++k) {
+				for (uint64_t k = 0; k < K; ++k) {
 					accumulator += cpu_input_A[m * K + k] * cpu_input_B[k * N + n];
 				}
 				if (current_count < max_values) {
@@ -2106,11 +2102,11 @@ template<typename value_type> struct cuda_kernel_traits_impl<value_type, kernel_
 	static constexpr int BM					= 128;
 	static constexpr int BN					= 128;
 	static constexpr int BK					= 16;
-	static constexpr uint32_t TM			= 16;
-	static constexpr uint32_t TN			= 16;
-	static constexpr uint32_t THREADS_X		= 1024;
-	static constexpr uint32_t THREADS_Y		= 1;
-	static constexpr uint32_t THREADS_TOTAL = THREADS_X * THREADS_Y;
+	static constexpr uint64_t TM			= 16;
+	static constexpr uint64_t TN			= 16;
+	static constexpr uint64_t THREADS_X		= 1024;
+	static constexpr uint64_t THREADS_Y		= 1;
+	static constexpr uint64_t THREADS_TOTAL = THREADS_X * THREADS_Y;
 
 	static constexpr uint64_t flops_per_element = 2;
 };
@@ -2118,89 +2114,14 @@ template<typename value_type> struct cuda_kernel_traits_impl<value_type, kernel_
 
 struct cutlass_gemm_host_wrapper {
 	static cudaStream_t stream_global;
-	using Gemm = cutlass::gemm::device::Gemm<half, cutlass::layout::RowMajor, half, cutlass::layout::RowMajor, half, cutlass::layout::RowMajor, half>;
 
-	template<typename GemmType, typename ArgsType> static void impl(half* A, half* B, half* C, half* D, uint32_t M, uint32_t K, uint32_t N, GemmType gemm_op, ArgsType args) {
+	template<typename GemmType, typename ArgsType, typename value_type>
+	static void impl(value_type* A, value_type* B, value_type* C, value_type* D, uint64_t M, uint64_t K, uint64_t N, GemmType gemm_op, ArgsType args) {
 		cutlass::Status status = gemm_op(args, nullptr, stream_global);
 	}
 };
 
 cudaStream_t cutlass_gemm_host_wrapper::stream_global = nullptr;
-#include <mma.h>
-using namespace nvcuda;
-
-template<typename value_type, size_t... indices> struct cuda_sub_kernel<value_type, std::index_sequence<indices...>, kernel_types::mul_mat_add> {
-	static constexpr int WMMA_M = 16;
-	static constexpr int WMMA_N = 16;
-	static constexpr int WMMA_K = 16;
-
-	BNCH_SWT_DEVICE static void impl(value_type* __restrict input_A, value_type* __restrict input_B, value_type* __restrict input_C, value_type* __restrict output_D, uint32_t M,
-		uint32_t K, uint32_t N, void* intermediate_buffer) {
-		wmma::fragment<wmma::matrix_a, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> a_frag;
-		wmma::fragment<wmma::matrix_b, WMMA_M, WMMA_N, WMMA_K, half, wmma::row_major> b_frag;
-		wmma::fragment<wmma::accumulator, WMMA_M, WMMA_N, WMMA_K, float> acc_frag;
-
-		const uint32_t tid			= threadIdx.x;
-		const uint32_t warp_id		= division<uint32_t, 32>::div(tid);
-		const uint32_t block_warps	= division<uint32_t, 32>::div(blockDim.x);
-		const uint32_t grid_warp_id = (blockIdx.x * block_warps) + warp_id;
-
-		const uint32_t warps_n = division<uint32_t, WMMA_N>::div(N + WMMA_N - 1);
-
-		const uint32_t warp_row = (grid_warp_id / warps_n) * WMMA_M;
-		const uint32_t warp_col = (grid_warp_id % warps_n) * WMMA_N;
-
-		if (warp_row < M && warp_col < N) {
-			wmma::load_matrix_sync(acc_frag, reinterpret_cast<float*>(input_C) + (warp_row * N + warp_col), N, wmma::mem_row_major);
-		} else {
-			wmma::fill_fragment(acc_frag, 0.0f);
-		}
-
-		__shared__ half sA_h[16][17];
-		__shared__ half sB_h[16][17];
-
-		ushort4* sA_v	   = reinterpret_cast<ushort4*>(sA_h);
-		ushort4* sB_v	   = reinterpret_cast<ushort4*>(sB_h);
-		const ushort4* A_v = reinterpret_cast<const ushort4*>(input_A);
-		const ushort4* B_v = reinterpret_cast<const ushort4*>(input_B);
-
-		const uint32_t lane_id = modulo<uint32_t, 32>::mod(tid);
-
-		const uint32_t k_vec_width	  = K >> 2;
-		const uint32_t n_vec_width	  = N >> 2;
-		const uint32_t col_vec_offset = warp_col >> 2;
-
-		for (uint32_t i = 0; i < K; i += WMMA_K) {
-			const uint32_t i_vec_offset = i >> 2;
-
-#pragma unroll
-			for (uint32_t load_step = 0; load_step < 2; ++load_step) {
-				uint32_t vec_idx = lane_id + (load_step * 32);
-
-				uint32_t r	   = vec_idx >> 2;
-				uint32_t c_vec = vec_idx & 3;
-				if (warp_row + r < M && (i + (c_vec << 2)) < K) {
-					sA_v[vec_idx] = A_v[((warp_row + r) * k_vec_width) + (i_vec_offset + c_vec)];
-					sB_v[vec_idx] = B_v[((i + r) * n_vec_width) + (col_vec_offset + c_vec)];
-				}
-			}
-
-			__syncwarp();
-			wmma::load_matrix_sync(a_frag, reinterpret_cast<half*>(sA_h), 16);
-			wmma::load_matrix_sync(b_frag, reinterpret_cast<half*>(sB_h), 16);
-			wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-			__syncwarp();
-		}
-
-		wmma::store_matrix_sync(reinterpret_cast<float*>(output_D) + (warp_row * N + warp_col), acc_frag, N, wmma::mem_row_major);
-	}
-};
-
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new>
-BNCH_SWT_GLOBAL void test_function_matmul(value_type* __restrict input_A, value_type* __restrict input_B, value_type* __restrict input_C, value_type* __restrict output_D,
-	uint32_t M, uint32_t K, uint32_t N, void* __restrict intermediate_buffer) {
-	cuda_sub_kernel<value_type, std::index_sequence<>, kernel_types::mul_mat_add>::impl(input_A, input_B, input_C, output_D, M, K, N, intermediate_buffer);
-}
 
 BNCH_SWT_HOST bool check_cuda_result() {
 	if (auto result = cudaGetLastError(); result) {
@@ -2210,203 +2131,11 @@ BNCH_SWT_HOST bool check_cuda_result() {
 		return true;
 	}
 }
-
-#include <cooperative_groups.h>
-
-namespace cg = cooperative_groups;
-
-template<uint32_t M, uint32_t K, uint32_t N, uint32_t P> BNCH_SWT_GLOBAL void test_function_fused_dual_matmul(half* __restrict__ input_A, half* __restrict__ input_B,
-	half* __restrict__ input_E, half* __restrict__ bias_C1, half* __restrict__ bias_D, half* __restrict__ output_D, void* __restrict__ l2_c1_storage) {
-	static constexpr uint32_t WMMA_TILE = 16;
-	static constexpr uint32_t WARP_SIZE = 32;
-
-	static constexpr uint32_t M_tiles = (M + WMMA_TILE - 1) / WMMA_TILE;
-	static constexpr uint32_t N_tiles = (N + WMMA_TILE - 1) / WMMA_TILE;
-	static constexpr uint32_t P_tiles = (P + WMMA_TILE - 1) / WMMA_TILE;
-	static constexpr uint32_t K_tiles = (K + WMMA_TILE - 1) / WMMA_TILE;
-
-	static constexpr uint32_t total_c1_tiles = M_tiles * N_tiles;
-	static constexpr uint32_t total_d_tiles	 = M_tiles * P_tiles;
-
-	const uint32_t tid			= threadIdx.x;
-	const uint32_t warp_id		= division<uint32_t, WARP_SIZE>::div(tid);
-	const uint32_t block_warps	= division<uint32_t, WARP_SIZE>::div(blockDim.x);
-	const uint32_t grid_warp_id = (blockIdx.x * block_warps) + warp_id;
-
-	__shared__ half sA[WMMA_TILE][WMMA_TILE + 1];
-	__shared__ half sB_or_E[WMMA_TILE][WMMA_TILE + 1];
-
-	half* l2_c1 = reinterpret_cast<half*>(l2_c1_storage);
-
-	wmma::fragment<wmma::matrix_a, WMMA_TILE, WMMA_TILE, WMMA_TILE, half, wmma::row_major> a_frag;
-	wmma::fragment<wmma::matrix_b, WMMA_TILE, WMMA_TILE, WMMA_TILE, half, wmma::row_major> b_frag;
-	wmma::fragment<wmma::accumulator, WMMA_TILE, WMMA_TILE, WMMA_TILE, half> acc_frag;
-
-	if (grid_warp_id < total_c1_tiles) {
-		const uint32_t tile_row = division<uint32_t, N_tiles>::div(grid_warp_id);
-		const uint32_t tile_col = modulo<uint32_t, N_tiles>::mod(grid_warp_id);
-		const uint32_t warp_row = tile_row * WMMA_TILE;
-		const uint32_t warp_col = tile_col * WMMA_TILE;
-
-		wmma::fill_fragment(acc_frag, __float2half(0.0f));
-
-		if (warp_row < M && warp_col < N) {
-			wmma::load_matrix_sync(acc_frag, bias_C1 + (warp_row * N + warp_col), N, wmma::mem_row_major);
-		}
-
-		for (uint32_t k_tile = 0; k_tile < K_tiles; ++k_tile) {
-			const uint32_t k = k_tile * WMMA_TILE;
-			wmma::load_matrix_sync(a_frag, input_A + (warp_row * K + k), K);
-			wmma::load_matrix_sync(b_frag, input_B + (k * N + warp_col), N);
-			wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-		}
-
-		if (warp_row < M && warp_col < N) {
-			wmma::store_matrix_sync(l2_c1 + (warp_row * N + warp_col), acc_frag, N, wmma::mem_row_major);
-		}
-	}
-
-	cg::grid_group grid = cg::this_grid();
-	grid.sync();
-
-	if (grid_warp_id < total_d_tiles) {
-		const uint32_t tile_row	  = division<uint32_t, P_tiles>::div(grid_warp_id);
-		const uint32_t tile_col_p = modulo<uint32_t, P_tiles>::mod(grid_warp_id);
-		const uint32_t warp_row	  = tile_row * WMMA_TILE;
-		const uint32_t warp_col_p = tile_col_p * WMMA_TILE;
-
-		wmma::fill_fragment(acc_frag, __float2half(0.0f));
-
-		if (warp_row < M && warp_col_p < P) {
-			wmma::load_matrix_sync(acc_frag, bias_D + (warp_row * P + warp_col_p), P, wmma::mem_row_major);
-		}
-
-		for (uint32_t n_tile = 0; n_tile < N_tiles; ++n_tile) {
-			const uint32_t n = n_tile * WMMA_TILE;
-			wmma::load_matrix_sync(a_frag, l2_c1 + (warp_row * N + n), N);
-			wmma::load_matrix_sync(b_frag, input_E + (n * P + warp_col_p), P);
-			wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-		}
-
-		if (warp_row < M && warp_col_p < P) {
-			wmma::store_matrix_sync(output_D + (warp_row * P + warp_col_p), acc_frag, P, wmma::mem_row_major);
-		}
-	}
-}
-
-template<uint32_t M, uint32_t K, uint32_t N, uint32_t P> BNCH_SWT_GLOBAL void nihilus_fused_striped_tiled(half* __restrict__ input_A, half* __restrict__ input_B,
-	half* __restrict__ input_E, half* __restrict__ bias_C1, half* __restrict__ bias_D, half* __restrict__ output_D, void* __restrict__ l2_c1_storage) {
-	static constexpr uint32_t WMMA_TILE = 16;
-	static constexpr uint32_t WARP_SIZE = 32;
-
-	// Calculate max rows that fit in L2 cache
-	static constexpr uint32_t max_l2_bytes		  = bnch_swt::gpu_properties::max_persisting_l2_bytes;
-	static constexpr uint32_t bytes_per_row		  = N * sizeof(half);
-	static constexpr uint32_t max_rows_per_stripe = max_l2_bytes / bytes_per_row;
-
-	// Round down to WMMA_TILE multiple, ensure at least one tile height
-	static constexpr uint32_t rows_per_stripe = max_rows_per_stripe >= WMMA_TILE ? (max_rows_per_stripe / WMMA_TILE) * WMMA_TILE : WMMA_TILE;
-
-	static constexpr uint32_t num_stripes = (M + rows_per_stripe - 1) / rows_per_stripe;
-
-	// Tile counts for full dimensions
-	static constexpr uint32_t N_tiles = (N + WMMA_TILE - 1) / WMMA_TILE;
-	static constexpr uint32_t P_tiles = (P + WMMA_TILE - 1) / WMMA_TILE;
-	static constexpr uint32_t K_tiles = (K + WMMA_TILE - 1) / WMMA_TILE;
-
-	const uint32_t tid			= threadIdx.x;
-	const uint32_t warp_id		= division<uint32_t, WARP_SIZE>::div(tid);
-	const uint32_t block_warps	= division<uint32_t, WARP_SIZE>::div(blockDim.x);
-	const uint32_t grid_warp_id = (blockIdx.x * block_warps) + warp_id;
-
-	half* l2_c1 = reinterpret_cast<half*>(l2_c1_storage);
-
-	wmma::fragment<wmma::matrix_a, WMMA_TILE, WMMA_TILE, WMMA_TILE, half, wmma::row_major> a_frag;
-	wmma::fragment<wmma::matrix_b, WMMA_TILE, WMMA_TILE, WMMA_TILE, half, wmma::row_major> b_frag;
-	wmma::fragment<wmma::accumulator, WMMA_TILE, WMMA_TILE, WMMA_TILE, half> acc_frag;
-
-	cg::grid_group grid = cg::this_grid();
-
-	// Process each M-stripe sequentially
-	for (uint32_t stripe = 0; stripe < num_stripes; ++stripe) {
-		const uint32_t stripe_start_row = stripe * rows_per_stripe;
-		const uint32_t stripe_end_row	= min(stripe_start_row + rows_per_stripe, M);
-		const uint32_t stripe_height	= stripe_end_row - stripe_start_row;
-		const uint32_t stripe_m_tiles	= (stripe_height + WMMA_TILE - 1) / WMMA_TILE;
-
-		const uint32_t total_c1_tiles_in_stripe = stripe_m_tiles * N_tiles;
-
-		// PHASE 1: Compute C1 stripe (A × B)
-		if (grid_warp_id < total_c1_tiles_in_stripe) {
-			const uint32_t tile_row_in_stripe = division<uint32_t, N_tiles>::div(grid_warp_id);
-			const uint32_t tile_col			  = modulo<uint32_t, N_tiles>::mod(grid_warp_id);
-
-			const uint32_t global_row = stripe_start_row + (tile_row_in_stripe * WMMA_TILE);
-			const uint32_t warp_col	  = tile_col * WMMA_TILE;
-
-			wmma::fill_fragment(acc_frag, __float2half(0.0f));
-
-			if (global_row < M && warp_col < N) {
-				wmma::load_matrix_sync(acc_frag, bias_C1 + (global_row * N + warp_col), N, wmma::mem_row_major);
-			}
-
-			for (uint32_t k_tile = 0; k_tile < K_tiles; ++k_tile) {
-				const uint32_t k = k_tile * WMMA_TILE;
-				wmma::load_matrix_sync(a_frag, input_A + (global_row * K + k), K);
-				wmma::load_matrix_sync(b_frag, input_B + (k * N + warp_col), N);
-				wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-			}
-
-			if (global_row < M && warp_col < N) {
-				// Store to L2 tile workspace (relative to stripe start)
-				const uint32_t local_row = global_row - stripe_start_row;
-				wmma::store_matrix_sync(l2_c1 + (local_row * N + warp_col), acc_frag, N, wmma::mem_row_major);
-			}
-		}
-
-		// Sync: C1 stripe complete
-		grid.sync();
-
-		// PHASE 2: Compute D stripe (C1_stripe × E)
-		const uint32_t total_d_tiles_in_stripe = stripe_m_tiles * P_tiles;
-
-		if (grid_warp_id < total_d_tiles_in_stripe) {
-			const uint32_t tile_row_in_stripe = division<uint32_t, P_tiles>::div(grid_warp_id);
-			const uint32_t tile_col_p		  = modulo<uint32_t, P_tiles>::mod(grid_warp_id);
-
-			const uint32_t global_row = stripe_start_row + (tile_row_in_stripe * WMMA_TILE);
-			const uint32_t warp_col_p = tile_col_p * WMMA_TILE;
-
-			wmma::fill_fragment(acc_frag, __float2half(0.0f));
-
-			if (global_row < M && warp_col_p < P) {
-				wmma::load_matrix_sync(acc_frag, bias_D + (global_row * P + warp_col_p), P, wmma::mem_row_major);
-			}
-
-			for (uint32_t n_tile = 0; n_tile < N_tiles; ++n_tile) {
-				const uint32_t n = n_tile * WMMA_TILE;
-				// Load from L2 tile workspace (relative to stripe start)
-				const uint32_t local_row = global_row - stripe_start_row;
-				wmma::load_matrix_sync(a_frag, l2_c1 + (local_row * N + n), N);
-				wmma::load_matrix_sync(b_frag, input_E + (n * P + warp_col_p), P);
-				wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-			}
-
-			if (global_row < M && warp_col_p < P) {
-				wmma::store_matrix_sync(output_D + (global_row * P + warp_col_p), acc_frag, P, wmma::mem_row_major);
-			}
-		}
-
-		// Sync: D stripe complete, ready for next stripe
-		grid.sync();
-	}
-}
-
 template<typename value_type> struct min_max_vals;
 
 template<typename value_type> struct min_max_vals {
-	static constexpr uint32_t min{ 0 };
-	static constexpr uint32_t max{ 255 };
+	static constexpr uint64_t min{ 0 };
+	static constexpr uint64_t max{ 255 };
 };
 
 template<typename value_type>
@@ -2416,30 +2145,30 @@ struct min_max_vals<value_type> {
 	static constexpr float max{ 1.0f };
 };
 
-template<typename value_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new, uint32_t max_values>
+template<typename value_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new, uint64_t max_values>
 struct cpu_baseline<value_type, kernel_types::mul_mat_add_fused, dim_00_new, dim_01_new, dim_02_new, dim_03_new, max_values> {
 	BNCH_SWT_HOST static uint64_t impl(value_type* cpu_input_A, value_type* cpu_input_B, value_type* cpu_input_E, value_type* cpu_bias_C1, value_type* cpu_bias_D,
-		value_type* cpu_output_D, uint32_t M, uint32_t K, uint32_t N, uint32_t P) {
+		value_type* cpu_output_D, uint64_t M, uint64_t K, uint64_t N, uint64_t P) {
 		if (max_values == 0) {
 			return (M * K + K * N + M * N + N * P + M * P + M * P) * sizeof(value_type);
 		}
 		std::vector<float> intermediate_C1(M * N);
 
-		for (uint32_t m = 0; m < M; ++m) {
-			for (uint32_t n = 0; n < N; ++n) {
+		for (uint64_t m = 0; m < M; ++m) {
+			for (uint64_t n = 0; n < N; ++n) {
 				float accumulator = 0.0f;
-				for (uint32_t k = 0; k < K; ++k) {
+				for (uint64_t k = 0; k < K; ++k) {
 					accumulator += static_cast<float>(cpu_input_A[m * K + k]) * static_cast<float>(cpu_input_B[k * N + n]);
 				}
 				intermediate_C1[m * N + n] = accumulator + static_cast<float>(cpu_bias_C1[m * N + n]);
 			}
 		}
 
-		uint32_t elements_computed = 0;
-		for (uint32_t m = 0; m < M && elements_computed < max_values; ++m) {
-			for (uint32_t p = 0; p < P && elements_computed < max_values; ++p) {
+		uint64_t elements_computed = 0;
+		for (uint64_t m = 0; m < M && elements_computed < max_values; ++m) {
+			for (uint64_t p = 0; p < P && elements_computed < max_values; ++p) {
 				float accumulator = 0.0f;
-				for (uint32_t n = 0; n < N; ++n) {
+				for (uint64_t n = 0; n < N; ++n) {
 					accumulator += intermediate_C1[m * N + n] * static_cast<float>(cpu_input_E[n * P + p]);
 				}
 
@@ -2457,32 +2186,99 @@ struct cpu_baseline<value_type, kernel_types::mul_mat_add_fused, dim_00_new, dim
 };
 
 struct cutlass_dual_gemm_host_wrapper {
-	static cudaStream_t stream_global;
-	using Gemm = cutlass::gemm::device::Gemm<half, cutlass::layout::RowMajor, half, cutlass::layout::RowMajor, half, cutlass::layout::RowMajor, half>;
+	inline static cudaStream_t stream_global{};
 
-	template<typename GemmType, typename ArgsType1, typename ArgsType2> static void impl(half* A, half* B, half* E, half* bias_C1, half* bias_D, half* C1, half* D, uint32_t M,
-		uint32_t K, uint32_t N, uint32_t P, GemmType gemm_op1, GemmType gemm_op2, ArgsType1 args1, ArgsType2 args2) {
+	template<typename GemmType, typename ArgsType1, typename ArgsType2, typename value_type> static void impl(value_type* A, value_type* B, value_type* E, value_type* bias_C1,
+		value_type* bias_D, value_type* C1, value_type* D, uint64_t M, uint64_t K, uint64_t N, uint64_t P, GemmType gemm_op1, GemmType gemm_op2, ArgsType1 args1, ArgsType2 args2) {
 		cutlass::Status status1 = gemm_op1(args1, nullptr, stream_global);
-		cudaStreamSynchronize(stream_global);
 
 		cutlass::Status status2 = gemm_op2(args2, nullptr, stream_global);
-		cudaStreamSynchronize(stream_global);
 	}
 };
 
-cudaStream_t cutlass_dual_gemm_host_wrapper::stream_global = nullptr;
 
-template<typename value_type, kernel_types kernel_type, uint32_t dim_00_new, uint32_t dim_01_new, uint32_t dim_02_new, uint32_t dim_03_new>
+#include <mma.h>
+#include <cooperative_groups.h>
+#include <cuda_fp16.h>
+
+namespace cg = cooperative_groups;
+using namespace nvcuda;
+
+template<uint64_t M, uint64_t K, uint64_t N, uint64_t P, typename value_type>
+BNCH_SWT_GLOBAL void nihilus_fused_striped_tiled(value_type* __restrict__ input_A, value_type* __restrict__ input_B, value_type* __restrict__ input_E,
+	value_type* __restrict__ bias_C1, value_type* __restrict__ bias_D, value_type* __restrict__ output_D, value_type* __restrict__ l2_c1_storage) {
+	static constexpr uint32_t WMMA_TILE = 16;
+	const uint32_t tid					= threadIdx.x;
+	const uint32_t warp_id				= division<uint64_t, 32>::div(tid);
+	const uint32_t lane_id				= modulo<uint64_t, 32>::mod(tid);
+	const uint32_t block_warps			= division<uint64_t, 32>::div(blockDim.x);
+	const uint32_t grid_warp_id			= (blockIdx.x * block_warps) + warp_id;
+	const uint32_t total_warps			= gridDim.x * block_warps;
+
+	__shared__ alignas(16) half smem_bias[16][16];
+
+	wmma::fragment<wmma::matrix_a, 16, 16, 16, half, wmma::row_major> a_frag;
+	wmma::fragment<wmma::matrix_b, 16, 16, 16, half, wmma::row_major> b_frag;
+	wmma::fragment<wmma::accumulator, 16, 16, 16, half> acc_frag;
+
+	for (uint32_t tile_idx = grid_warp_id; tile_idx < division<uint64_t, 16>::div(M) * division<uint64_t, 16>::div(N); tile_idx += total_warps) {
+		const uint32_t tile_row	  = division<uint64_t, division<uint64_t, 16>::div(N)>::div(tile_idx);
+		const uint32_t tile_col	  = modulo<uint64_t, division<uint64_t, 16>::div(N)>::mod(tile_idx);
+		const uint32_t row_offset = tile_row * 16;
+		const uint32_t col_offset = tile_col * 16;
+		if (lane_id < 16) {
+			uint4* gmem_ptr									  = reinterpret_cast<uint4*>(bias_C1 + (row_offset + lane_id) * N + col_offset);
+			*reinterpret_cast<uint4*>(&smem_bias[lane_id][0]) = *gmem_ptr;
+		}
+		__syncwarp();
+		wmma::load_matrix_sync(acc_frag, &smem_bias[0][0], 16, wmma::mem_row_major);
+
+		for (uint32_t k = 0; k < K; k += 16) {
+			wmma::load_matrix_sync(a_frag, input_A + row_offset * K + k, K);
+			wmma::load_matrix_sync(b_frag, input_B + k * N + col_offset, N);
+			wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
+		}
+
+		wmma::store_matrix_sync(l2_c1_storage + row_offset * N + col_offset, acc_frag, N, wmma::mem_row_major);
+	}
+
+	cg::grid_group grid = cg::this_grid();
+	grid.sync();
+
+	for (uint32_t tile_idx = grid_warp_id; tile_idx < division<uint64_t, 16>::div(M) * division<uint64_t, 16>::div(P); tile_idx += total_warps) {
+		const uint32_t tile_row	  = tile_idx / division<uint64_t, 16>::div(P);
+		const uint32_t tile_col	  = tile_idx % division<uint64_t, 16>::div(P);
+		const uint32_t row_offset = tile_row * 16;
+		const uint32_t col_offset = tile_col * 16;
+
+		if (lane_id < 16) {
+			uint4* gmem_ptr									  = reinterpret_cast<uint4*>(bias_D + (row_offset + lane_id) * P + col_offset);
+			*reinterpret_cast<uint4*>(&smem_bias[lane_id][0]) = *gmem_ptr;
+		}
+		__syncwarp();
+		wmma::load_matrix_sync(acc_frag, &smem_bias[0][0], 16, wmma::mem_row_major);
+
+		for (uint32_t n = 0; n < N; n += 16) {
+			wmma::load_matrix_sync(a_frag, l2_c1_storage + row_offset * N + n, N);
+			wmma::load_matrix_sync(b_frag, input_E + n * P + col_offset, P);
+			wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
+		}
+
+		wmma::store_matrix_sync(output_D + row_offset * P + col_offset, acc_frag, P, wmma::mem_row_major);
+	}
+}
+
+template<typename value_type, kernel_types kernel_type, uint64_t dim_00_new, uint64_t dim_01_new, uint64_t dim_02_new, uint64_t dim_03_new>
 	requires(kernel_type == kernel_types::mul_mat_add_fused)
 void test_function_fused() {
 	static constexpr bnch_swt::string_literal stage_name{ bnch_swt::string_literal{ "fused-dual-gemm-" } + bnch_swt::internal::to_string_literal<dim_00_new>() + "-" +
 		bnch_swt::internal::to_string_literal<dim_01_new>() + "-" + bnch_swt::internal::to_string_literal<dim_02_new>() + "-" +
 		bnch_swt::internal::to_string_literal<dim_03_new>() };
 
-	static constexpr uint32_t dim_00{ round_up_to_multiple<16>(dim_00_new) };
-	static constexpr uint32_t dim_01{ round_up_to_multiple<16>(dim_01_new) };
-	static constexpr uint32_t dim_02{ round_up_to_multiple<16>(dim_02_new) };
-	static constexpr uint32_t dim_03{ round_up_to_multiple<16>(dim_03_new) };
+	static constexpr uint64_t dim_00{ round_up_to_multiple<16>(dim_00_new) };
+	static constexpr uint64_t dim_01{ round_up_to_multiple<16>(dim_01_new) };
+	static constexpr uint64_t dim_02{ round_up_to_multiple<16>(dim_02_new) };
+	static constexpr uint64_t dim_03{ round_up_to_multiple<16>(dim_03_new) };
 
 	using benchmark = bnch_swt::benchmark_stage<stage_name, total_iteration_count, measured_iterations, bnch_swt::benchmark_types::cuda>;
 
@@ -2503,15 +2299,15 @@ void test_function_fused() {
 	cuda_buffer cuda_buffer_D{};
 	cuda_buffer cuda_buffer_C1_intermediate{};
 
-	static constexpr uint32_t M = dim_00;
-	static constexpr uint32_t K = dim_01;
-	static constexpr uint32_t N = dim_02;
-	static constexpr uint32_t P = dim_03;
+	static constexpr uint64_t M = dim_00;
+	static constexpr uint64_t K = dim_01;
+	static constexpr uint64_t N = dim_02;
+	static constexpr uint64_t P = dim_03;
 
-	uint32_t M_new = dim_00;
-	uint32_t K_new = dim_01;
-	uint32_t N_new = dim_02;
-	uint32_t P_new = dim_03;
+	uint64_t M_new = dim_00;
+	uint64_t K_new = dim_01;
+	uint64_t N_new = dim_02;
+	uint64_t P_new = dim_03;
 
 	const uint64_t size_A  = M * K * sizeof(value_type);
 	const uint64_t size_B  = K * N * sizeof(value_type);
@@ -2564,17 +2360,18 @@ void test_function_fused() {
 	std::cout << "\n=== CUTLASS BASELINE (Two Separate GEMMs) ===" << std::endl;
 
 	using RowMajor = cutlass::layout::RowMajor;
-	using Gemm	   = cutlass::gemm::device::Gemm<half, RowMajor, half, RowMajor, half, RowMajor, half>;
+	using Gemm	   = cutlass::gemm::device::Gemm<value_type, RowMajor, value_type, RowMajor, value_type, RowMajor, value_type>;
 
 	typename Gemm::EpilogueOutputOp::Params epilogue_params(1.0f, 1.0f);
 
-	typename Gemm::Arguments args1({ static_cast<int>(M), static_cast<int>(N), static_cast<int>(K) }, { reinterpret_cast<half*>(A_ptr), static_cast<int>(K) },
-		{ reinterpret_cast<half*>(B_ptr), static_cast<int>(N) }, { reinterpret_cast<half*>(bias_C1_ptr), static_cast<int>(N) },
-		{ reinterpret_cast<half*>(cuda_buffer_C1_intermediate.data<half>()), static_cast<int>(N) }, epilogue_params);
+	typename Gemm::Arguments args1(cutlass::gemm::GemmCoord(static_cast<int>(M), static_cast<int>(N), static_cast<int>(K)),
+		{ reinterpret_cast<value_type*>(A_ptr), static_cast<int>(K) }, { reinterpret_cast<value_type*>(B_ptr), static_cast<int>(N) },
+		{ reinterpret_cast<value_type*>(bias_C1_ptr), static_cast<int>(N) }, { reinterpret_cast<value_type*>(cuda_buffer_C1_intermediate.data<value_type>()), static_cast<int>(N) },
+		epilogue_params);
 
-	typename Gemm::Arguments args2({ static_cast<int>(M), static_cast<int>(P), static_cast<int>(N) },
-		{ reinterpret_cast<half*>(cuda_buffer_C1_intermediate.data<half>()), static_cast<int>(N) }, { reinterpret_cast<half*>(E_ptr), static_cast<int>(P) },
-		{ reinterpret_cast<half*>(bias_D_ptr), static_cast<int>(P) }, { reinterpret_cast<half*>(D_ptr), static_cast<int>(P) }, epilogue_params);
+	typename Gemm::Arguments args2(cutlass::gemm::GemmCoord(static_cast<int>(M), static_cast<int>(P), static_cast<int>(N)),
+		{ reinterpret_cast<value_type*>(cuda_buffer_C1_intermediate.data<value_type>()), static_cast<int>(N) }, { reinterpret_cast<value_type*>(E_ptr), static_cast<int>(P) },
+		{ reinterpret_cast<value_type*>(bias_D_ptr), static_cast<int>(P) }, { reinterpret_cast<value_type*>(D_ptr), static_cast<int>(P) }, epilogue_params);
 
 	Gemm gemm_op1;
 	Gemm gemm_op2;
@@ -2609,24 +2406,23 @@ void test_function_fused() {
 
 	std::cout << "✓ CUTLASS reference computed successfully!" << std::endl;
 
-	static constexpr auto kernel_ptr	   = &test_function_fused_dual_matmul<M, K, N, P>;
-	static constexpr auto kernel_ptr_tiled = &nihilus_fused_striped_tiled<M, K, N, P>;
+	static constexpr auto kernel_ptr_tiled = &nihilus_fused_striped_tiled<M, K, N, P, value_type>;
 
-	static constexpr dim3 block(256, 1, 1);
+	static constexpr dim3 block(1024, 1, 1);
 	int32_t threads_per_block = block.x * block.y * block.z;
-	int32_t num_blocks_per_sm = 0;
-	cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, kernel_ptr, threads_per_block, 0);
+
+	int32_t num_blocks_per_sm_tiled = 0;
+	cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm_tiled, kernel_ptr_tiled, threads_per_block, 0);
 
 	if (!check_cuda_result()) {
 		return;
 	}
 
-	int32_t max_cooperative_blocks = num_blocks_per_sm * static_cast<uint32_t>(bnch_swt::gpu_properties::sm_count);
+	int32_t max_cooperative_blocks_tiled = num_blocks_per_sm_tiled * static_cast<uint64_t>(bnch_swt::gpu_properties::sm_count);
+	dim3 grid_tiled(max_cooperative_blocks_tiled, 1, 1);
 
-	dim3 grid(max_cooperative_blocks, 1, 1);
-
-	std::cout << "Max cooperative blocks: " << max_cooperative_blocks << std::endl;
-	std::cout << "Grid: (" << grid.x << ", " << grid.y << ", " << grid.z << ")" << std::endl;
+	std::cout << "Max cooperative blocks (tiled): " << max_cooperative_blocks_tiled << std::endl;
+	std::cout << "Grid (tiled): (" << grid_tiled.x << ", " << grid_tiled.y << ", " << grid_tiled.z << ")" << std::endl;
 	std::cout << "Block: (" << block.x << ", " << block.y << ", " << block.z << ")" << std::endl;
 
 	cudaDeviceSetLimit(cudaLimitPersistingL2CacheSize, bnch_swt::gpu_properties::max_persisting_l2_bytes);
@@ -2635,7 +2431,7 @@ void test_function_fused() {
 		return;
 	}
 
-	uint64_t actual_data_size = M * N * sizeof(half);
+	uint64_t actual_data_size = M * N * sizeof(value_type);
 	void* l2_buffer{};
 	cudaMalloc(&l2_buffer, actual_data_size);
 
@@ -2653,12 +2449,16 @@ void test_function_fused() {
 		return;
 	}
 
-	void* kernel_args[] = { &A_ptr, &B_ptr, &E_ptr, &bias_C1_ptr, &bias_D_ptr, &D_ptr, &l2_buffer };
+	uint32_t* d_sync_counter;
+	cudaMalloc(&d_sync_counter, sizeof(uint32_t));
+	cudaMemset(d_sync_counter, 0, sizeof(uint32_t));
+
+	void* kernel_args[] = { &A_ptr, &B_ptr, &E_ptr, &bias_C1_ptr, &bias_D_ptr, &D_ptr, &l2_buffer, &d_sync_counter };
 
 	std::cout << "\n=== VALIDATING NIHILUS FUSED ===" << std::endl;
 
 	cudaMemset(D_ptr, 0, size_D);
-	cudaLaunchCooperativeKernel(kernel_ptr, grid, block, kernel_args, 0, stream);
+	cudaLaunchCooperativeKernel(kernel_ptr_tiled, grid_tiled, block, kernel_args, 0, stream);
 	cudaDeviceSynchronize();
 
 	if (!check_cuda_result()) {
@@ -2675,16 +2475,30 @@ void test_function_fused() {
 	auto* nihilus_D		 = std::bit_cast<value_type*>(nihilus_output_D.data());
 	uint64_t mismatches	 = 0;
 	uint64_t nan_count	 = 0;
+	uint64_t zero_count	 = 0;
 	uint64_t inf_count	 = 0;
 	value_type max_error = 0;
 
 	static constexpr uint64_t values_to_check{ std::min(total_output_elements, 100000ULL) };
 
-	for (uint64_t i = 0; i < values_to_check; ++i) {
+	const uint64_t stride = std::max(1ULL, total_output_elements / values_to_check);
+
+	for (uint64_t v = 0; v < values_to_check; ++v) {
+		const uint64_t i = v * stride;
+
+		if (i >= total_output_elements)
+			break;
+
 		float cutlass_val = static_cast<float>(cutlass_D[i]);
 		float nihilus_val = static_cast<float>(nihilus_D[i]);
 
-		if (std::isnan(nihilus_val) || std::isinf(nihilus_val)) {
+		if (std::isnan(nihilus_val) || std::isinf(nihilus_val) || (nihilus_val == 0.0f && cutlass_val != 0.0f)) {
+			if (nihilus_val == 0.0f) {
+				++zero_count;
+				if (zero_count <= 10) {
+					std::cout << "Zero at index " << i << " (CUTLASS=" << cutlass_val << ", Nihilus=" << nihilus_val << ")" << std::endl;
+				}
+			}
 			if (std::isnan(nihilus_val)) {
 				++nan_count;
 				if (nan_count <= 5) {
@@ -2702,7 +2516,7 @@ void test_function_fused() {
 		}
 
 		value_type diff = std::abs(cutlass_val - nihilus_val);
-		if (!std::isnan(diff) && !std::isinf(diff)) {
+		if (!std::isnan(static_cast<float>(diff)) && !std::isinf(static_cast<float>(diff))) {
 			max_error = std::max(max_error, diff);
 		}
 
@@ -2720,80 +2534,12 @@ void test_function_fused() {
 	std::cout << "Max absolute error: " << static_cast<float>(max_error) << std::endl;
 	std::cout << "NaN count: " << nan_count << std::endl;
 	std::cout << "Inf count: " << inf_count << std::endl;
+	std::cout << "Zero count: " << zero_count << std::endl;
 
 	if (mismatches == 0) {
 		std::cout << "✓ NIHILUS FUSED VALIDATION PASSED! All " << values_to_check << " elements match!" << std::endl;
 	} else {
 		std::cout << "✗ NIHILUS FUSED VALIDATION FAILED! " << mismatches << " mismatches out of " << values_to_check << " elements" << std::endl;
-	}
-
-	std::cout << "\n=== VALIDATING NIHILUS FUSED TILED ===" << std::endl;
-
-	cudaMemset(D_ptr, 0, size_D);
-	cudaLaunchCooperativeKernel(kernel_ptr_tiled, grid, block, kernel_args, 0, stream);
-	cudaDeviceSynchronize();
-
-	if (!check_cuda_result()) {
-		return;
-	}
-
-	cudaMemcpy(nihilus_tiled_output_D.data(), D_ptr, size_D, cudaMemcpyDeviceToHost);
-
-	if (!check_cuda_result()) {
-		return;
-	}
-
-	auto* nihilus_tiled_D = std::bit_cast<value_type*>(nihilus_tiled_output_D.data());
-	mismatches			  = 0;
-	nan_count			  = 0;
-	inf_count			  = 0;
-	max_error			  = 0;
-
-	for (uint64_t i = 0; i < values_to_check; ++i) {
-		float cutlass_val = static_cast<float>(cutlass_D[i]);
-		float nihilus_val = static_cast<float>(nihilus_tiled_D[i]);
-
-		if (std::isnan(nihilus_val) || std::isinf(nihilus_val)) {
-			if (std::isnan(nihilus_val)) {
-				++nan_count;
-				if (nan_count <= 5) {
-					std::cout << "NaN at index " << i << " (CUTLASS=" << cutlass_val << ")" << std::endl;
-				}
-			}
-			if (std::isinf(nihilus_val)) {
-				++inf_count;
-				if (inf_count <= 5) {
-					std::cout << "Inf at index " << i << " (CUTLASS=" << cutlass_val << ", Nihilus=" << nihilus_val << ")" << std::endl;
-				}
-			}
-			++mismatches;
-			continue;
-		}
-
-		value_type diff = std::abs(cutlass_val - nihilus_val);
-		if (!std::isnan(diff) && !std::isinf(diff)) {
-			max_error = std::max(max_error, diff);
-		}
-
-		const float relative_tol = 1e-1f;
-		const float absolute_tol = 1e-1f;
-		value_type tolerance	 = std::max(relative_tol * std::abs(cutlass_val), absolute_tol);
-		if (diff > tolerance) {
-			if (mismatches < 10) {
-				std::cout << "Mismatch at index " << i << ": CUTLASS=" << cutlass_val << " Nihilus=" << nihilus_val << " diff=" << static_cast<float>(diff) << std::endl;
-			}
-			++mismatches;
-		}
-	}
-
-	std::cout << "Max absolute error: " << static_cast<float>(max_error) << std::endl;
-	std::cout << "NaN count: " << nan_count << std::endl;
-	std::cout << "Inf count: " << inf_count << std::endl;
-
-	if (mismatches == 0) {
-		std::cout << "✓ NIHILUS FUSED TILED VALIDATION PASSED! All " << values_to_check << " elements match!" << std::endl;
-	} else {
-		std::cout << "✗ NIHILUS FUSED TILED VALIDATION FAILED! " << mismatches << " mismatches out of " << values_to_check << " elements" << std::endl;
 	}
 
 	const uint64_t flops_gemm1 = 2ULL * M * N * K + (M * N);
@@ -2811,39 +2557,42 @@ void test_function_fused() {
 
 	cutlass_dual_gemm_host_wrapper::stream_global = stream;
 
-	benchmark::template run_benchmark_cooperative<"fused_dual_gemm", kernel_ptr>(grid, block, 0, stream, bytes_fused, kernel_args);
+	benchmark::template run_benchmark_cooperative<"fused_dual_gemm_tiled", kernel_ptr_tiled>(grid_tiled, block, 0, stream, bytes_fused, kernel_args);
 
-	benchmark::template run_benchmark_cooperative<"fused_dual_gemm_tiled", kernel_ptr_tiled>(grid, block, 0, stream, bytes_fused, kernel_args);
-
-	benchmark::template run_from_host<"cutlass_dual_gemm_separate", cutlass_dual_gemm_host_wrapper>(static_cast<uint64_t>(bytes_separate), reinterpret_cast<half*>(A_ptr),
-		reinterpret_cast<half*>(B_ptr), reinterpret_cast<half*>(E_ptr), reinterpret_cast<half*>(bias_C1_ptr), reinterpret_cast<half*>(bias_D_ptr),
-		reinterpret_cast<half*>(cuda_buffer_C1_intermediate.data<half>()), reinterpret_cast<half*>(D_ptr), M, K, N, P, gemm_op1, gemm_op2, args1, args2);
+	benchmark::template run_from_host<"cutlass_dual_gemm_separate", cutlass_dual_gemm_host_wrapper>(static_cast<uint64_t>(bytes_separate), reinterpret_cast<value_type*>(A_ptr),
+		reinterpret_cast<value_type*>(B_ptr), reinterpret_cast<value_type*>(E_ptr), reinterpret_cast<value_type*>(bias_C1_ptr), reinterpret_cast<value_type*>(bias_D_ptr),
+		reinterpret_cast<value_type*>(cuda_buffer_C1_intermediate.data<value_type*>()), reinterpret_cast<value_type*>(D_ptr), M, K, N, P, gemm_op1, gemm_op2, args1, args2);
 
 	benchmark::print_results(true, false);
 
 	cudaFree(l2_buffer);
 }
+template<uint64_t... Dims> struct test_runner;
 
-template<uint32_t... Dims> struct test_runner;
-
-template<uint32_t M, uint32_t K, uint32_t N> struct test_runner<M, K, N> {
+template<uint64_t M, uint64_t N, uint64_t K, uint64_t P> struct test_runner<M, N, K, P> {
 	static void run() {
 		std::cout << "\n========================================" << std::endl;
-		std::cout << "Testing: M=" << M << " K=" << K << " N=" << N << " P=16" << std::endl;
+		std::cout << "Testing: M=" << M << " K=" << K << " N=" << N << " P=" << P << std::endl;
 		std::cout << "========================================" << std::endl;
-		test_function_fused<half, kernel_types::mul_mat_add_fused, M, K, N, 1>();
+		test_function_fused<__half, kernel_types::mul_mat_add_fused, M, K, N, P>();
 	}
 };
 
-template<uint32_t M, uint32_t... Rest> struct dimension_sweep;
+template<uint64_t... Rest> struct dimension_sweep;
 
-template<uint32_t M, uint32_t K> struct dimension_sweep<M, K> {
+template<uint64_t M, uint64_t N, uint64_t K> struct dimension_sweep<M, N, K> {
 	static void run() {
-		test_runner<M, K, 8192>::run();
+		test_runner<M, N, K, 16384>::run();
 	}
 };
 
-template<uint32_t M> struct dimension_sweep<M> {
+template<uint64_t M, uint64_t N> struct dimension_sweep<M, N> {
+	static void run() {
+		dimension_sweep<M, N, 16384>::run();
+	}
+};
+
+template<uint64_t M> struct dimension_sweep<M> {
 	static void run() {
 		dimension_sweep<M, 128>::run();
 		dimension_sweep<M, 256>::run();
@@ -2870,16 +2619,23 @@ struct full_sweep {
 };
 
 int main() {
-	std::cout << "Starting EXHAUSTIVE fused dual GEMM regime discovery..." << std::endl;
-	std::cout << "Testing all permutations of {128, 256, 256, 1024, 2048, 4096, 8192}³" << std::endl;
-	std::cout << "Total test cases: 7³ = 343 configurations" << std::endl;
-	std::cout << "P dimension fixed at 16 (rounded from 1)" << std::endl;
+	try {/*
+		for (uint64_t x = 0; x < 128; ++x) {
+			test_runner<512, 8192, 128, 512>::run();
+		}
+		*/
+		std::cout << "Starting EXHAUSTIVE fused dual GEMM regime discovery..." << std::endl;
+		std::cout << "Testing all permutations of {128, 256, 256, 1024, 2048, 4096, 8192}³" << std::endl;
+		std::cout << "Total test cases: 7³ = 343 configurations" << std::endl;
+		std::cout << "P dimension fixed at 16 (rounded from 1)" << std::endl;
 
-	full_sweep::run();
+		full_sweep::run();
 
-	std::cout << "\n========================================" << std::endl;
-	std::cout << "REGIME DISCOVERY COMPLETE!" << std::endl;
-	std::cout << "========================================" << std::endl;
-
+		std::cout << "\n========================================" << std::endl;
+		std::cout << "REGIME DISCOVERY COMPLETE!" << std::endl;
+		std::cout << "========================================" << std::endl;
+	} catch (std::exception& exception_val) {
+		std::cout << "Error: " << exception_val.what() << std::endl;
+	}
 	return 0;
 }
