@@ -57,8 +57,9 @@ namespace bnch_swt {
 		}
 	}
 
-	template<auto stage_name_new, auto metric_name_new, performance_metrics_presence<benchmark_types::cpu> metrics_presence>
-	struct result_printer<benchmark_types::cpu, stage_name_new, metric_name_new, metrics_presence> {
+	template<auto stage_name_newer, auto metric_name_new, performance_metrics_presence<benchmark_types::cpu> metrics_presence>
+	struct result_printer<benchmark_types::cpu, stage_name_newer, metric_name_new, metrics_presence> {
+		static constexpr auto stage_name_new{ stage_name_newer };
 		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cpu>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "CPU Performance Metrics for: " << stage_name_new << std::endl;
 
@@ -248,8 +249,13 @@ namespace bnch_swt {
 		BNCH_SWT_HOST static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
-				static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::impl), arg_types...>, uint64_t>,
-					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
+				if constexpr (sizeof...(args) > 0) {
+					static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::template impl<arg_types...>), arg_types...>, uint64_t>,
+						"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
+				} else {
+					static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::impl), arg_types...>, uint64_t>,
+						"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
+				}
 			}
 			internal::event_collector<max_execution_count, benchmark_type> events{};
 			internal::cache_clearer<benchmark_type> cache_clearer{};
