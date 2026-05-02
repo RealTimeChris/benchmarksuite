@@ -211,6 +211,7 @@ namespace bnch_swt {
 	template<string_literal stage_name_new, uint64_t max_execution_count = 200, uint64_t measured_iteration_count = 25, benchmark_types benchmark_type = benchmark_types::cpu,
 		bool clear_cpu_cache_between_each_iteration = false, string_literal metric_name_new = string_literal<1>{}>
 	struct benchmark_stage {
+		static constexpr string_literal stage_name{ stage_name_new };
 		static_assert(max_execution_count % measured_iteration_count == 0, "Sorry, but please enter a max_execution_count that is divisible by measured_iteration_count.");
 
 		BNCH_SWT_HOST static auto& get_results_internal() {
@@ -259,8 +260,8 @@ namespace bnch_swt {
 			}
 			internal::event_collector<max_execution_count, benchmark_type> events{};
 			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{};
-			performance_metrics<benchmark_type> results_temp{};
+			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
+			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
 			uint64_t current_global_index{ measured_iteration_count };
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
@@ -271,7 +272,8 @@ namespace bnch_swt {
 			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
 			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
+				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
+					new_ptr.subspan(x, measured_iteration_count),
 					  current_global_index, max_execution_count);
 				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 			}
@@ -288,8 +290,8 @@ namespace bnch_swt {
 			}
 			internal::event_collector<max_execution_count, benchmark_type> events{};
 			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{};
-			performance_metrics<benchmark_type> results_temp{};
+			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
+			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
 			uint64_t current_global_index{ measured_iteration_count };
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
@@ -300,7 +302,8 @@ namespace bnch_swt {
 			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
 			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
+				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
+					new_ptr.subspan(x, measured_iteration_count),
 					  current_global_index, max_execution_count);
 				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 			}
@@ -317,8 +320,8 @@ namespace bnch_swt {
 			}
 			internal::event_collector<max_execution_count, benchmark_type> events{};
 			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{};
-			performance_metrics<benchmark_type> results_temp{};
+			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
+			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
 			uint64_t current_global_index{ measured_iteration_count };
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
@@ -329,8 +332,8 @@ namespace bnch_swt {
 			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
 			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
-					  current_global_index, max_execution_count);
+				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
+					new_ptr.subspan(x, measured_iteration_count), current_global_index, max_execution_count);
 				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 			}
 			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
@@ -346,8 +349,8 @@ namespace bnch_swt {
 			}
 			internal::event_collector<max_execution_count, benchmark_type> events{};
 			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{};
-			performance_metrics<benchmark_type> results_temp{};
+			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
+			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
 			uint64_t current_global_index{ measured_iteration_count };
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
@@ -358,7 +361,8 @@ namespace bnch_swt {
 			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
 			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
+				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
+					new_ptr.subspan(x, measured_iteration_count),
 					  current_global_index, max_execution_count);
 				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 			}
