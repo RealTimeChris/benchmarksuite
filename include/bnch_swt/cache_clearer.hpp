@@ -152,20 +152,19 @@ namespace bnch_swt::internal {
 	}
 
 	template<benchmark_types benchmark_type> struct cache_clearer {
-		size_t cache_line_size{ get_cache_line_size() };
-		std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
+		inline static const size_t cache_line_size{ get_cache_line_size() };
+		inline static const std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
-		size_t max_cache_size{ std::max({ cache_sizes[0], cache_sizes[1], cache_sizes[2] }) };
+		inline static const size_t max_cache_size{ std::max({ cache_sizes[0], cache_sizes[1], cache_sizes[2] }) };
 
-		std::vector<char> evict_buffer{ [&] {
-			std::vector<char> return_values{};
-			if (max_cache_size > 0) {
-				return_values.resize(max_cache_size * 4 + cache_line_size);
-			}
-			return return_values;
-		}() };
-
-		BNCH_SWT_HOST void evict_cache(size_t cache_level) {
+		BNCH_SWT_HOST static void evict_cache(size_t cache_level) {
+			std::vector<char> evict_buffer{ [&] {
+				std::vector<char> return_values{};
+				if (max_cache_size > 0) {
+					return_values.resize(max_cache_size * 4 + cache_line_size);
+				}
+				return return_values;
+			}() };
 			if (cache_level >= 1 && cache_level <= 3 && cache_sizes[cache_level - 1] > 0 && !evict_buffer.empty()) {
 				size_t target_size	= cache_sizes[cache_level - 1] * 4;
 				const size_t stride = 4093;
@@ -185,7 +184,7 @@ namespace bnch_swt::internal {
 		}
 
 	  public:
-		BNCH_SWT_HOST void evict_caches() {
+		BNCH_SWT_HOST static void evict_caches() {
 			evict_cache(3);
 			evict_cache(2);
 			evict_cache(1);
