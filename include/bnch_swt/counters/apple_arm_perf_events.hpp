@@ -410,7 +410,7 @@ namespace bnch_swt::internal {
 			performance_monitor::setup_performance_counters();
 		}		
 
-		template<typename function_type, typename... arg_types> BNCH_SWT_HOST void run(arg_types&&... args) {
+		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			if (performance_monitor::has_events()) {
 				diff = performance_monitor::get_counters();
 			}

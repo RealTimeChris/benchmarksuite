@@ -76,6 +76,5 @@ int main() {
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::run_benchmark<"atomic_uint64", test_atomic_uint64>();
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::run_benchmark<"atomic_signed_lock_free", test_atomic_signed_lock_free>();
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::print_results();
-
 	return 0;
 }

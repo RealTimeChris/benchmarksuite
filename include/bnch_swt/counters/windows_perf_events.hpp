@@ -37,7 +37,7 @@ namespace bnch_swt::internal {
 
 		BNCH_SWT_HOST event_collector_type() : std::vector<event_count>{ count } {};
 
-		template<typename function_type, typename... arg_types> BNCH_SWT_HOST void run(arg_types&&... args) {
+		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			uint64_t result;
 			const auto start_clock		 = clock_type::now();
 			volatile uint64_t cycleStart = __rdtsc();

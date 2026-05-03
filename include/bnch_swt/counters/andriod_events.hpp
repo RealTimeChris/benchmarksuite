@@ -36,7 +36,7 @@ namespace bnch_swt::internal {
 
 		BNCH_SWT_HOST event_collector_type() : std::vector<event_count_t>{ count_t } {};
 
-		template<typename function_type, typename... arg_types> BNCH_SWT_HOST void run(arg_types&&... args) {
+		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			const auto start_clock = clock_type::now();
 			std::vector<event_count_t>::operator[](current_index).bytesProcessedVal.emplace(static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...)));
 			const auto end_clock = clock_type::now();

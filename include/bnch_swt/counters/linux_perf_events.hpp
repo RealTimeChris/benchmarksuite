@@ -101,7 +101,7 @@ namespace bnch_swt::internal {
 			}
 		}
 
-		BNCH_SWT_HOST void run() {
+		BNCH_SWT_NOINLINE void run() {
 			if (fd != -1) {
 				if (ioctl(fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP) == -1) {
 					report_error("ioctl(PERF_EVENT_IOC_RESET)");
@@ -157,7 +157,7 @@ namespace bnch_swt::internal {
 			return linux_events::is_working();
 		}
 
-		template<typename function_type, typename... arg_types> BNCH_SWT_HOST void run(arg_types&&... args) {
+		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			if (has_events()) {
 				linux_events::run();
 			}

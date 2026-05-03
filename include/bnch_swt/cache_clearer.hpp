@@ -152,10 +152,10 @@ namespace bnch_swt::internal {
 	}
 
 	template<benchmark_types benchmark_type> struct cache_clearer {
-		size_t cache_line_size{ get_cache_line_size() };
-		std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
+		inline static const size_t cache_line_size{ get_cache_line_size() };
+		inline static const std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
-		size_t max_cache_size{ std::max({ cache_sizes[0], cache_sizes[1], cache_sizes[2] }) };
+		inline static const size_t max_cache_size{ std::max({ cache_sizes[0], cache_sizes[1], cache_sizes[2] }) };
 
 		std::vector<char> evict_buffer{ [&] {
 			std::vector<char> return_values{};

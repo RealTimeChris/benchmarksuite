@@ -106,7 +106,7 @@ namespace bnch_swt::internal {
 		}
 
 		template<typename function_type, typename... args_types>
-		BNCH_SWT_HOST void run(dim3 grid, dim3 block, uint64_t shared_mem, uint64_t bytes_processed, args_types&&... args) {
+		BNCH_SWT_NOINLINE void run(dim3 grid, dim3 block, uint64_t shared_mem, uint64_t bytes_processed, args_types&&... args) {
 			if (current_index >= count) {
 				return;
 			}
@@ -127,7 +127,7 @@ namespace bnch_swt::internal {
 		}
 
 		template<function_pointer_types auto function, typename... args_types>
-		BNCH_SWT_HOST void run(dim3 grid, dim3 block, uint64_t shared_mem, uint64_t bytes_processed, args_types&&... args) {
+		BNCH_SWT_NOINLINE void run(dim3 grid, dim3 block, uint64_t shared_mem, uint64_t bytes_processed, args_types&&... args) {
 			if (current_index >= count) {
 				return;
 			}
