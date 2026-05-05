@@ -1,6 +1,10 @@
-# Benchmark Suite
+Here is the updated README with v1.0.0 release information incorporated:
 
-Hello and welcome to bnch_swt or "Benchmark Suite". This is a collection of classes/functions for the purpose of benchmarking CPU and GPU performance.
+---
+
+# Benchmark Suite v1.0.0
+
+Hello and welcome to Benchmark Suite! This is a modern, header-only C++20 benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead.
 
 The following operating systems and compilers are officially supported:
 
@@ -11,13 +15,20 @@ The following operating systems and compilers are officially supported:
 ![CLANG](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=apple&logoColor=green&label=CLANG&labelColor=pewter&color=blue&branch=main)
 ![NVCC](https://img.shields.io/badge/NVCC-Supported-blue?style=plastic&logo=nvidia&logoColor=green&labelColor=pewter)
 
+**Minimum Requirements:**
+- **C++20** compliant compiler
+- **GCC 13+** | **Clang 16+** | **MSVC 2022+**
+- **CUDA 11.0+** (for GPU benchmarking)
+
 ### Operating System Support
 ----
 ![Windows](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=microsoft&logoColor=green&label=Windows&labelColor=pewter&color=blue&branch=main)
 ![Linux](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=linux&logoColor=green&label=Linux&labelColor=pewter&color=blue&branch=main)
 ![Mac](https://img.shields.io/github/actions/workflow/status/RealTimeChris/benchmarksuite/benchmark.yml?style=plastic&logo=apple&logoColor=green&label=MacOS&labelColor=pewter&color=blue&branch=main)
 
-# Quickstart Guide for benchmarksuite
+---
+
+# Quickstart Guide for benchmarksuite v1.0.0
 
 This guide will walk you through setting up and running benchmarks using `benchmarksuite`.
 
@@ -64,7 +75,7 @@ In your `CMakeLists.txt`:
 cmake_minimum_required(VERSION 3.20)
 project(YourProject LANGUAGES CXX CUDA)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 20)
@@ -123,7 +134,7 @@ target_include_directories(your_target PRIVATE path/to/benchmarksuite/include)
 
 ### Requirements
 
-To use `benchmarksuite`, ensure you have a C++23 (or later) compliant compiler.
+To use `benchmarksuite`, ensure you have a **C++20 (or later)** compliant compiler.
 
 **For CPU Benchmarking:**
 - MSVC 2022 or later
@@ -701,7 +712,7 @@ my-benchmark/
 cmake_minimum_required(VERSION 3.20)
 project(MyBenchmark LANGUAGES CXX CUDA)
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CUDA_STANDARD 20)
@@ -842,10 +853,12 @@ If you're upgrading from an earlier version:
 
 4. **Change benchmark interface**: Lambdas are replaced with structs (or use function template parameter)
    ```cpp
+   // Old (removed)
    benchmark_stage<"test">::run_benchmark<"name">([&] {
        return bytes_processed;
    });
    
+   // New - Option 1: Struct
    struct my_benchmark {
        BNCH_SWT_HOST static uint64_t impl(/* params */) {
            return bytes_processed;
@@ -853,6 +866,7 @@ If you're upgrading from an earlier version:
    };
    benchmark_stage<"test">::run_benchmark<"name", my_benchmark>(/* args */);
    
+   // New - Option 2: Lambda as NTTP
    constexpr auto my_lambda = [](/* params */) -> uint64_t {
        return bytes_processed;
    };
@@ -861,29 +875,30 @@ If you're upgrading from an earlier version:
 
 5. **Update template parameters**: benchmark_stage now has more options
    ```cpp
+   // Old
    benchmark_stage<"test", iterations, measured>
    
+   // New
    benchmark_stage<"test", 200, 25, benchmark_types::cpu, false, "">
    ```
 
-6. **New feature - Device types**: You can now specify CPU or CUDA benchmarking:
+6. **New feature - Device types**: Specify CPU or CUDA benchmarking:
    ```cpp
    benchmark_stage<"test", 200, 25, bnch_swt::benchmark_types::cpu>
-   
    benchmark_stage<"test", 100, 10, bnch_swt::benchmark_types::cuda>
    ```
 
-7. **New feature - Cache clearing**: Enable cache clearing between iterations for CPU benchmarks:
+7. **New feature - Cache clearing**: Enable cache clearing between iterations:
    ```cpp
    benchmark_stage<"test", 200, 25, benchmark_types::cpu, true>
    ```
 
-8. **New feature - Custom metrics**: Specify custom metric names for specialized benchmarks:
+8. **New feature - Custom metrics**: Specify custom metric names:
    ```cpp
    benchmark_stage<"compression-test", 200, 25, benchmark_types::cpu, false, "compression-ratio">
    ```
 
-9. **New feature - Advanced execution modes**: Additional methods for specialized use cases:
+9. **New feature - Advanced execution modes**:
    ```cpp
    benchmark_stage::run_from_host<"name", function>(args...);
    benchmark_stage::run_benchmark_cooperative<"name", function>(args...);
@@ -891,4 +906,6 @@ If you're upgrading from an earlier version:
 
 ---
 
-Now you're ready to start benchmarking with **benchmarksuite**!
+**Happy benchmarking with benchmarksuite v1.0.0!** 🚀
+
+For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/RealTimeChris/benchmarksuite).
