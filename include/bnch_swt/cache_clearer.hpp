@@ -59,13 +59,12 @@ namespace bnch_swt::internal {
 		GetLogicalProcessorInformation(nullptr, &buffer_size);
 
 		std::vector<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer_raw(static_cast<uint64_t>(buffer_size) / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-		DWORD actual_size = buffer_size;
 
-		if (!GetLogicalProcessorInformation(buffer_raw.data(), &actual_size)) {
+		if (!GetLogicalProcessorInformation(buffer_raw.data(), &buffer_size)) {
 			return 64;
 		}
 
-		size_t num_elements = actual_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+		size_t num_elements = buffer_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
 
 		const auto* buffer = buffer_raw.data();
 
@@ -153,14 +152,20 @@ namespace bnch_swt::internal {
 
 	template<benchmark_types benchmark_type> struct cache_clearer {
 		inline static const size_t cache_line_size{ get_cache_line_size() };
-		inline static const std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
+		inline static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
-		inline static const size_t max_cache_size{ std::max({ cache_sizes[0], cache_sizes[1], cache_sizes[2] }) };
+		inline static constexpr size_t total_cache_size{ [] {
+			uint64_t return_value{};
+			return_value += cache_sizes[0];
+			return_value += cache_sizes[1];
+			return_value += cache_sizes[2];
+			return return_value;
+		} () };
 
 		std::vector<char> evict_buffer{ [&] {
 			std::vector<char> return_values{};
-			if (max_cache_size > 0) {
-				return_values.resize(max_cache_size * 4 + cache_line_size);
+			if (total_cache_size > 0) {
+				return_values.resize(total_cache_size);
 			}
 			return return_values;
 		}() };

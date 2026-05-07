@@ -38,6 +38,118 @@
 
 namespace bnch_swt {
 
+	namespace internal {
+
+		static constexpr bnch_swt::string_literal operating_system_name{ BNCH_SWT_OPERATING_SYSTEM_NAME };
+		static constexpr bnch_swt::string_literal operating_system_version{ BNCH_SWT_OPERATING_SYSTEM_VERSION };
+		static constexpr bnch_swt::string_literal compiler_id{ BNCH_SWT_COMPILER_ID };
+		static constexpr bnch_swt::string_literal compiler_version{ BNCH_SWT_COMPILER_VERSION };
+
+		template<benchmark_types> BNCH_SWT_HOST std::string get_device_info();
+
+		template<> BNCH_SWT_HOST std::string get_device_info<benchmark_types::cpu>() {
+#if defined(__x86_64__) || defined(_M_AMD64)
+			std::array<uint32_t, 12> regs{};
+			auto cpuid = [](uint32_t leaf, uint32_t* res) {
+	#if defined(_MSC_VER)
+				__cpuidex(reinterpret_cast<int*>(res), static_cast<int>(leaf), 0);
+	#elif defined(__GNUC__) || defined(__clang__)
+				__asm__ volatile("cpuid" : "=a"(res[0]), "=b"(res[1]), "=c"(res[2]), "=d"(res[3]) : "a"(leaf), "c"(0));
+	#endif
+			};
+
+			uint32_t ext_info[4];
+			cpuid(0x80000000, ext_info);
+			if (ext_info[0] < 0x80000004) {
+				return "Unknown x86_64 CPU";
+			}
+
+			for (uint32_t i = 0; i < 3; ++i) {
+				cpuid(0x80000002 + i, regs.data() + (i * 4));
+			}
+
+			char brand[49]{};
+			std::memcpy(brand, regs.data(), 48);
+
+			std::string result(brand);
+			auto last_char = result.find_last_not_of(" \t\n\r\f\v");
+			if (last_char != std::string::npos) {
+				result.resize(last_char + 1);
+			}
+
+			return result;
+
+#elif defined(__APPLE__) || defined(__FreeBSD__)
+			char buffer[256]{};
+			size_t size = sizeof(buffer);
+			if (sysctlbyname("machdep.cpu.brand_string", buffer, &size, nullptr, 0) == 0) {
+				return std::string(buffer);
+			}
+			return "Unknown CPU";
+#elif defined(__linux__)
+			std::ifstream cpuinfo("/proc/cpuinfo");
+			std::string line;
+			while (std::getline(cpuinfo, line)) {
+				if (line.find("model name") == 0 || line.find("Hardware") == 0 || line.find("Model") == 0) {
+					auto colon = line.find(':');
+					if (colon != std::string::npos) {
+						auto start = line.find_first_not_of(" \t", colon + 1);
+						if (start != std::string::npos)
+							return line.substr(start);
+					}
+				}
+			}
+			return "Unknown Linux CPU";
+#elif defined(_WIN32)
+			HKEY hkey;
+			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hkey) == ERROR_SUCCESS) {
+				char buffer[256]{};
+				DWORD size = sizeof(buffer);
+				if (RegQueryValueExA(hkey, "ProcessorNameString", nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer), &size) == ERROR_SUCCESS) {
+					RegCloseKey(hkey);
+					return std::string(buffer);
+				}
+				RegCloseKey(hkey);
+			}
+			return "Unknown Windows CPU";
+#else
+
+			return "Unsupported Architecture";
+#endif
+		}
+
+		template<auto stage_name, benchmark_types benchmark_type> struct results_holder {
+			BNCH_SWT_HOST static auto& get_results_internal() {
+				static thread_local std::unordered_map<std::string_view, performance_metrics<benchmark_type>> results{};
+				return results;
+			}
+		};
+
+		template<string_literal stage_name_new, string_literal subject_name, uint64_t max_execution_count, uint64_t measured_iteration_count, benchmark_types benchmark_type,
+			bool use_non_mbps_metric>
+		struct measurement_context {
+			static constexpr string_literal stage_name{ stage_name_new };
+			internal::event_collector<max_execution_count, benchmark_type> events{};
+			internal::cache_clearer<benchmark_type> cache_clearer{};
+
+			BNCH_SWT_HOST performance_metrics<benchmark_type> finalize() {
+				performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
+				performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
+				std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
+				static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
+				uint64_t current_global_index{ measured_iteration_count };
+				for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
+					results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
+						new_ptr.subspan(x, measured_iteration_count), current_global_index, max_execution_count);
+					lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
+				}
+				results_holder<stage_name, benchmark_type>::get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
+				return results_holder<stage_name, benchmark_type>::get_results_internal()[subject_name.operator std::string_view()];
+			}
+		};
+
+	}
+
 	template<benchmark_types benchmark_type, auto, auto, performance_metrics_presence<benchmark_type> metrics_presence> struct result_printer;
 
 	template<bool printed, typename value_type> BNCH_SWT_HOST static auto print_metric(std::string_view label, const value_type& value_new) {
@@ -62,6 +174,9 @@ namespace bnch_swt {
 		static constexpr auto stage_name_new{ stage_name_newer };
 		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cpu>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "CPU Performance Metrics for: " << stage_name_new << std::endl;
+			std::cout << "Running on: " << internal::get_device_info<benchmark_types::cpu>() << std::endl;
+			std::cout << "OS: " << internal::operating_system_name << " " << internal::operating_system_version << std::endl;
+			std::cout << "Compiler: " << internal::compiler_id << " " << internal::compiler_version << std::endl;
 
 			if (show_metrics) {
 				static constexpr string_literal throughput_label_raw = []() {
@@ -140,6 +255,9 @@ namespace bnch_swt {
 	struct result_printer<benchmark_types::cuda, stage_name_new, metric_name_new, metrics_presence> {
 		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cuda>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "GPU Performance Metrics for: " << stage_name_new << std::endl;
+			std::cout << "Running on: " << internal::get_device_info<benchmark_types::cuda>() << std::endl;
+			std::cout << "OS: " << internal::operating_system_name << " " << internal::operating_system_version << std::endl;
+			std::cout << "Compiler: " << internal::compiler_id << " " << internal::compiler_version << std::endl;
 
 			if (show_metrics) {
 				static constexpr string_literal throughput_label_raw = []() {
@@ -214,17 +332,12 @@ namespace bnch_swt {
 		static constexpr string_literal stage_name{ stage_name_new };
 		static_assert(max_execution_count % measured_iteration_count == 0, "Sorry, but please enter a max_execution_count that is divisible by measured_iteration_count.");
 
-		BNCH_SWT_HOST static auto& get_results_internal() {
-			static thread_local std::unordered_map<std::string_view, performance_metrics<benchmark_type>> results{};
-			return results;
-		}
-
 		static constexpr bool use_non_mbps_metric{ metric_name_new.size() == 0 };
 
 		template<performance_metrics_presence<benchmark_type> metrics_presence = performance_metrics_presence<benchmark_type>{}>
 		BNCH_SWT_HOST static void print_results(bool show_comparison = true, bool show_metrics = true) {
 			std::vector<performance_metrics<benchmark_type>> results_new{};
-			for (const auto& [key, value]: get_results_internal()) {
+			for (const auto& [key, value]: internal::results_holder<stage_name, benchmark_type>::get_results_internal()) {
 				results_new.emplace_back(value);
 			}
 			if (results_new.size() > 0) {
@@ -237,7 +350,7 @@ namespace bnch_swt {
 
 		BNCH_SWT_HOST static auto get_results() {
 			std::vector<performance_metrics<benchmark_type>> results_new{};
-			for (const auto& [key, value]: get_results_internal()) {
+			for (const auto& [key, value]: internal::results_holder<stage_name, benchmark_type>::get_results_internal()) {
 				results_new.emplace_back(value);
 			}
 			if (results_new.size() > 0) {
@@ -258,27 +371,14 @@ namespace bnch_swt {
 						"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 				}
 			}
-			internal::event_collector<max_execution_count, benchmark_type> events{};
-			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
-			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
-			uint64_t current_global_index{ measured_iteration_count };
+			internal::measurement_context<stage_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
-					cache_clearer.evict_caches();
+					ctx.cache_clearer.evict_caches();
 				}
-				events.template run<function_type>(std::forward<arg_types>(args)...);
+				ctx.events.template run<function_type>(std::forward<arg_types>(args)...);
 			}
-			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
-			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
-			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
-					new_ptr.subspan(x, measured_iteration_count),
-					  current_global_index, max_execution_count);
-				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
-			}
-			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
-			return get_results_internal()[subject_name.operator std::string_view()];
+			return ctx.finalize();
 		}
 
 		template<string_literal subject_name_new, auto function, internal::not_invocable... arg_types>
@@ -288,27 +388,14 @@ namespace bnch_swt {
 				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
-			internal::event_collector<max_execution_count, benchmark_type> events{};
-			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
-			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
-			uint64_t current_global_index{ measured_iteration_count };
+			internal::measurement_context<stage_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
-					cache_clearer.evict_caches();
+					ctx.cache_clearer.evict_caches();
 				}
-				events.template run<function>(std::forward<arg_types>(args)...);
+				ctx.events.template run<function>(std::forward<arg_types>(args)...);
 			}
-			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
-			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
-			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
-					new_ptr.subspan(x, measured_iteration_count),
-					  current_global_index, max_execution_count);
-				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
-			}
-			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
-			return get_results_internal()[subject_name.operator std::string_view()];
+			return ctx.finalize();
 		}
 
 		template<string_literal subject_name_new, typename function, typename... arg_types>
@@ -318,26 +405,14 @@ namespace bnch_swt {
 				static_assert(std::convertible_to<std::invoke_result_t<function, arg_types...>, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
-			internal::event_collector<max_execution_count, benchmark_type> events{};
-			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
-			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
-			uint64_t current_global_index{ measured_iteration_count };
+			internal::measurement_context<stage_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
-					cache_clearer.evict_caches();
+					ctx.cache_clearer.evict_caches();
 				}
-				events.template run_from_host<function>(std::forward<arg_types>(args)...);
+				ctx.events.template run<function>(std::forward<arg_types>(args)...);
 			}
-			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
-			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
-			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
-					new_ptr.subspan(x, measured_iteration_count), current_global_index, max_execution_count);
-				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
-			}
-			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
-			return get_results_internal()[subject_name.operator std::string_view()];
+			return ctx.finalize();
 		}
 
 		template<string_literal subject_name_new, auto function, internal::not_invocable... arg_types>
@@ -347,27 +422,14 @@ namespace bnch_swt {
 				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
-			internal::event_collector<max_execution_count, benchmark_type> events{};
-			internal::cache_clearer<benchmark_type> cache_clearer{};
-			performance_metrics<benchmark_type> lowest_results{ stage_name.operator std::string() };
-			performance_metrics<benchmark_type> results_temp{ stage_name.operator std::string() };
-			uint64_t current_global_index{ measured_iteration_count };
+			internal::measurement_context<stage_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
-					cache_clearer.evict_caches();
+					ctx.cache_clearer.evict_caches();
 				}
-				events.template run_cooperative<function>(std::forward<arg_types>(args)...);
+				ctx.events.template run<function>(std::forward<arg_types>(args)...);
 			}
-			std::span<internal::event_count<benchmark_type>> new_ptr{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
-			static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
-			for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-				results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
-					new_ptr.subspan(x, measured_iteration_count),
-					  current_global_index, max_execution_count);
-				lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
-			}
-			get_results_internal()[subject_name.operator std::string_view()] = lowest_results;
-			return get_results_internal()[subject_name.operator std::string_view()];
+			return ctx.finalize();
 		}
 	};
 

@@ -597,11 +597,12 @@ template<typename value_type, uint64_t value_count, value_type min = std::numeri
 BNCH_SWT_HOST void generate_values(void* cuda_memory) {
 	static std::vector<value_type> return_values{};
 	auto size = return_values.size();
+	bnch_swt::random_generator<value_type> rg{};
 	for (uint64_t x = 0; x < size; ++x) {
-		return_values[x] = bnch_swt::random_generator<value_type>::impl(min, max);
+		return_values[x] = rg.impl(min, max);
 	}
 	for (uint64_t x = size; x < value_count; ++x) {
-		return_values.emplace_back(bnch_swt::random_generator<value_type>::impl(min, max));
+		return_values.emplace_back(rg.impl(min, max));
 	}
 	if (auto result = cudaMemcpy(cuda_memory, return_values.data(), return_values.size() * sizeof(value_type), cudaMemcpyKind::cudaMemcpyHostToDevice); result) {
 		std::cout << "cudaMemcpy Error: " << cudaGetErrorString(result) << std::endl;
@@ -685,12 +686,12 @@ int main() {
 	test_byte << std::integral_constant<uint64_t, 32>{};
 	using benchmark		 = bnch_swt::benchmark_stage<"kernel-gegen-kernel", total_iteration_count, measured_iterations, bnch_swt::benchmark_types::cuda>;
 	using test_benchmark = bnch_swt::benchmark_stage<"kernel-gegen-kernel-test", total_iteration_count, measured_iterations, bnch_swt::benchmark_types::cpu>;
-	generate_cuda_data<float>(buffer);
+	//generate_cuda_data<float>(buffer);
 	dim3 grid{};
 	dim3 block{};
 	test_function_ptr<<<1, 3>>>();
 	uint64_t bytes_transferred{};
-	test_benchmark::run_benchmark<"cuda-setup", benchmark_test_cpu>();
+	//test_benchmark::run_benchmark<"cuda-setup", benchmark_test_cpu>();
 	benchmark::run_benchmark<"ggml", test_function_ptr>(grid, block, 0, bytes_transferred);
 
 	benchmark::run_benchmark<"nihilus", benchmark_nihilus>(grid, block, 0, bytes_transferred, cuda_tensors_val);
