@@ -151,20 +151,18 @@ namespace bnch_swt::internal {
 	}
 
 	template<benchmark_types benchmark_type> struct cache_clearer {
-		inline static const size_t cache_line_size{ get_cache_line_size() };
+		inline static size_t get_cache_line_size_val() {
+			static const size_t cache_line_size{ get_cache_line_size() };
+			return cache_line_size;
+		}
+
 		inline static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
-		inline static constexpr size_t total_cache_size{ [] {
-			uint64_t return_value{};
-			return_value += cache_sizes[0];
-			return_value += cache_sizes[1];
-			return_value += cache_sizes[2];
-			return return_value;
-		} () };
+		inline static constexpr size_t total_cache_size{ cache_sizes[0] + cache_sizes[1] + cache_sizes[2] };
 
 		std::vector<char> evict_buffer{ [&] {
 			std::vector<char> return_values{};
-			if (total_cache_size > 0) {
+			if constexpr (total_cache_size > 0) {
 				return_values.resize(total_cache_size);
 			}
 			return return_values;
@@ -176,15 +174,15 @@ namespace bnch_swt::internal {
 				const size_t stride = 4093;
 				volatile char sink	= 0;
 
-				for (size_t offset = 0; offset < target_size; offset += cache_line_size) {
+				for (size_t offset = 0; offset < target_size; offset += get_cache_line_size_val()) {
 					size_t idx		  = (offset * stride) % evict_buffer.size();
 					evict_buffer[idx] = static_cast<char>(idx);
 					sink			  = sink + evict_buffer[idx];
 				}
 
-				flush_cache(evict_buffer.data(), evict_buffer.size(), cache_line_size);
+				flush_cache(evict_buffer.data(), evict_buffer.size(), get_cache_line_size_val());
 				if (cache_level == 1) {
-					flush_cache(evict_buffer.data(), evict_buffer.size(), cache_line_size, true);
+					flush_cache(evict_buffer.data(), evict_buffer.size(), get_cache_line_size_val(), true);
 				}
 			}
 		}

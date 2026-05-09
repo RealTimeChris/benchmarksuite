@@ -36,8 +36,7 @@ if(BNCH_SWT_CUDA)
     set(BNCH_SWT_LANGUAGE CUDA)
     project(benchmarksuite
         VERSION 1.0.0
-        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration,
-            providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
+        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CUDA CXX
     )
     find_package(CUDAToolkit REQUIRED COMPONENTS cudart)
@@ -50,8 +49,7 @@ else()
     set(BNCH_SWT_LANGUAGE CXX)
     project(benchmarksuite
         VERSION 1.0.0
-        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration,
-            providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
+        DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CXX
     )
     set(BNCH_SWT_MAIN_FILE_EXTENSION .cpp)

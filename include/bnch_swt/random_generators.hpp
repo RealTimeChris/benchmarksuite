@@ -32,7 +32,7 @@
 
 namespace bnch_swt {
 
-	BNCH_SWT_HOST static uint64_t get_time_based_seed() noexcept {
+	BNCH_SWT_NOINLINE static uint64_t get_time_based_seed() noexcept {
 		return std::chrono::duration_cast<std::chrono::duration<uint64_t, std::nano>>(clock_type::now().time_since_epoch()).count();
 	}
 
@@ -42,7 +42,7 @@ namespace bnch_swt {
 	};
 
 	template<xoshiro_256_seeds xoshiro_256_seed> struct xoshiro_256_base {
-		BNCH_SWT_HOST constexpr xoshiro_256_base() {
+		BNCH_SWT_NOINLINE constexpr xoshiro_256_base() {
 			if constexpr (xoshiro_256_seed == xoshiro_256_seeds::time_based) {
 				uint64_t s = get_time_based_seed();
 				for (uint64_t y = 0; y < 4; ++y) {
@@ -59,7 +59,7 @@ namespace bnch_swt {
 			this->operator()();
 		}
 
-		BNCH_SWT_HOST constexpr uint64_t operator()() noexcept {
+		BNCH_SWT_NOINLINE constexpr uint64_t operator()() noexcept {
 			const uint64_t result = rotl(state[1ULL] * 5ULL, 7ULL) * 9ULL;
 			const uint64_t t	  = state[1ULL] << 17ULL;
 
@@ -78,11 +78,11 @@ namespace bnch_swt {
 	  protected:
 		mutable std::array<uint64_t, 4ULL> state{};
 
-		BNCH_SWT_HOST constexpr uint64_t rotl(const uint64_t x, const uint64_t k) const noexcept {
+		BNCH_SWT_NOINLINE constexpr uint64_t rotl(const uint64_t x, const uint64_t k) const noexcept {
 			return (x << k) | (x >> (64ULL - k));
 		}
 
-		BNCH_SWT_HOST constexpr uint64_t splitmix64(uint64_t& seed64) const noexcept {
+		BNCH_SWT_NOINLINE constexpr uint64_t splitmix64(uint64_t& seed64) const noexcept {
 			uint64_t result = seed64 += 0x9E3779B97F4A7C15ULL;
 			result			= (result ^ (result >> 30ULL)) * 0xBF58476D1CE4E5B9ULL;
 			result			= (result ^ (result >> 27ULL)) * 0x94D049BB133111EBULL;
@@ -93,7 +93,7 @@ namespace bnch_swt {
 	template<typename value_type_new, xoshiro_256_seeds xoshiro_256_seed> struct xoshiro_256 : public xoshiro_256_base<xoshiro_256_seed> {
 		using value_type = std::make_unsigned_t<value_type_new>;
 
-		BNCH_SWT_HOST value_type_new operator()(value_type_new min, value_type_new max) {
+		BNCH_SWT_NOINLINE value_type_new operator()(value_type_new min, value_type_new max) {
 			if (min >= max) {
 				return min;
 			}
@@ -135,12 +135,12 @@ namespace bnch_swt {
 
 	template<internal::floating_point_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct xoshiro_256<value_type, xoshiro_256_seed>
 		: public xoshiro_256_base<xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type operator()(value_type min, value_type max) {
+		BNCH_SWT_NOINLINE value_type operator()(value_type min, value_type max) {
 			return min + (max - min) * next();
 		}
 
 	  protected:
-		BNCH_SWT_HOST value_type next() {
+		BNCH_SWT_NOINLINE value_type next() {
 			return static_cast<value_type>(
 				(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) * xoshiro_256_traits<value_type>::multiplicand);
 		}
@@ -149,7 +149,7 @@ namespace bnch_swt {
 	template<typename value_type, xoshiro_256_seeds xoshiro_256_seeds = xoshiro_256_seeds::time_based> struct random_generator;
 
 	template<bnch_swt::internal::string_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type impl(uint64_t length) {
+		BNCH_SWT_NOINLINE value_type impl(uint64_t length) {
 			xoshiro_256<uint64_t, xoshiro_256_seed> random_engine{};
 			value_type result{};
 			result.resize(length);
@@ -161,14 +161,14 @@ namespace bnch_swt {
 	};
 
 	template<bnch_swt::internal::bool_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type impl() {
+		BNCH_SWT_NOINLINE value_type impl() {
 			xoshiro_256<uint64_t, xoshiro_256_seed> random_engine{};
 			return static_cast<value_type>(random_engine(0, 1));
 		}
 	};
 
 	template<bnch_swt::internal::floating_point_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type impl(value_type min = static_cast<value_type>(-1.0), value_type max = static_cast<value_type>(1.0)) {
+		BNCH_SWT_NOINLINE value_type impl(value_type min = static_cast<value_type>(-1.0), value_type max = static_cast<value_type>(1.0)) {
 			xoshiro_256<value_type, xoshiro_256_seed> random_engine{};
 			return random_engine(min, max);
 		}
@@ -177,7 +177,7 @@ namespace bnch_swt {
 	template<bnch_swt::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
 		requires(std::is_unsigned_v<value_type>)
 	struct random_generator<value_type, xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {
+		BNCH_SWT_NOINLINE value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {
 			xoshiro_256<value_type, xoshiro_256_seed> random_engine{};
 			return static_cast<value_type>(random_engine(min, max));
 		}
@@ -186,7 +186,7 @@ namespace bnch_swt {
 	template<bnch_swt::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
 		requires(std::is_signed_v<value_type>)
 	struct random_generator<value_type, xoshiro_256_seed> {
-		BNCH_SWT_HOST value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {
+		BNCH_SWT_NOINLINE value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {
 			xoshiro_256<value_type, xoshiro_256_seed> random_engine{};
 			return random_engine(min, max);
 		}

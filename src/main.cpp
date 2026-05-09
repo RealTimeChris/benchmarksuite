@@ -15,66 +15,112 @@
 	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 	DEALINGS IN THE SOFTWARE.
 */
+#include <void-numerics>
 #include <bnch_swt/index.hpp>
 #include <source_location>
 #include <atomic>
 #include <thread>
 
-static constexpr uint64_t total_iterations{ 10000 };
-static constexpr uint64_t measured_iterations{ 100 };
-static constexpr uint64_t wait_notify_cycles{ 1000 };
+inline static constexpr uint8_t digitCounts[]{ 19, 19, 19, 19, 18, 18, 18, 17, 17, 17, 16, 16, 16, 16, 15, 15, 15, 14, 14, 14, 13, 13, 13, 13, 12, 12, 12, 11, 11, 11, 10, 10, 10,
+	10, 9, 9, 9, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 2, 2, 2, 1, 1, 1, 1, 1 };
 
-struct test_atomic_uint64 {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic<int64_t> flag{ 0 };
-		std::thread waiter([&]() {
-			int64_t value{};
-			for (int64_t i = 0; i < wait_notify_cycles; ++i) {
-				int64_t expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		int64_t value{};
-		for (int64_t i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
-	}
-};
+inline static constexpr uint64_t digitCountThresholds[]{ 0ULL, 9ULL, 99ULL, 999ULL, 9999ULL, 99999ULL, 999999ULL, 9999999ULL, 99999999ULL, 999999999ULL, 9999999999ULL,
+	99999999999ULL, 999999999999ULL, 9999999999999ULL, 99999999999999ULL, 999999999999999ULL, 9999999999999999ULL, 99999999999999999ULL, 999999999999999999ULL,
+	9999999999999999999ULL };
 
-struct test_atomic_signed_lock_free {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic_signed_lock_free flag{ 0 };
-		std::thread waiter([&]() {
-			typename std::atomic_signed_lock_free::value_type value{};
-			for (typename std::atomic_signed_lock_free::value_type i = 0; i < wait_notify_cycles; ++i) {
-				typename std::atomic_signed_lock_free::value_type expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		typename std::atomic_signed_lock_free::value_type value{};
-		for (typename std::atomic_signed_lock_free::value_type i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
+BNCH_SWT_HOST static uint64_t fastDigitCount(const uint64_t inputValue) {
+	const uint64_t originalDigitCount{ digitCounts[std::countl_zero(inputValue)] };
+	return originalDigitCount + static_cast<uint64_t>(inputValue > digitCountThresholds[originalDigitCount]);
+}
+
+BNCH_SWT_NOINLINE void uint8_test() {
+	std::string test_string{};
+	{
+		uint8_t value{ bnch_swt::random_generator<uint8_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
 	}
-};
+}
+
+BNCH_SWT_NOINLINE void int8_test() {
+	std::string test_string{};
+	{
+		int8_t value{ bnch_swt::random_generator<int8_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void uint16_test() {
+	std::string test_string{};
+	{
+		uint16_t value{ bnch_swt::random_generator<uint16_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void int16_test() {
+	std::string test_string{};
+	{
+		int16_t value{ bnch_swt::random_generator<int16_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void uint32_test() {
+	std::string test_string{};
+	{
+		uint32_t value{ bnch_swt::random_generator<uint32_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void int32_test() {
+	std::string test_string{};
+	{
+		int32_t value{ bnch_swt::random_generator<int32_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void uint64_test() {
+	std::string test_string{};
+	{
+		uint64_t value{ bnch_swt::random_generator<uint64_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
+
+BNCH_SWT_NOINLINE void int64_test() {
+	std::string test_string{};
+	{
+		int64_t value{ bnch_swt::random_generator<int64_t>{}.impl() };
+		test_string.resize(fastDigitCount(value) + 1);
+		vn::to_chars(test_string.data(), test_string.data() + test_string.size(), value);
+		bnch_swt::do_not_optimize_away(test_string);
+	}
+}
 
 int main() {
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::run_benchmark<"atomic_uint64", test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::run_benchmark<"atomic_signed_lock_free", test_atomic_signed_lock_free>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::print_results();
+	uint8_test();
+	int8_test();
+	uint16_test();
+	int16_test();
+	uint32_test();
+	int32_test();
+	uint64_test();
+	int64_test();
 	return 0;
 }

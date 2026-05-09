@@ -20,6 +20,15 @@
 
 set(MAIN_SOURCE $<IF:$<BOOL:${BNCH_SWT_DEPLOY}>,main_deploy,main>${BNCH_SWT_MAIN_FILE_EXTENSION})
 
+include(FetchContent)
+FetchContent_Declare(
+  void-numerics
+  GIT_REPOSITORY https://github.com/nihilai-collective/void_numerics.git
+  GIT_TAG dev
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(void-numerics)
+
 add_executable(benchmarksuite-main ${MAIN_SOURCE})
 
 if (PRINT_ASSEMBLY)
@@ -69,6 +78,7 @@ endif()
 target_link_libraries(benchmarksuite-main
     PUBLIC
         benchmarksuite::benchmarksuite
+        void-numerics::void-numerics
 )
 
 install(

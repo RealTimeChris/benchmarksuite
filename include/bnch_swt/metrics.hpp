@@ -23,6 +23,8 @@
 #pragma once
 
 #include <bnch_swt/event_counter.hpp>
+#include <unordered_map>
+#include <string_view>
 #include <cstdint>
 #include <span>
 
@@ -45,6 +47,25 @@ namespace bnch_swt {
 
 	template<benchmark_types benchmark_type> struct performance_metrics;
 
+	template<string_literal stage_name_new, benchmark_types benchmark_type> struct stage_results {
+		using performance_metrics_type = performance_metrics<benchmark_type>;
+		struct test_results {
+			std::unordered_map<std::string_view, performance_metrics_type> results{};
+			std::string_view test_name{};
+		};
+		using test_results_type = test_results;
+		inline static std::vector<test_results_type> results{};
+		BNCH_SWT_HOST static auto& get_results_internal(std::string_view test_name) {
+			for (auto& value: results) {
+				if (test_name == value.test_name) {
+					return value.results;
+				}
+			}
+			results.emplace_back(test_results_type{ .results = {}, .test_name = test_name });
+			return results.back().results;
+		}
+	};
+
 	template<> struct performance_metrics<benchmark_types::cpu> {
 		double throughput_percentage_deviation{ std::numeric_limits<double>::max() };
 		std::optional<double> cache_references_per_execution{};
@@ -61,16 +82,11 @@ namespace bnch_swt {
 		uint64_t iterations_to_stabilize{};
 		uint64_t total_iteration_count{};
 		double throughput_mb_per_sec{};
+		std::string library_name{};
 		uint64_t bytes_processed{};
-		std::string stage_name{};
 		double time_in_ns{};
-		std::string name{};
 
 		BNCH_SWT_HOST performance_metrics() {
-		}
-
-		BNCH_SWT_HOST performance_metrics(const std::string& stage_name_new) {
-			stage_name = stage_name_new;
 		}
 
 		BNCH_SWT_HOST bool operator>(const performance_metrics& other) const {
@@ -83,11 +99,11 @@ namespace bnch_swt {
 			static constexpr string_literal stage_name{ stage_name_new };
 
 			if (events_newer.empty()) {
-				return { stage_name.operator std::string() };
+				return {};
 			}
 
-			performance_metrics metrics{ stage_name.operator std::string() };
-			metrics.name					 = library_name.operator std::string();
+			performance_metrics metrics{};
+			metrics.library_name			 = library_name.operator std::string();
 			metrics.measured_iteration_count = events_newer.size();
 			metrics.total_iteration_count	 = total_iteration_count;
 			metrics.iterations_to_stabilize	 = iterations_to_stabilize - metrics.measured_iteration_count;
@@ -213,16 +229,11 @@ namespace bnch_swt {
 		uint64_t iterations_to_stabilize{};
 		uint64_t total_iteration_count{};
 		double throughput_mb_per_sec{};
+		std::string library_name{};
 		uint64_t bytes_processed{};
-		std::string stage_name{};
 		double time_in_ns{};
-		std::string name{};
 
 		BNCH_SWT_HOST performance_metrics() {
-		}
-
-		BNCH_SWT_HOST performance_metrics(const std::string& stage_name_new) {
-			stage_name = stage_name_new;
 		}
 
 		BNCH_SWT_HOST bool operator>(const performance_metrics& other) const {
@@ -238,7 +249,7 @@ namespace bnch_swt {
 			static constexpr string_literal library_name{ library_name_new };
 			static constexpr string_literal stage_name{ stage_name_new };
 			performance_metrics metrics{};
-			metrics.name					 = library_name.operator std::string();
+			metrics.library_name			 = library_name.operator std::string();
 			metrics.measured_iteration_count = events_newer.size();
 			metrics.total_iteration_count	 = total_iteration_count;
 			metrics.iterations_to_stabilize	 = iterations_to_stabilize - metrics.measured_iteration_count;
@@ -322,13 +333,29 @@ namespace bnch_swt {
 		bool branches_per_execution{ false };
 		bool instructions_per_byte{ false };
 		bool total_iteration_count{ true };
-		bool throughput_mb_per_sec{ true };
+		bool throughput_mb_per_sec{ false };
 		bool cycles_per_execution{ false };
-		bool bytes_processed{ true };
-		bool cycles_per_byte{ true };
+		bool bytes_processed{ false };
+		bool cycles_per_byte{ false };
 		bool frequency_ghz{ false };
 		bool time_in_ns{ false };
 	};
+
+	template<benchmark_types benchmark_type> constexpr bool has_any_metric_enabled(const performance_metrics_presence<benchmark_type>& m) {
+		if constexpr (benchmark_type == benchmark_types::cpu) {
+			auto fields = std::tie(m.throughput_percentage_deviation, m.cache_references_per_execution, m.branch_misses_per_execution, m.instructions_per_execution,
+				m.cache_misses_per_execution, m.measured_iteration_count, m.iterations_to_stabilize, m.instructions_per_cycle, m.branches_per_execution, m.instructions_per_byte,
+				m.total_iteration_count, m.throughput_mb_per_sec, m.cycles_per_execution, m.bytes_processed, m.cycles_per_byte, m.frequency_ghz, m.time_in_ns);
+
+			return fields != std::make_tuple(false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false);
+		} else {
+			auto fields = std::tie(m.throughput_percentage_deviation, m.measured_iteration_count, m.iterations_to_stabilize, m.total_iteration_count, m.throughput_mb_per_sec,
+				m.cycles_per_execution, m.cuda_event_ms_avg, m.cycles_per_byte, m.bytes_processed, m.time_in_ns);
+
+			return fields != std::make_tuple(false, false, false, false, false, false, false, false, false, false);
+		}
+		
+	}
 
 	template<> struct performance_metrics_presence<benchmark_types::cuda> {
 		bool throughput_percentage_deviation{ true };
