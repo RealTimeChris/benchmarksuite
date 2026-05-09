@@ -1,7 +1,3 @@
-Here is the updated README with v1.0.0 release information incorporated:
-
----
-
 # Benchmark Suite v1.0.0
 
 Hello and welcome to Benchmark Suite! This is a modern, header-only C++20 benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead.

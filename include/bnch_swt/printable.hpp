@@ -44,7 +44,7 @@ namespace bnch_swt {
 			}
 		}
 
-		template<typename value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<printable value_type> void print_value(std::ostream& os, const value_type& value) {
 			os << value;
 		}
 
