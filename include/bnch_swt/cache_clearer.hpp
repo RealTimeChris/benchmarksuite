@@ -154,17 +154,11 @@ namespace bnch_swt::internal {
 		inline static const size_t cache_line_size{ get_cache_line_size() };
 		inline static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 
-		inline static constexpr size_t total_cache_size{ [] {
-			uint64_t return_value{};
-			return_value += cache_sizes[0];
-			return_value += cache_sizes[1];
-			return_value += cache_sizes[2];
-			return return_value;
-		} () };
+		inline static constexpr size_t total_cache_size{ cache_sizes[0] + cache_sizes[1] + cache_sizes[2] };
 
 		std::vector<char> evict_buffer{ [&] {
 			std::vector<char> return_values{};
-			if (total_cache_size > 0) {
+			if constexpr (total_cache_size > 0) {
 				return_values.resize(total_cache_size);
 			}
 			return return_values;

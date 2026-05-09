@@ -51,7 +51,7 @@ class Vcpkg
         /* Get the latest tag from the version of the repository checked out by default into the action */
         $this->latestTag = preg_replace("/\n/", "", shell_exec("git describe --tags `git rev-list --tags --max-count=1`"));
         $this->version = preg_replace('/^v/', '', $this->getTag());
-        echo GREEN . "Latest tag: " . $this->getTag() . " version: " . $this->getVersion() . "\n" . WHITE;
+        echo GREEN . "Latest tag: " . $this->getTag() . " version: " . $this->getVersion() . std::endl; . WHITE;
 
 	$this->git = trim(`which git`);
 	$this->sudo = trim(`which sudo`);
@@ -205,17 +205,17 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
     
     // DEBUG: Print the full output
     echo RED . "=== FULL BUILD OUTPUT ===\n" . WHITE;
-    echo $buildResults . "\n";
+    echo $buildResults . std::endl;
     echo RED . "=== END BUILD OUTPUT ===\n" . WHITE;
     
     $matches = [];
     if (preg_match('/please change the expected SHA512 to:\s+([0-9a-fA-F]+)/', $buildResults, $matches)) {
-        echo GREEN . "Obtained SHA512 for first build: " . $matches[1] . "\n" . WHITE;
+        echo GREEN . "Obtained SHA512 for first build: " . $matches[1] . std::endl; . WHITE;
         $this->firstBuildComplete = true;
         return $matches[1];
     }
     if (preg_match('/Actual hash:\s+([0-9a-fA-F]+)/', $buildResults, $matches)) {
-        echo GREEN . "Obtained SHA512 for first build (old format): " . $matches[1] . "\n" . WHITE;
+        echo GREEN . "Obtained SHA512 for first build (old format): " . $matches[1] . std::endl; . WHITE;
         $this->firstBuildComplete = true;
         return $matches[1];
     }

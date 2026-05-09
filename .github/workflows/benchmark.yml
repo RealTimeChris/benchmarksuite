@@ -101,7 +101,7 @@ jobs:
     - name: Configure CMake (macOS-GCC)
       if: matrix.os == 'macos-latest' && matrix.compiler == 'gcc'
       run: |
-        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${{ env.CC }} -DCMAKE_CXX_COMPILER=${{ env.CXX }} -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+        cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ env.CXX }} -DBENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
     
     - name: Configure CMake (Windows)
       if: matrix.os == 'windows-latest'

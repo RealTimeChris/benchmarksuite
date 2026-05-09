@@ -97,22 +97,12 @@ int main() {
 	#include <cstdint>
 	#include <cstdlib>
 	#include <iostream>
+	#include <fstream>
 	#include <thread>
 	#include <vector>
 
-	#if defined(_MSC_VER)
-		#include <intrin.h>
-	#elif defined(__GNUC__) || defined(__clang__)
-		#include <cpuid.h>
-	#endif
-
 	#if defined(_WIN32) || defined(_WIN64)
 		#include <Windows.h>
-	#endif
-
-	#if defined(__linux__) || defined(__ANDROID__)
-		#include <fstream>
-		#include <string>
 	#endif
 
 	#if defined(__APPLE__) && defined(__MACH__)
@@ -125,8 +115,12 @@ int main() {
 		#if defined(__linux__)
 			#include <sys/auxv.h>
 			#include <asm/hwcap.h>
-		#elif defined(__APPLE__)
-			#include <sys/sysctl.h>
+		#endif
+	#else
+		#if defined(_MSC_VER)
+			#include <intrin.h>
+		#elif defined(__GNUC__) || defined(__clang__)
+			#include <cpuid.h>
 		#endif
 	#endif
 
@@ -287,7 +281,7 @@ inline uint64_t get_cache_size(cache_level level) {
 	#elif defined(__APPLE__)
 	auto get_cache_size_for_mac = [](const char* cacheType) {
 		uint64_t cacheSize = 0;
-		uint64_t size	   = sizeof(cacheSize);
+		size_t size		   = sizeof(cacheSize);
 		std::string query  = std::string("hw.") + cacheType + "cachesize";
 		if (sysctlbyname(query.c_str(), &cacheSize, &size, nullptr, 0) != 0)
 			return 0ULL;
