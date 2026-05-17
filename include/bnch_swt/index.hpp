@@ -42,7 +42,7 @@ namespace bnch_swt {
 		performance_metrics_presence<benchmark_type> metrics_presence>
 	struct result_printer;
 
-	template<bool printed, typename value_type> BNCH_SWT_HOST static auto print_metric(std::string_view label, const value_type& value_new) {
+	template<bool printed, typename value_type> BNCH_SWT_NOINLINE static auto print_metric(std::string_view label, const value_type& value_new) {
 		static constexpr uint64_t LABEL_WIDTH = 60;
 		if constexpr (printed) {
 			if constexpr (internal::optional_t<value_type>) {
@@ -61,7 +61,7 @@ namespace bnch_swt {
 
 	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new, performance_metrics_presence<benchmark_types::cpu> metrics_presence>
 	struct result_printer<benchmark_types::cpu, stage_name_new, metric_name_new, metrics_presence> {
-		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cpu>>& results_new, bool show_comparison = true, bool show_metrics = true) {
+		BNCH_SWT_NOINLINE static void impl(const std::vector<performance_metrics<benchmark_types::cpu>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "CPU Performance Metrics for: " << stage_name_new << std::endl;
 
 			if (show_metrics) {
@@ -142,7 +142,7 @@ namespace bnch_swt {
 
 	template<const std::string_view& stage_name_new, const std::string_view& metric_name_new, performance_metrics_presence<benchmark_types::cuda> metrics_presence>
 	struct result_printer<benchmark_types::cuda, stage_name_new, metric_name_new, metrics_presence> {
-		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cuda>>& results_new, bool show_comparison = true, bool show_metrics = true) {
+		BNCH_SWT_NOINLINE static void impl(const std::vector<performance_metrics<benchmark_types::cuda>>& results_new, bool show_comparison = true, bool show_metrics = true) {
 			std::cout << "GPU Performance Metrics for: " << stage_name_new << std::endl;
 
 			if (show_metrics) {
@@ -210,7 +210,7 @@ namespace bnch_swt {
 	struct benchmark_stage {
 		static_assert(max_execution_count % measured_iteration_count == 0, "Sorry, but please enter a max_execution_count that is divisible by measured_iteration_count.");
 
-		BNCH_SWT_HOST static auto& get_results_internal() {
+		BNCH_SWT_NOINLINE static auto& get_results_internal() {
 			static thread_local std::unordered_map<std::string_view, performance_metrics<benchmark_type>> results{};
 			return results;
 		}
@@ -218,7 +218,7 @@ namespace bnch_swt {
 		static constexpr bool use_non_mbps_metric{ metric_name_new.size() == 0 };
 
 		template<performance_metrics_presence<benchmark_type> metrics_presence = performance_metrics_presence<benchmark_type>{}>
-		BNCH_SWT_HOST static void print_results(bool show_comparison = true, bool show_metrics = true) {
+		BNCH_SWT_NOINLINE static void print_results(bool show_comparison = true, bool show_metrics = true) {
 			std::vector<performance_metrics<benchmark_type>> results_new{};
 			for (const auto& [key, value]: get_results_internal()) {
 				results_new.emplace_back(value);
@@ -231,7 +231,7 @@ namespace bnch_swt {
 			}
 		}
 
-		BNCH_SWT_HOST static auto get_results() {
+		BNCH_SWT_NOINLINE static auto get_results() {
 			std::vector<performance_metrics<benchmark_type>> results_new{};
 			for (const auto& [key, value]: get_results_internal()) {
 				results_new.emplace_back(value);
@@ -243,7 +243,7 @@ namespace bnch_swt {
 		}
 
 		template<string_literal subject_name_new, typename function_type, internal::not_invocable... arg_types>
-		BNCH_SWT_HOST static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
+		BNCH_SWT_NOINLINE static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
 				static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::impl), arg_types...>, uint64_t>,
@@ -272,7 +272,7 @@ namespace bnch_swt {
 		}
 
 		template<string_literal subject_name_new, auto function, internal::not_invocable... arg_types>
-		BNCH_SWT_HOST static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
+		BNCH_SWT_NOINLINE static performance_metrics<benchmark_type> run_benchmark(arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
 				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
