@@ -53,7 +53,7 @@ namespace bnch_swt {
 			std::array<uint32_t, 12> regs{};
 			auto cpuid = [](uint32_t leaf, uint32_t* res) {
 	#if defined(_MSC_VER)
-				__cpuidex(reinterpret_cast<int*>(res), static_cast<int>(leaf), 0);
+				__cpuidex(std::bit_cast<int*>(res), static_cast<int>(leaf), 0);
 	#elif defined(__GNUC__) || defined(__clang__)
 				__asm__ volatile("cpuid" : "=a"(res[0]), "=b"(res[1]), "=c"(res[2]), "=d"(res[3]) : "a"(leaf), "c"(0));
 	#endif
@@ -106,7 +106,7 @@ namespace bnch_swt {
 			if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hkey) == ERROR_SUCCESS) {
 				char buffer[256]{};
 				DWORD size = sizeof(buffer);
-				if (RegQueryValueExA(hkey, "ProcessorNameString", nullptr, nullptr, reinterpret_cast<LPBYTE>(buffer), &size) == ERROR_SUCCESS) {
+				if (RegQueryValueExA(hkey, "ProcessorNameString", nullptr, nullptr, std::bit_cast<LPBYTE>(buffer), &size) == ERROR_SUCCESS) {
 					RegCloseKey(hkey);
 					return std::string(buffer);
 				}

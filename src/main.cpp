@@ -81,7 +81,9 @@ int main() {
 		test_atomic_uint64>();
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::template run_benchmark<"wait_notify_benchmark-02", "atomic_signed_lock_free",
 		test_atomic_signed_lock_free>();
+	bnch_swt::internal::cache_clearer<bnch_swt::benchmark_types::cpu> cclearer{};
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::print_results();
+	cclearer.evict_caches();
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::get_all_results();
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::clear_all_results();
 	return 0;

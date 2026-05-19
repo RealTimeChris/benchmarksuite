@@ -19,14 +19,17 @@
 	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 	DEALINGS IN THE SOFTWARE.
 */
-/// https://github.com/RealTimeChris/benchmarksuite
 
 #pragma once
 
 #include <bnch_swt/benchmarksuite_cpu_properties.hpp>
 #include <bnch_swt/config.hpp>
-#include <iostream>
+#include <algorithm>
+#include <bit>
+#include <chrono>
 #include <fstream>
+#include <iostream>
+#include <vector>
 
 #if BNCH_SWT_PLATFORM_WINDOWS
 	#include <Windows.h>
@@ -65,8 +68,7 @@ namespace bnch_swt::internal {
 		}
 
 		size_t num_elements = buffer_size / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
-
-		const auto* buffer = buffer_raw.data();
+		const auto* buffer	= buffer_raw.data();
 
 		for (size_t i = 0; i < num_elements; ++i) {
 			const auto& info = buffer[i];
@@ -74,7 +76,6 @@ namespace bnch_swt::internal {
 				return info.Cache.LineSize;
 			}
 		}
-
 		return 64;
 
 #elif BNCH_SWT_PLATFORM_LINUX
@@ -96,102 +97,239 @@ namespace bnch_swt::internal {
 		std::cerr << "Unsupported platform! Falling back to 64." << std::endl;
 		return 64;
 #endif
-		return 64;
 	}
 
-	BNCH_SWT_HOST static void flush_cache(void* ptr, size_t size, [[maybe_unused]] size_t cache_line_size, bool clear_instruction_cache = false) {
-		if (cache_line_size == 0) {
+	BNCH_SWT_HOST static void memory_fence() {
+#if BNCH_SWT_PLATFORM_WINDOWS || (BNCH_SWT_PLATFORM_LINUX && BNCH_SWT_ARCH_X64)
+		_mm_mfence();
+#elif BNCH_SWT_ARCH_ARM64
+		__asm__ __volatile__("dmb sy" : : : "memory");
+#else
+		std::atomic_thread_fence(std::memory_order_seq_cst);
+#endif
+	}
+
+	BNCH_SWT_HOST static void flush_cache_line(void* ptr, bool clear_instruction = false) {
+		if (!ptr)
 			return;
-		}
+
 #if BNCH_SWT_PLATFORM_MAC
-		if (clear_instruction_cache) {
-			sys_icache_invalidate(ptr, size);
+		if (clear_instruction) {
+			sys_icache_invalidate(ptr, get_cache_line_size());
 		} else {
-			sys_dcache_flush(ptr, size);
+			sys_dcache_flush(ptr, get_cache_line_size());
 		}
 #else
-		char* buffer = static_cast<char*>(ptr);
 	#if BNCH_SWT_PLATFORM_WINDOWS
-		for (size_t i = 0; i < size; i += cache_line_size) {
-			_mm_clflush(buffer + i);
-		}
-		_mm_sfence();
-
-		if (clear_instruction_cache) {
-			if (!FlushInstructionCache(GetCurrentProcess(), buffer, size)) {
-				std::cerr << "Failed to flush instruction cache!" << std::endl;
-			}
+		_mm_clflush(ptr);
+		if (clear_instruction) {
+			FlushInstructionCache(GetCurrentProcess(), ptr, get_cache_line_size());
 		}
 	#elif BNCH_SWT_PLATFORM_LINUX
 		#if BNCH_SWT_ARCH_X64
-		for (size_t i = 0; i < size; i += cache_line_size) {
-			__builtin_ia32_clflush(buffer + i);
-		}
-		__builtin_ia32_sfence();
-		#elif BNCH_SWT_ARCH_ARM || BNCH_SWT_ARCH_ARM64
-		for (size_t i = 0; i < size; i += cache_line_size) {
-			#if BNCH_SWT_ARCH_ARM64
-			__asm__ __volatile__("dc civac, %0" : : "r"(buffer + i) : "memory");
-			#else
-			__builtin___clear_cache(buffer + i, buffer + i + cache_line_size);
-			#endif
-		}
-		__asm__ __volatile__("dsb sy" : : : "memory");
+		__builtin_ia32_clflush(ptr);
+		#elif BNCH_SWT_ARCH_ARM64
+		__asm__ __volatile__("dc civac, %0" : : "r"(ptr) : "memory");
 		#endif
 
-		if (clear_instruction_cache) {
-			__builtin___clear_cache(buffer, buffer + size);
-		}
-	#elif BNCH_SWT_PLATFORM_ANDROID
-		if (clear_instruction_cache) {
-			__builtin___clear_cache(buffer, buffer + size);
+		if (clear_instruction) {
+			__builtin___clear_cache(static_cast<char*>(ptr), static_cast<char*>(ptr) + get_cache_line_size());
 		}
 	#endif
 #endif
 	}
 
 	template<benchmark_types benchmark_type> struct cache_clearer {
-		inline static size_t get_cache_line_size_val() {
-			static const size_t cache_line_size{ get_cache_line_size() };
-			return cache_line_size;
-		}
-
-		inline static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
-
-		inline static constexpr size_t total_cache_size{ cache_sizes[0] + cache_sizes[1] + cache_sizes[2] };
-
-		std::vector<char> evict_buffer{ [&] {
-			std::vector<char> return_values{};
-			if constexpr (total_cache_size > 0) {
-				return_values.resize(total_cache_size);
+	  private:
+		inline static const size_t cache_line_size = get_cache_line_size();
+		static constexpr std::array<size_t, 3> cache_sizes{ cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size };
+		static constexpr size_t biggest_cache_size{ [] {
+			size_t return_value{};
+			for (size_t size: cache_sizes) {
+				if (size > return_value) {
+					return_value = size;
+				}
 			}
-			return return_values;
+			return return_value > 0 ? return_value : 8 * 1024 * 1024;
 		}() };
 
-		BNCH_SWT_HOST void evict_cache(size_t cache_level) {
-			if (cache_level >= 1 && cache_level <= 3 && cache_sizes[cache_level - 1] > 0 && !evict_buffer.empty()) {
-				size_t target_size	= cache_sizes[cache_level - 1] * 4;
-				const size_t stride = 4093;
-				volatile char sink	= 0;
+		static constexpr size_t eviction_multiplier = 4;
+		static constexpr size_t working_set_size	= biggest_cache_size * eviction_multiplier;
 
-				for (size_t offset = 0; offset < target_size; offset += get_cache_line_size_val()) {
-					size_t idx		  = (offset * stride) % evict_buffer.size();
-					evict_buffer[idx] = static_cast<char>(idx);
-					sink			  = sink + evict_buffer[idx];
+		struct aligned_vector {
+			std::vector<char> data;
+			char* aligned_ptr;
+			size_t size;
+
+			aligned_vector(size_t requested_size) {
+				data.resize(requested_size + 64);
+				uintptr_t addr	  = reinterpret_cast<uintptr_t>(data.data());
+				uintptr_t aligned = (addr + 63) & ~63;
+				aligned_ptr		  = reinterpret_cast<char*>(aligned);
+				size			  = requested_size;
+			}
+
+			char* get() {
+				return aligned_ptr;
+			}
+			size_t get_size() const {
+				return size;
+			}
+		};
+
+		aligned_vector evict_buffer{ working_set_size > 0 ? working_set_size : 32 * 1024 * 1024 };
+
+		uint64_t rng_state{ static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count()) };
+
+		inline size_t fast_rng(size_t max_val) {
+			rng_state = rng_state * 6364136223846793005ULL + 1442695040888963407ULL;
+			return static_cast<size_t>(rng_state % max_val);
+		}
+
+		std::vector<size_t> accessed_indices{ [] {
+			std::vector<size_t> return_value;
+			return_value.resize((biggest_cache_size * eviction_multiplier) / cache_line_size);
+			return return_value;
+		}() };
+
+		BNCH_SWT_HOST void random_access_evict(size_t cache_level) {
+			if (cache_level < 1 || cache_level > 3)
+				return;
+			if (cache_sizes[cache_level - 1] == 0)
+				return;
+
+			char* buffer_start = evict_buffer.get();
+			size_t buffer_size = evict_buffer.get_size();
+
+			if (buffer_size == 0)
+				return;
+
+			const size_t target_cache_lines = (cache_sizes[cache_level - 1] * eviction_multiplier) / cache_line_size;
+			const size_t buffer_cache_lines = buffer_size / cache_line_size;
+
+			if (buffer_cache_lines == 0)
+				return;
+
+			for (size_t i = 0; i < target_cache_lines; ++i) {
+				size_t line_idx		= fast_rng(buffer_cache_lines);
+				accessed_indices[i] = line_idx;
+
+				char* cache_line = buffer_start + (line_idx * cache_line_size);
+
+				for (size_t offset = 0; offset < cache_line_size; offset += 8) {
+					if (offset + 8 <= cache_line_size) {
+						uint64_t* ptr = reinterpret_cast<uint64_t*>(cache_line + offset);
+						*ptr		  = static_cast<uint64_t>(line_idx) ^ static_cast<uint64_t>(offset);
+					}
+				}
+			}
+
+			memory_fence();
+
+			for (size_t i = target_cache_lines - 1; i > 0; --i) {
+				size_t j = fast_rng(i + 1);
+				std::swap(accessed_indices[i], accessed_indices[j]);
+			}
+
+			volatile uint64_t sink = 0;
+			for (size_t i = 0; i < target_cache_lines; ++i) {
+				size_t line_idx	 = accessed_indices[i];
+				char* cache_line = buffer_start + (line_idx * cache_line_size);
+
+				for (size_t offset = 0; offset < cache_line_size; offset += 8) {
+					if (offset + 8 <= cache_line_size) {
+						uint64_t* ptr = reinterpret_cast<uint64_t*>(cache_line + offset);
+						sink += *ptr;
+					}
 				}
 
-				flush_cache(evict_buffer.data(), evict_buffer.size(), get_cache_line_size_val());
-				if (cache_level == 1) {
-					flush_cache(evict_buffer.data(), evict_buffer.size(), get_cache_line_size_val(), true);
+				flush_cache_line(cache_line, false);
+			}
+
+			bnch_swt::do_not_optimize_away(sink);
+			memory_fence();
+
+			if (cache_level == 1) {
+				for (size_t i = target_cache_lines - 1; i > 0; --i) {
+					size_t j = fast_rng(i + 1);
+					std::swap(accessed_indices[i], accessed_indices[j]);
 				}
+
+				for (size_t i = 0; i < target_cache_lines && i < accessed_indices.size(); ++i) {
+					char* cache_line = buffer_start + (accessed_indices[i] * cache_line_size);
+					flush_cache_line(cache_line, true);
+				}
+				memory_fence();
+			}
+		}
+
+		BNCH_SWT_HOST void aggressive_evict(cache_level level) {
+			constexpr int num_passes = 3;
+			for (int pass = 0; pass < num_passes; ++pass) {
+				random_access_evict(static_cast<size_t>(level));
+
+#if BNCH_SWT_ARCH_X64
+				_mm_pause();
+#endif
 			}
 		}
 
 	  public:
+		cache_clearer() {
+			char* buffer_start = evict_buffer.get();
+			size_t buffer_size = evict_buffer.get_size();
+
+			if (buffer_start && buffer_size > 0) {
+				for (size_t i = 0; i < buffer_size; i += cache_line_size) {
+					buffer_start[i] = static_cast<char>(i);
+					flush_cache_line(&buffer_start[i], false);
+				}
+				memory_fence();
+			}
+		}
+
 		BNCH_SWT_HOST void evict_caches() {
-			evict_cache(3);
-			evict_cache(2);
-			evict_cache(1);
+			aggressive_evict(cache_level::three);
+			aggressive_evict(cache_level::two);
+			aggressive_evict(cache_level::one);
+			memory_fence();
+		}
+
+		BNCH_SWT_HOST void nuclear_evict() {
+			evict_caches();
+
+			char* buffer_start			= evict_buffer.get();
+			size_t buffer_size			= evict_buffer.get_size();
+			const size_t total_elements = buffer_size / sizeof(uint64_t);
+
+			if (total_elements > 0) {
+				volatile uint64_t sink = 0;
+
+				for (size_t i = 0; i < total_elements * 2; ++i) {
+					size_t idx	  = fast_rng(total_elements);
+					uint64_t* ptr = reinterpret_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
+					sink += *ptr;
+					flush_cache_line(ptr, false);
+
+					size_t stride = fast_rng(4096);
+					idx			  = (idx + stride) % total_elements;
+					ptr			  = reinterpret_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
+					sink += *ptr;
+					flush_cache_line(ptr, false);
+				}
+
+				bnch_swt::do_not_optimize_away(sink);
+				memory_fence();
+			}
 		}
 	};
+
+	template<> struct cache_clearer<benchmark_types::cuda> {
+		BNCH_SWT_HOST void evict_caches() {
+		}
+
+		BNCH_SWT_HOST void nuclear_evict() {
+		}
+	};
+
 }

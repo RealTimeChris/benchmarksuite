@@ -91,7 +91,7 @@ namespace bnch_swt::internal {
 #else
 	
 	template<class value_type> inline BNCH_SWT_HOST static void do_not_optimize(value_type&& value) {
-		internal::use_char_pointer(&reinterpret_cast<char const volatile&>(value));
+		internal::use_char_pointer(&std::bit_cast<char const volatile&>(value));
 	}
 
 #endif
