@@ -153,8 +153,40 @@ namespace bnch_swt::internal {
 			  std::vector<event_count>{ count } {
 		}
 
+		BNCH_SWT_HOST void reset() {
+			current_index = 0;
+		}
+
 		BNCH_SWT_HOST bool has_events() {
 			return linux_events::is_working();
+		}
+
+		template<auto function, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
+			if (has_events()) {
+				linux_events::run();
+			}
+			uint64_t result;
+			const auto start_clock		  = clock_type::now();
+			volatile uint64_t cycle_start = rdtsc();
+			result						  = static_cast<uint64_t>(function(std::forward<arg_types>(args)...));
+			volatile uint64_t cycle_end	  = rdtsc();
+			const auto end_clock		  = clock_type::now();
+			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycle_end - cycle_start);
+			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
+			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);
+			if (has_events()) {
+				if (results.size() != linux_events::temp_result_vec.size()) {
+					results.resize(linux_events::temp_result_vec.size());
+				}
+				linux_events::end(results);
+				std::vector<event_count>::operator[](current_index).instructions_val.emplace(results[1]);
+				std::vector<event_count>::operator[](current_index).branches_val.emplace(results[2]);
+				std::vector<event_count>::operator[](current_index).branch_misses_val.emplace(results[3]);
+				std::vector<event_count>::operator[](current_index).cache_references_val.emplace(results[4]);
+				std::vector<event_count>::operator[](current_index).cache_misses_val.emplace(results[5]);
+			}
+			++current_index;
+			return;
 		}
 
 		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {

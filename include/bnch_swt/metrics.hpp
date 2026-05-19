@@ -105,7 +105,7 @@ namespace bnch_swt {
 			metrics.library_name			 = library_name.operator std::string();
 			metrics.measured_iteration_count = events_newer.size();
 			metrics.total_iteration_count	 = total_iteration_count;
-			metrics.iterations_to_stabilize	 = iterations_to_stabilize - metrics.measured_iteration_count;
+			metrics.iterations_to_stabilize	 = iterations_to_stabilize;
 
 			double throughput_total{};
 			double throughput_min{ std::numeric_limits<double>::max() };

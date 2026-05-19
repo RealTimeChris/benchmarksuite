@@ -408,7 +408,30 @@ namespace bnch_swt::internal {
 
 		BNCH_SWT_HOST event_collector_type() : std::vector<event_count>{ count }, diff{}, current_index{} {
 			performance_monitor::setup_performance_counters();
-		}		
+		}
+
+		BNCH_SWT_HOST void reset() {
+			current_index = 0;
+		}
+
+		template<auto function, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
+			if (performance_monitor::has_events()) {
+				diff = performance_monitor::get_counters();
+			}
+			const auto start_clock = clock_type::now();
+			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(static_cast<size_t>(function(std::forward<arg_types>(args)...)));
+			const auto end_clock = clock_type::now();
+			if (performance_monitor::has_events()) {
+				performance_counters end = performance_monitor::get_counters();
+				diff					 = end - diff;
+				std::vector<event_count>::operator[](current_index).cycles_val.emplace(diff.cycles);
+				std::vector<event_count>::operator[](current_index).instructions_val.emplace(diff.instructions);
+				std::vector<event_count>::operator[](current_index).branches_val.emplace(diff.branches);
+				std::vector<event_count>::operator[](current_index).branch_misses_val.emplace(diff.branch_misses);
+			}
+			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
+			++current_index;
+		}
 
 		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			if (performance_monitor::has_events()) {

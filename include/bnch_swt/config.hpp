@@ -35,9 +35,12 @@
 
 namespace bnch_swt {
 
-	using clock_type	  = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>;
-	using duration_type	  = std::chrono::duration<double, std::nano>;
-	using time_point_type = std::chrono::time_point<clock_type, duration_type>;
+	using clock_type			  = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>;
+	using nanoseconds			  = std::chrono::duration<double, std::nano>;
+	using milliseconds			  = std::chrono::duration<double, std::milli>;
+	using seconds				  = std::chrono::duration<double>;
+	using time_point_type_nano	  = std::chrono::time_point<clock_type, nanoseconds>;
+	using time_point_type_seconds = std::chrono::time_point<clock_type, seconds>;
 
 	enum class benchmark_types {
 		cpu,

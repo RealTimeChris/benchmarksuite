@@ -117,7 +117,7 @@ namespace bnch_swt::internal {
 	  protected:
 		std::optional<uint64_t> cache_references_val{};
 		std::optional<uint64_t> bytes_processed_val{};
-		std::optional<duration_type> elapsed_ns_val{};
+		std::optional<nanoseconds> elapsed_ns_val{};
 		std::optional<uint64_t> branch_misses_val{};
 		std::optional<uint64_t> instructions_val{};
 		std::optional<uint64_t> cache_misses_val{};
@@ -165,7 +165,7 @@ namespace bnch_swt::internal {
 	  protected:
 		template<typename event_count, benchmark_types, uint64_t count> friend struct event_collector_type;
 		std::optional<uint64_t> bytes_processed_val{};
-		std::optional<duration_type> elapsed_ns_val{};
+		std::optional<nanoseconds> elapsed_ns_val{};
 		std::optional<double> cuda_event_ms_val{};
 		std::optional<uint64_t> cycles_val{};
 	};

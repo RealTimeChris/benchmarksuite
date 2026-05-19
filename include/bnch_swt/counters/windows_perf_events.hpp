@@ -37,6 +37,10 @@ namespace bnch_swt::internal {
 
 		BNCH_SWT_HOST event_collector_type() : std::vector<event_count>{ count } {};
 
+		BNCH_SWT_HOST void reset() {
+			current_index = 0;
+		}
+
 		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
 			uint64_t result;
 			const auto start_clock		 = clock_type::now();
@@ -44,6 +48,20 @@ namespace bnch_swt::internal {
 			result						 = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
 			volatile uint64_t cycleEnd	 = __rdtsc();
 			const auto end_clock			 = clock_type::now();
+			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycleEnd - cycleStart);
+			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
+			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);
+			++current_index;
+			return;
+		}
+
+		template<auto function, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
+			uint64_t result;
+			const auto start_clock		 = clock_type::now();
+			volatile uint64_t cycleStart = __rdtsc();
+			result						 = static_cast<uint64_t>(function(std::forward<arg_types>(args)...));
+			volatile uint64_t cycleEnd	 = __rdtsc();
+			const auto end_clock		 = clock_type::now();
 			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycleEnd - cycleStart);
 			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
 			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);

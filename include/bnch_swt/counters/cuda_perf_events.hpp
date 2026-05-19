@@ -100,6 +100,10 @@ namespace bnch_swt {
 			std::vector<cuda_timer> events{};
 			uint64_t current_index{};
 
+			BNCH_SWT_HOST void reset() {
+				current_index = 0;
+			}
+
 			BNCH_SWT_HOST event_collector_type() : std::vector<event_count>(count), current_index(0) {
 				events.resize(count);
 			}
