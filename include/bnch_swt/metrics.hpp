@@ -93,10 +93,9 @@ namespace bnch_swt {
 			return throughput_mb_per_sec > other.throughput_mb_per_sec;
 		}
 
-		template<string_literal stage_name_new, string_literal library_name_new, bool mbps = true> BNCH_SWT_HOST static performance_metrics collect_metrics(
+		template<string_literal library_name_new, bool mbps = true> BNCH_SWT_HOST static performance_metrics collect_metrics(
 			std::span<internal::event_count<benchmark_types::cpu>>&& events_newer, uint64_t iterations_to_stabilize, uint64_t total_iteration_count) {
 			static constexpr string_literal library_name{ library_name_new };
-			static constexpr string_literal stage_name{ stage_name_new };
 
 			if (events_newer.empty()) {
 				return {};

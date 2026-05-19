@@ -119,23 +119,21 @@ namespace bnch_swt::internal {
 		} else {
 			sys_dcache_flush(ptr, get_cache_line_size());
 		}
-#else
-	#if BNCH_SWT_PLATFORM_WINDOWS
+#elif BNCH_SWT_PLATFORM_WINDOWS
 		_mm_clflush(ptr);
 		if (clear_instruction) {
 			FlushInstructionCache(GetCurrentProcess(), ptr, get_cache_line_size());
 		}
-	#elif BNCH_SWT_PLATFORM_LINUX
-		#if BNCH_SWT_ARCH_X64
+#elif BNCH_SWT_PLATFORM_LINUX
+	#if BNCH_SWT_ARCH_X64
 		__builtin_ia32_clflush(ptr);
-		#elif BNCH_SWT_ARCH_ARM64
+	#elif BNCH_SWT_ARCH_ARM64
 		__asm__ __volatile__("dc civac, %0" : : "r"(ptr) : "memory");
-		#endif
+	#endif
 
 		if (clear_instruction) {
 			__builtin___clear_cache(static_cast<char*>(ptr), static_cast<char*>(ptr) + get_cache_line_size());
 		}
-	#endif
 #endif
 	}
 
@@ -153,7 +151,7 @@ namespace bnch_swt::internal {
 			return return_value > 0 ? return_value : 8 * 1024 * 1024;
 		}() };
 
-		static constexpr size_t eviction_multiplier = 4;
+		static constexpr size_t eviction_multiplier = 2;
 		static constexpr size_t working_set_size	= biggest_cache_size * eviction_multiplier;
 
 		struct aligned_vector {
@@ -163,9 +161,9 @@ namespace bnch_swt::internal {
 
 			aligned_vector(size_t requested_size) {
 				data.resize(requested_size + 64);
-				uintptr_t addr	  = reinterpret_cast<uintptr_t>(data.data());
+				uintptr_t addr	  = std::bit_cast<uintptr_t>(data.data());
 				uintptr_t aligned = (addr + 63) & ~63;
-				aligned_ptr		  = reinterpret_cast<char*>(aligned);
+				aligned_ptr		  = std::bit_cast<char*>(aligned);
 				size			  = requested_size;
 			}
 
@@ -218,7 +216,7 @@ namespace bnch_swt::internal {
 
 				for (size_t offset = 0; offset < cache_line_size; offset += 8) {
 					if (offset + 8 <= cache_line_size) {
-						uint64_t* ptr = reinterpret_cast<uint64_t*>(cache_line + offset);
+						uint64_t* ptr = std::bit_cast<uint64_t*>(cache_line + offset);
 						*ptr		  = static_cast<uint64_t>(line_idx) ^ static_cast<uint64_t>(offset);
 					}
 				}
@@ -238,7 +236,7 @@ namespace bnch_swt::internal {
 
 				for (size_t offset = 0; offset < cache_line_size; offset += 8) {
 					if (offset + 8 <= cache_line_size) {
-						uint64_t* ptr = reinterpret_cast<uint64_t*>(cache_line + offset);
+						uint64_t* ptr = std::bit_cast<uint64_t*>(cache_line + offset);
 						sink += *ptr;
 					}
 				}
@@ -307,13 +305,13 @@ namespace bnch_swt::internal {
 
 				for (size_t i = 0; i < total_elements * 2; ++i) {
 					size_t idx	  = fast_rng(total_elements);
-					uint64_t* ptr = reinterpret_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
+					uint64_t* ptr = std::bit_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
 					sink += *ptr;
 					flush_cache_line(ptr, false);
 
 					size_t stride = fast_rng(4096);
 					idx			  = (idx + stride) % total_elements;
-					ptr			  = reinterpret_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
+					ptr			  = std::bit_cast<uint64_t*>(buffer_start + (idx * sizeof(uint64_t)));
 					sink += *ptr;
 					flush_cache_line(ptr, false);
 				}

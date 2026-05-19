@@ -119,13 +119,12 @@ namespace bnch_swt {
 #endif
 		}
 
-		template<auto stage_name, benchmark_types benchmark_type> struct results_holder {
-		};
+		template<auto stage_name, benchmark_types benchmark_type> struct results_holder {};
 
 		template<string_literal stage_name_new, string_literal test_name_new, string_literal subject_name, uint64_t max_execution_count, uint64_t measured_iteration_count,
 			benchmark_types benchmark_type, bool use_non_mbps_metric>
 		struct measurement_context {
-			using stage_results_type =  stage_results<stage_name_new,benchmark_type>;
+			using stage_results_type = stage_results<stage_name_new, benchmark_type>;
 			static constexpr string_literal stage_name{ stage_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			internal::event_collector<max_execution_count, benchmark_type> events{};
@@ -138,8 +137,8 @@ namespace bnch_swt {
 				static constexpr uint64_t final_measured_iteration_count{ max_execution_count - measured_iteration_count > 0 ? max_execution_count - measured_iteration_count : 1 };
 				uint64_t current_global_index{ measured_iteration_count };
 				for (uint64_t x = 0; x < final_measured_iteration_count; ++x, ++current_global_index) {
-					results_temp = performance_metrics<benchmark_type>::template collect_metrics<stage_name, subject_name, use_non_mbps_metric>(
-						new_ptr.subspan(x, measured_iteration_count), current_global_index, max_execution_count);
+					results_temp   = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(new_ptr.subspan(x, measured_iteration_count),
+						  current_global_index, max_execution_count);
 					lowest_results = results_temp.throughput_percentage_deviation < lowest_results.throughput_percentage_deviation ? results_temp : lowest_results;
 				}
 				stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()] = lowest_results;
@@ -316,10 +315,21 @@ namespace bnch_swt {
 		}
 	};
 
-	template<string_literal stage_name_new, uint64_t max_execution_count = 200, uint64_t measured_iteration_count = 25, benchmark_types benchmark_type = benchmark_types::cpu,
-		bool clear_cpu_cache_between_each_iteration = false, string_literal metric_name_new = string_literal<1>{}>
-	struct benchmark_stage {
-		using stage_results_type =  stage_results<stage_name_new,benchmark_type>;
+	struct stage_config {
+		uint64_t max_execution_count{ 200 };
+		uint64_t measured_iteration_count{ 25 };
+		benchmark_types benchmark_type{ benchmark_types::cpu };
+		bool clear_cpu_cache_between_each_iteration{ false };
+		bool clear_cpu_cache_before_all_iterations{ true };
+	};
+
+	template<string_literal stage_name_new, stage_config stage_config_new = stage_config{}, string_literal metric_name_new = string_literal<1>{}> struct benchmark_stage {
+		static constexpr uint64_t max_execution_count{ stage_config_new.max_execution_count };
+		static constexpr uint64_t measured_iteration_count{ stage_config_new.measured_iteration_count };
+		static constexpr benchmark_types benchmark_type{ stage_config_new.benchmark_type };
+		static constexpr bool clear_cpu_cache_between_each_iteration{ stage_config_new.clear_cpu_cache_between_each_iteration };
+		static constexpr bool clear_cpu_cache_before_all_iterations{ stage_config_new.clear_cpu_cache_before_all_iterations };
+		using stage_results_type = stage_results<stage_name_new, benchmark_type>;
 		static constexpr string_literal stage_name{ stage_name_new };
 		static constexpr string_literal device_type{ benchmark_type == benchmark_types::cpu ? "CPU" : "GPU" };
 		static_assert(max_execution_count % measured_iteration_count == 0, "Sorry, but please enter a max_execution_count that is divisible by measured_iteration_count.");
@@ -442,15 +452,15 @@ namespace bnch_swt {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
-				if constexpr (sizeof...(args) > 0) {
-					static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::template impl<arg_types...>), arg_types...>, uint64_t>,
-						"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
-				} else {
-					static_assert(std::convertible_to<std::invoke_result_t<decltype(function_type::impl), arg_types...>, uint64_t>,
-						"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
-				}
+				using return_type = decltype(function_type::impl(std::declval<arg_types>()...));
+				static_assert(std::convertible_to<return_type, uint64_t>,
+					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
+
 			internal::measurement_context<stage_name, test_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
+			if constexpr (clear_cpu_cache_before_all_iterations && benchmark_type == benchmark_types::cpu) {
+				ctx.cache_clearer.evict_caches();
+			}
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
 					ctx.cache_clearer.evict_caches();
@@ -465,10 +475,14 @@ namespace bnch_swt {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
-				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
+				using return_type = decltype(function(std::declval<arg_types>()...));
+				static_assert(std::convertible_to<return_type, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
 			internal::measurement_context<stage_name, test_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
+			if constexpr (clear_cpu_cache_before_all_iterations && benchmark_type == benchmark_types::cpu) {
+				ctx.cache_clearer.evict_caches();
+			}
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
 					ctx.cache_clearer.evict_caches();
@@ -478,20 +492,23 @@ namespace bnch_swt {
 			return ctx.finalize();
 		}
 
-		template<string_literal test_name_new, string_literal subject_name_new, typename function, typename... arg_types>
-		static auto& run_from_host(arg_types&&... args) {
+		template<string_literal test_name_new, string_literal subject_name_new, typename function_type, typename... arg_types> static auto& run_from_host(arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
-				static_assert(std::convertible_to<std::invoke_result_t<function, arg_types...>, uint64_t>,
+				using return_type = decltype(function_type::impl(std::declval<arg_types>()...));
+				static_assert(std::convertible_to<return_type, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
 			internal::measurement_context<stage_name, test_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
+			if constexpr (clear_cpu_cache_before_all_iterations && benchmark_type == benchmark_types::cpu) {
+				ctx.cache_clearer.evict_caches();
+			}
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
 					ctx.cache_clearer.evict_caches();
 				}
-				ctx.events.template run<function>(std::forward<arg_types>(args)...);
+				ctx.events.template run<function_type>(std::forward<arg_types>(args)...);
 			}
 			return ctx.finalize();
 		}
@@ -501,10 +518,14 @@ namespace bnch_swt {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			if constexpr (benchmark_type == benchmark_types::cpu) {
-				static_assert(std::convertible_to<std::invoke_result_t<decltype(function), arg_types...>, uint64_t>,
+				using return_type = decltype(function(std::declval<arg_types>()...));
+				static_assert(std::convertible_to<return_type, uint64_t>,
 					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
 			}
 			internal::measurement_context<stage_name, test_name, subject_name, max_execution_count, measured_iteration_count, benchmark_type, use_non_mbps_metric> ctx{};
+			if constexpr (clear_cpu_cache_before_all_iterations && benchmark_type == benchmark_types::cpu) {
+				ctx.cache_clearer.evict_caches();
+			}
 			for (uint64_t x = 0; x < max_execution_count; ++x) {
 				if constexpr (clear_cpu_cache_between_each_iteration && benchmark_type == benchmark_types::cpu) {
 					ctx.cache_clearer.evict_caches();

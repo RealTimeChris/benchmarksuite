@@ -73,18 +73,17 @@ struct test_atomic_signed_lock_free {
 };
 
 int main() {
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::template run_benchmark<"wait_notify_benchmark", "atomic_uint64",
+	static constexpr bnch_swt::stage_config stage_config_data{};
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_uint64",
 		test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
 		test_atomic_signed_lock_free>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::template run_benchmark<"wait_notify_benchmark-02", "atomic_uint64",
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark-02", "atomic_uint64",
 		test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::template run_benchmark<"wait_notify_benchmark-02", "atomic_signed_lock_free",
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark-02", "atomic_signed_lock_free",
 		test_atomic_signed_lock_free>();
-	bnch_swt::internal::cache_clearer<bnch_swt::benchmark_types::cpu> cclearer{};
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::print_results();
-	cclearer.evict_caches();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::get_all_results();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", total_iterations, measured_iterations>::clear_all_results();
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::print_results();
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::get_all_results();
+	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::clear_all_results();
 	return 0;
 }
