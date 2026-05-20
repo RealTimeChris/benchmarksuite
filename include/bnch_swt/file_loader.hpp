@@ -30,42 +30,48 @@
 
 namespace bnch_swt {
 
-	class file_loader {
+	class file_handle {
 	  public:
-		constexpr file_loader() {
+		explicit file_handle(const std::string& path) : path(std::filesystem::absolute(path)) {
+			stream.open(this->path, std::ios::in);
+			if (stream.is_open()) {
+				contents = std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+				stream.close();
+			}
 		}
 
-		static std::string load_file(const std::string& file_path) {
-			std::string directory{ file_path.substr(0, file_path.find_last_of("/") + 1) };
-			if (!std::filesystem::exists(directory)) {
-				std::filesystem::create_directories(directory);
-			}
-			if (!std::filesystem::exists(static_cast<std::string>(file_path))) {
-				std::ofstream create_file{ file_path.data() };
-				create_file.close();
-			}
-			std::ifstream the_stream{ file_path.data(), std::ios::binary | std::ios::in };
-			std::stringstream input_stream{};
-			input_stream << the_stream.rdbuf();
-			the_stream.close();
-			return input_stream.str();
-		}
-
-		static void save_file(const std::string& file_to_save, const std::string& file_path, bool retry = true) {
-			std::ofstream the_stream{ file_path.data(), std::ios::binary | std::ios::out | std::ios::trunc };
-			the_stream.write(file_to_save.data(), static_cast<int64_t>(file_to_save.size()));
-			if (the_stream.is_open()) {
-				std::cout << "File succesfully written to: " << file_path << std::endl;
+		~file_handle() {
+			if (!dirty)
+				return;
+			stream.open(path, std::ios::out | std::ios::trunc);
+			if (stream.is_open()) {
+				stream << contents;
+				stream.flush();
+				bool ok = stream.good();
+				stream.close();
+				std::cout << (ok ? "Saved: " : "Write error: ") << path.string() << std::endl;
 			} else {
-				std::string directory{ file_path.substr(0, file_path.find_last_of("/") + 1) };
-				if (!std::filesystem::exists(directory) && retry) {
-					std::filesystem::create_directories(directory);
-					return save_file(file_to_save, file_path, false);
-				}
-				std::cerr << "File failed to be written to: " << file_path << std::endl;
+				std::cout << "Failed to open for writing: " << path.string() << std::endl;
 			}
-			the_stream.close();
 		}
+
+		file_handle(const file_handle&)			   = delete;
+		file_handle& operator=(const file_handle&) = delete;
+
+		std::string& get() {
+			dirty = true;
+			return contents;
+		}
+
+		const std::string& get() const {
+			return contents;
+		}
+
+	  private:
+		std::filesystem::path path{};
+		std::string contents{};
+		std::fstream stream{};
+		bool dirty{ false };
 	};
 
 }

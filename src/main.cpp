@@ -20,71 +20,29 @@
 #include <atomic>
 #include <thread>
 
-static constexpr uint64_t total_iterations{ 10000000 };
-static constexpr uint64_t measured_iterations{ 10 };
-static constexpr uint64_t wait_notify_cycles{ 1000 };
+static constexpr char values[]{ "12345678901234567890" };
 
-struct test_atomic_uint64 {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic<int64_t> flag{ 0 };
-		std::thread waiter([&]() {
-			int64_t value{};
-			for (int64_t i = 0; i < wait_notify_cycles; ++i) {
-				int64_t expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		int64_t value{};
-		for (int64_t i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
-	}
-};
+BNCH_SWT_ALIGN(64) static constexpr const char* aligned_ptr{ values };
+static constexpr const char* ptr{ values };
 
-struct test_atomic_signed_lock_free {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic_signed_lock_free flag{ 0 };
-		std::thread waiter([&]() {
-			typename std::atomic_signed_lock_free::value_type value{};
-			for (typename std::atomic_signed_lock_free::value_type i = 0; i < wait_notify_cycles; ++i) {
-				typename std::atomic_signed_lock_free::value_type expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		typename std::atomic_signed_lock_free::value_type value{};
-		for (typename std::atomic_signed_lock_free::value_type i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
-	}
-};
+BNCH_SWT_NOINLINE void test_function_01(char* string) {
+	srand(static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+	auto value = rand();
+	std::memcpy(string, aligned_ptr, value % 8);
+}
 
-template<typename function_type> void test_function() {
-	static constexpr function_type function{};
-	function();
+BNCH_SWT_NOINLINE void test_function_02(char* string) {
+	srand(static_cast<uint32_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count()));
+	auto value = rand();
+	std::memcpy(string, aligned_ptr, value % 8);
 }
 
 int main() {
-	static constexpr bnch_swt::stage_config stage_config_data{ .max_execution_count = total_iterations, .measured_iteration_count = measured_iterations, .max_time_seconds = 1 };
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_uint64_t", test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
-		test_atomic_signed_lock_free>();
-	//bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::print_results();
-	auto markdown = bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::generate_markdown("void-numerics");
-	std::cout << markdown << std::endl;
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::clear_all_results();
+	std::string value{};
+	value.resize(128);
+	test_function_02(value.data());
+	bnch_swt::do_not_optimize_away(value);
+	test_function_01(value.data());
+	bnch_swt::do_not_optimize_away(value);
 	return 0;
 }
