@@ -243,77 +243,88 @@ namespace bnch_swt {
 			return throughput_mb_per_sec < other.throughput_mb_per_sec;
 		}
 
-		template<string_literal stage_name_new, string_literal library_name_new, bool mbps = true> BNCH_SWT_HOST static performance_metrics collect_metrics(
+		template<string_literal library_name_new, bool mbps = true> BNCH_SWT_HOST static performance_metrics collect_metrics(
 			std::span<internal::event_count<benchmark_types::cuda>>&& events_newer, uint64_t iterations_to_stabilize, uint64_t total_iteration_count) {
 			static constexpr string_literal library_name{ library_name_new };
-			static constexpr string_literal stage_name{ stage_name_new };
+
+			if (events_newer.empty()) {
+				return {};
+			}
+
 			performance_metrics metrics{};
 			metrics.library_name			 = library_name.operator std::string();
 			metrics.measured_iteration_count = events_newer.size();
 			metrics.total_iteration_count	 = total_iteration_count;
-			metrics.iterations_to_stabilize	 = iterations_to_stabilize - metrics.measured_iteration_count;
-			double throughput{};
+			metrics.iterations_to_stabilize	 = iterations_to_stabilize;
+
 			double throughput_total{};
-			double throughput_avg{};
 			double throughput_min{ std::numeric_limits<double>::max() };
-			uint64_t bytes_processed{};
+			uint64_t valid_throughput_count{ 0 };
 			uint64_t bytes_processed_total{};
-			uint64_t bytes_processed_avg{};
-			double ns{};
 			double ns_total{};
-			double ns_avg{};
-			double ms{};
-			double ms_total{};
-			double ms_avg{};
-			double cycles{};
 			double cycles_total{};
-			double cycles_avg{};
-			for (const internal::event_count<benchmark_types::cuda>& e: events_newer) {
+			double instructions_total{};
+			double branches_total{};
+			double branch_misses_total{};
+			double cache_references_total{};
+			double cache_misses_total{};
+
+			for (const auto& e: events_newer) {
+				double ns{};
 				if (e.elapsed_ns(ns)) {
 					ns_total += ns;
-					e.cuda_event_ms(ms);
-					ms_total += ms;
-
+					uint64_t bytes_processed{};
 					if (e.bytes_processed(bytes_processed)) {
 						bytes_processed_total += bytes_processed;
+
+						double throughput{};
 						if constexpr (mbps) {
 							throughput = calculate_throughput_mbps(ns, static_cast<double>(bytes_processed));
 						} else {
 							throughput = calculate_units_ps(ns, static_cast<double>(bytes_processed));
 						}
-						throughput_total += throughput;
-						throughput_min = throughput < throughput_min ? throughput : throughput_min;
+
+						if (throughput > 0.0) {
+							throughput_total += throughput;
+							throughput_min = std::min(throughput, throughput_min);
+							++valid_throughput_count;
+						}
 					}
 
-					if (e.cycles(cycles)) {
-						cycles_total += cycles;
+					double value{};
+					if (e.cycles(value)) {
+						cycles_total += value;
 					}
 				}
 			}
-			if (events_newer.size() > 0) {
-				bytes_processed_avg = bytes_processed_total / events_newer.size();
-				ns_avg				= ns_total / static_cast<double>(events_newer.size());
-				ms_avg				= ms_total / static_cast<double>(events_newer.size());
-				throughput_avg		= throughput_total / static_cast<double>(events_newer.size());
-				cycles_avg			= cycles_total / static_cast<double>(events_newer.size());
-				metrics.time_in_ns	= ns_avg;
-			} else {
-				return {};
-			}
+
+			const double inv_size			   = 1.0 / static_cast<double>(events_newer.size());
+			const uint64_t bytes_processed_avg = bytes_processed_total / events_newer.size();
+			const double ns_avg				   = ns_total * inv_size;
+			const double cycles_avg			   = cycles_total * inv_size;
+			const double branches_avg		   = branches_total * inv_size;
+			const double branch_misses_avg	   = branch_misses_total * inv_size;
+			const double cache_references_avg  = cache_references_total * inv_size;
+			const double cache_misses_avg	   = cache_misses_total * inv_size;
+
+			metrics.time_in_ns = ns_avg;
 
 			constexpr double epsilon = 1e-6;
-			if (std::abs(ns_avg) > epsilon) {
+
+			const double throughput_avg = valid_throughput_count > 0 ? throughput_total / static_cast<double>(valid_throughput_count) : 0.0;
+			if (valid_throughput_count > 0 && throughput_avg > epsilon) {
 				metrics.bytes_processed					= bytes_processed_avg;
 				metrics.throughput_mb_per_sec			= throughput_avg;
 				metrics.throughput_percentage_deviation = ((throughput_avg - throughput_min) * 100.0) / throughput_avg;
-				metrics.cuda_event_ms_avg.emplace(ms_avg);
 			}
+
 			if (std::abs(cycles_avg) > epsilon) {
-				if (metrics.bytes_processed > 0) {
-					metrics.cycles_per_byte.emplace(cycles_avg / static_cast<double>(metrics.bytes_processed));
+				if (bytes_processed_avg > 0) {
+					metrics.cycles_per_byte.emplace(cycles_avg / static_cast<double>(bytes_processed_avg));
 				}
-				metrics.cycles_per_execution.emplace(cycles_total / static_cast<double>(events_newer.size()));
+				metrics.cycles_per_execution.emplace(cycles_avg);
 			}
+
 			return metrics;
 		}
 	};

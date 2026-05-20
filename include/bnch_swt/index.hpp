@@ -33,6 +33,7 @@
 #include <bnch_swt/printable.hpp>
 #include <bnch_swt/metrics.hpp>
 #include <bnch_swt/config.hpp>
+#include <unordered_set>
 #include <unordered_map>
 #include <iostream>
 
@@ -212,6 +213,117 @@ namespace bnch_swt {
 			return stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()];
 		}
 
+		template<typename function_type, internal::not_invocable... arg_types>
+		BNCH_SWT_HOST static auto& run_adaptive_from_host_impl(uint64_t bytes_processed, arg_types&&... args) {
+			internal::event_collector<max_execution_count, benchmark_type> events{};
+
+			auto start_time					 = std::chrono::time_point_cast<seconds>(std::chrono::steady_clock::now());
+			auto end_time					 = std::chrono::time_point_cast<seconds>(std::chrono::steady_clock::now());
+			uint64_t total_iterations_target = measured_iteration_count * 2;
+			uint64_t current_iteration_count = 0;
+
+			performance_metrics<benchmark_type> overall_best{};
+			overall_best.throughput_percentage_deviation = std::numeric_limits<double>::max();
+
+			while (total_iterations_target <= max_execution_count && (end_time - start_time).count() < max_time_seconds) {
+				events.reset();
+				for (uint64_t x = 0; x < total_iterations_target && current_iteration_count < max_execution_count && (end_time - start_time).count() < max_time_seconds;
+					++current_iteration_count) {
+					events.template run_from_host<function_type>(bytes_processed, args...);
+					end_time = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::steady_clock::now());
+				}
+
+				std::span<internal::event_count<benchmark_type>> all_events{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
+
+				performance_metrics<benchmark_type> round_best{};
+				round_best.throughput_percentage_deviation = std::numeric_limits<double>::max();
+
+				for (uint64_t window_start = 0; window_start <= current_iteration_count - measured_iteration_count; ++window_start) {
+					auto temp_result = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(
+						all_events.subspan(window_start, measured_iteration_count), window_start, current_iteration_count);
+
+					if (temp_result.throughput_percentage_deviation < round_best.throughput_percentage_deviation) {
+						round_best = temp_result;
+					}
+				}
+
+				if (round_best.throughput_percentage_deviation < overall_best.throughput_percentage_deviation) {
+					overall_best = round_best;
+				}
+
+				if (round_best.throughput_percentage_deviation <= desired_percentage_deviation) {
+					stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()] = overall_best;
+					return stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()];
+				}
+
+				end_time = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::steady_clock::now());
+				total_iterations_target *= 2;
+			}
+
+			stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()] = overall_best;
+			return stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()];
+		}
+
+		template<internal::function_pointer_types auto function, internal::not_invocable... arg_types>
+		BNCH_SWT_HOST static auto& run_adaptive_cooperative_impl(arg_types&&... args) {
+			internal::event_collector<max_execution_count, benchmark_type> events{};
+
+			auto start_time					 = std::chrono::time_point_cast<seconds>(std::chrono::steady_clock::now());
+			auto end_time					 = std::chrono::time_point_cast<seconds>(std::chrono::steady_clock::now());
+			uint64_t total_iterations_target = measured_iteration_count * 2;
+			uint64_t current_iteration_count = 0;
+
+			performance_metrics<benchmark_type> overall_best{};
+			overall_best.throughput_percentage_deviation = std::numeric_limits<double>::max();
+
+			while (total_iterations_target <= max_execution_count && (end_time - start_time).count() < max_time_seconds) {
+				events.reset();
+				for (uint64_t x = 0; x < total_iterations_target && current_iteration_count < max_execution_count && (end_time - start_time).count() < max_time_seconds;
+					++current_iteration_count) {
+					events.template run_cooperative<function>(std::forward<arg_types>(args)...);
+					end_time = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::steady_clock::now());
+				}
+
+				std::span<internal::event_count<benchmark_type>> all_events{ static_cast<std::vector<internal::event_count<benchmark_type>>&>(events) };
+
+				performance_metrics<benchmark_type> round_best{};
+				round_best.throughput_percentage_deviation = std::numeric_limits<double>::max();
+
+				for (uint64_t window_start = 0; window_start <= current_iteration_count - measured_iteration_count; ++window_start) {
+					auto temp_result = performance_metrics<benchmark_type>::template collect_metrics<subject_name, use_non_mbps_metric>(
+						all_events.subspan(window_start, measured_iteration_count), window_start, current_iteration_count);
+
+					if (temp_result.throughput_percentage_deviation < round_best.throughput_percentage_deviation) {
+						round_best = temp_result;
+					}
+				}
+
+				if (round_best.throughput_percentage_deviation < overall_best.throughput_percentage_deviation) {
+					overall_best = round_best;
+				}
+
+				if (round_best.throughput_percentage_deviation <= desired_percentage_deviation) {
+					stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()] = overall_best;
+					return stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()];
+				}
+
+				end_time = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::steady_clock::now());
+				total_iterations_target *= 2;
+			}
+
+			stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()] = overall_best;
+			return stage_results_type::get_results_internal(test_name.operator std::string_view())[subject_name.operator std::string_view()];
+		}
+
+		template<typename function_type, internal::not_invocable... arg_types> BNCH_SWT_HOST static auto& run_adaptive_from_host(uint64_t bytes_processed, arg_types&&... args) {
+			return run_adaptive_from_host_impl<function_type>(bytes_processed, std::forward<arg_types>(args)...);
+		}
+
+		template<auto function, internal::not_invocable... arg_types>
+		BNCH_SWT_HOST static auto& run_adaptive_cooperative(arg_types&&... args) {
+			return run_adaptive_cooperative_impl<function>(std::forward<arg_types>(args)...);
+		}
+
 		template<auto function, internal::not_invocable... arg_types> BNCH_SWT_HOST static auto& run_adaptive(arg_types&&... args) {
 			return run_adaptive_impl<functor_executor<function>>(std::forward<arg_types>(args)...);
 		}
@@ -251,7 +363,7 @@ namespace bnch_swt {
 	template<auto stage_name_newer, auto metric_name_new, performance_metrics_presence<benchmark_types::cpu> metrics_presence>
 	struct result_printer<benchmark_types::cpu, stage_name_newer, metric_name_new, metrics_presence> {
 		static constexpr auto stage_name_new{ stage_name_newer };
-		BNCH_SWT_HOST static void print_result(const performance_metrics<benchmark_types::cpu>& value, bool show_metrics = true) {
+		BNCH_SWT_HOST static void print_results(const performance_metrics<benchmark_types::cpu>& value, bool show_metrics = true) {
 			if (show_metrics) {
 				static constexpr string_literal throughput_label_raw = []() {
 					if constexpr (metric_name_new.size() > 0) {
@@ -317,7 +429,7 @@ namespace bnch_swt {
 
 	template<auto stage_name_new, auto metric_name_new, performance_metrics_presence<benchmark_types::cuda> metrics_presence>
 	struct result_printer<benchmark_types::cuda, stage_name_new, metric_name_new, metrics_presence> {
-		BNCH_SWT_HOST static void impl(const std::vector<performance_metrics<benchmark_types::cuda>>& results_new, bool show_metrics = true) {
+		BNCH_SWT_HOST static void print_results(const performance_metrics<benchmark_types::cuda>& value, bool show_metrics = true) {
 			if (show_metrics) {
 				static constexpr string_literal throughput_label_raw = []() {
 					if constexpr (metric_name_new.size() > 0) {
@@ -356,33 +468,20 @@ namespace bnch_swt {
 					}
 				}();
 				static constexpr std::string_view instruction_label{ instruction_label_raw.operator std::string_view() };
-
-				for (const auto& value: results_new) {
-					print_metric<has_any_metric_enabled(metrics_presence)>("Metrics for: ", value.library_name);
-					std::cout << std::fixed << std::setprecision(2);
-					print_metric<metrics_presence.total_iteration_count>("Total Iterations", value.total_iteration_count);
-					print_metric<metrics_presence.iterations_to_stabilize>("Total Iterations to Stabilize", value.iterations_to_stabilize);
-					print_metric<metrics_presence.measured_iteration_count>("Measured Iterations", value.measured_iteration_count);
-					print_metric<metrics_presence.bytes_processed>(metric_label, value.bytes_processed);
-					print_metric<metrics_presence.cuda_event_ms_avg>("Milliseconds per Execution", value.cuda_event_ms_avg);
-					print_metric<metrics_presence.time_in_ns>("Nanoseconds per Execution", value.time_in_ns);
-					print_metric<metrics_presence.throughput_mb_per_sec>(throughput_label, value.throughput_mb_per_sec);
-					print_metric<metrics_presence.throughput_percentage_deviation>("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
-					print_metric<metrics_presence.cycles_per_execution>("Cycles per Execution", value.cycles_per_execution);
-					print_metric<metrics_presence.cycles_per_byte>(cycle_label, value.cycles_per_byte);
-					std::cout << "(CPU metrics like instructions/branches/cache are not available on GPU)" << std::endl;
-					if constexpr (has_any_metric_enabled(metrics_presence)) {
-						std::cout << "----------------------------------------" << std::endl;
-					}
-				}
-			}
-
-			if (results_new.size() > 1) {
-				for (uint64_t x = 0; x < results_new.size() - 1; ++x) {
-					double difference = ((results_new[x].throughput_mb_per_sec - results_new[x + 1].throughput_mb_per_sec) / results_new[x + 1].throughput_mb_per_sec) * 100.0;
-
-					std::cout << "Kernel " << results_new[x].library_name << " is faster than kernel " << results_new[x + 1].library_name << " by " << difference << "%."
-							  << std::endl;
+				std::cout << std::fixed << std::setprecision(2);
+				print_metric<metrics_presence.total_iteration_count>("Total Iterations", value.total_iteration_count);
+				print_metric<metrics_presence.iterations_to_stabilize>("Total Iterations to Stabilize", value.iterations_to_stabilize);
+				print_metric<metrics_presence.measured_iteration_count>("Measured Iterations", value.measured_iteration_count);
+				print_metric<metrics_presence.bytes_processed>(metric_label, value.bytes_processed);
+				print_metric<metrics_presence.cuda_event_ms_avg>("Milliseconds per Execution", value.cuda_event_ms_avg);
+				print_metric<metrics_presence.time_in_ns>("Nanoseconds per Execution", value.time_in_ns);
+				print_metric<metrics_presence.throughput_mb_per_sec>(throughput_label, value.throughput_mb_per_sec);
+				print_metric<metrics_presence.throughput_percentage_deviation>("Throughput Percentage Deviation (+/-%)", value.throughput_percentage_deviation);
+				print_metric<metrics_presence.cycles_per_execution>("Cycles per Execution", value.cycles_per_execution);
+				print_metric<metrics_presence.cycles_per_byte>(cycle_label, value.cycles_per_byte);
+				std::cout << "(CPU metrics like instructions/branches/cache are not available on GPU)" << std::endl;
+				if constexpr (has_any_metric_enabled(metrics_presence)) {
+					std::cout << "----------------------------------------" << std::endl;
 				}
 			}
 		}
@@ -535,7 +634,7 @@ namespace bnch_swt {
 
 						static constexpr string_literal metric_name_newer{ metric_name_new };
 						std::cout << std::endl;
-						result_printer<benchmark_type, stage_name, metric_name_newer, metrics_presence>::print_result(*current, show_metrics);
+						result_printer<benchmark_type, stage_name, metric_name_newer, metrics_presence>::print_results(*current, show_metrics);
 					}
 
 					rank += group.size();
@@ -568,13 +667,207 @@ namespace bnch_swt {
 		}
 
 		template<performance_metrics_presence<benchmark_type> metrics_presence = performance_metrics_presence<benchmark_type>{}>
-		BNCH_SWT_HOST static std::string generate_markdown(const std::string& results_title) {
+		BNCH_SWT_HOST static std::string generate_markdown(const std::string& results_title, const std::string& file_path = "") {
 			std::stringstream return_value{};
-			return_value << "# " + results_title + " Benchmark Results  " << std::endl;
-			return_value << "**Platform:** " + internal::get_device_info<benchmark_type>() + "  " << std::endl;
-			return_value << "**OS:** " << internal::operating_system_name.operator std::string() << " " << internal::operating_system_version.operator std::string() << std::endl;
-			return_value << "**Compiler:** " << internal::compiler_id.operator std::string() << " " << internal::compiler_version.operator std::string() << std::endl << std::endl;
-			return_value << "---" << std::endl;
+			return_value << "# " << results_title << " Benchmark Results  " << std::endl;
+			return_value << "**Platform:** " << internal::get_device_info<benchmark_type>() << "  " << std::endl;
+			return_value << "**OS:** " << internal::operating_system_name.operator std::string() << " " << internal::operating_system_version.operator std::string() << "  "
+						 << std::endl;
+			return_value << "**Compiler:** " << internal::compiler_id.operator std::string() << " " << internal::compiler_version.operator std::string() << "  " << std::endl
+						 << std::endl;
+			return_value << "---" << std::endl << std::endl;
+
+			using stage_t								  = bnch_swt::stage_results<stage_name, benchmark_type>;
+			static constexpr double confidence_multiplier = 1.96;
+			static constexpr double epsilon				  = 1e-12;
+
+			std::unordered_map<std::string, uint32_t> total_wins;
+			std::unordered_map<std::string, uint32_t> total_ties;
+			std::unordered_map<std::string, uint32_t> total_second_places;
+
+			auto ranges_overlap = [&](const auto* a, const auto* b) -> bool {
+				double a_stddev = std::abs(a->throughput_percentage_deviation) / 100.0;
+				double b_stddev = std::abs(b->throughput_percentage_deviation) / 100.0;
+				if (a_stddev < epsilon || b_stddev < epsilon) {
+					return std::abs(a->throughput_mb_per_sec - b->throughput_mb_per_sec) < epsilon;
+				}
+				double a_min = a->throughput_mb_per_sec * (1.0 - a_stddev * confidence_multiplier);
+				double a_max = a->throughput_mb_per_sec * (1.0 + a_stddev * confidence_multiplier);
+				double b_min = b->throughput_mb_per_sec * (1.0 - b_stddev * confidence_multiplier);
+				double b_max = b->throughput_mb_per_sec * (1.0 + b_stddev * confidence_multiplier);
+				return !(a_max + epsilon < b_min || b_max + epsilon < a_min);
+			};
+
+			struct processed_row {
+				std::string test_name;
+				std::vector<std::vector<size_t>> groups;
+				std::vector<const typename stage_t::performance_metrics_type*> sorted;
+			};
+
+			std::vector<processed_row> rows;
+			size_t max_competitors = 0;
+
+			for (const auto& library_results: stage_t::results) {
+				if (library_results.results.empty())
+					continue;
+
+				std::vector<const typename stage_t::performance_metrics_type*> sorted;
+				for (const auto& [lib_name, metrics]: library_results.results) {
+					sorted.push_back(&metrics);
+				}
+				std::sort(sorted.begin(), sorted.end(), [](auto a, auto b) {
+					return a->throughput_mb_per_sec > b->throughput_mb_per_sec;
+				});
+
+				std::vector<std::vector<size_t>> groups;
+				std::vector<bool> grouped(sorted.size(), false);
+				for (size_t i = 0; i < sorted.size(); ++i) {
+					if (grouped[i])
+						continue;
+					std::vector<size_t> group;
+					group.push_back(i);
+					grouped[i] = true;
+					for (size_t j = i + 1; j < sorted.size(); ++j) {
+						if (grouped[j])
+							continue;
+						bool overlaps_group = false;
+						for (size_t member: group) {
+							if (ranges_overlap(sorted[member], sorted[j])) {
+								overlaps_group = true;
+								break;
+							}
+						}
+						if (overlaps_group) {
+							group.push_back(j);
+							grouped[j] = true;
+						}
+					}
+					groups.push_back(std::move(group));
+				}
+
+				std::sort(groups.begin(), groups.end(), [&](const auto& a, const auto& b) {
+					double a_t = 0, b_t = 0;
+					for (size_t idx: a)
+						a_t += sorted[idx]->throughput_mb_per_sec;
+					for (size_t idx: b)
+						b_t += sorted[idx]->throughput_mb_per_sec;
+					return (a_t / a.size()) > (b_t / b.size());
+				});
+
+				if (!groups.empty()) {
+					if (groups[0].size() > 1) {
+						for (size_t idx: groups[0])
+							total_ties[sorted[idx]->library_name]++;
+					} else {
+						total_wins[sorted[groups[0][0]]->library_name]++;
+					}
+					if (groups.size() > 1 && groups[1].size() == 1)
+						total_second_places[sorted[groups[1][0]]->library_name]++;
+				}
+
+				max_competitors = std::max(max_competitors, sorted.size());
+				rows.push_back(processed_row{ static_cast<std::string>(library_results.test_name), std::move(groups), std::move(sorted) });
+			}
+
+			std::vector<library_win_count> total_wins_vector;
+			for (const auto& [lib, wins]: total_wins)
+				total_wins_vector.emplace_back(library_win_count{ .win_count = wins, .name = lib });
+			std::sort(total_wins_vector.begin(), total_wins_vector.end(), std::greater<library_win_count>{});
+
+			uint32_t max_wins = total_wins_vector.empty() ? 0 : total_wins_vector[0].win_count;
+
+			return_value << "## " << stage_name.operator std::string() << "\n\n";
+
+			return_value << "### " << stage_name.operator std::string() << " Statistical Summary\n\n";
+			return_value << "| Library | Outright Wins | 2nd Place | Statistical Ties for 1st |\n";
+			return_value << "|---|---|---|---|\n";
+
+			std::unordered_set<std::string> seen;
+			auto write_summary_row = [&](const std::string& lib) {
+				if (!seen.insert(lib).second)
+					return;
+				uint32_t wins	= total_wins.count(lib) ? total_wins.at(lib) : 0;
+				uint32_t second = total_second_places.count(lib) ? total_second_places.at(lib) : 0;
+				uint32_t ties	= total_ties.count(lib) ? total_ties.at(lib) : 0;
+				bool is_top		= (wins == max_wins && max_wins > 0);
+				return_value << "| " << (is_top ? "**" : "") << lib << (is_top ? "**" : "") << " | ";
+				if (wins > 0) {
+					if (is_top)
+						return_value << "**" << wins << "**";
+					else
+						return_value << wins;
+				} else {
+					return_value << "-";
+				}
+				return_value << " | ";
+				return_value << (second > 0 ? std::to_string(second) : "-") << " | ";
+				return_value << (ties > 0 ? std::to_string(ties) : "-") << " |\n";
+			};
+
+			for (const auto& entry: total_wins_vector)
+				write_summary_row(entry.name);
+			for (const auto& [lib, v]: total_ties)
+				write_summary_row(lib);
+			for (const auto& [lib, v]: total_second_places)
+				write_summary_row(lib);
+
+			return_value << "\n---\n\n";
+
+			return_value << "## " << stage_name.operator std::string() << "\n\n";
+
+			return_value << "| Test |";
+			for (size_t c = 0; c < max_competitors; ++c) {
+				if (c == 0)
+					return_value << " 1st |";
+				else if (c == 1)
+					return_value << " 2nd |";
+				else if (c == 2)
+					return_value << " 3rd |";
+				else
+					return_value << " " << (c + 1) << "th |";
+			}
+			return_value << "\n|---|";
+			for (size_t c = 0; c < max_competitors; ++c)
+				return_value << "---|";
+			return_value << "\n";
+
+			for (const auto& row: rows) {
+				return_value << "| " << row.test_name << " |";
+				for (size_t g = 0; g < row.groups.size(); ++g) {
+					const auto& group = row.groups[g];
+					bool is_tied	  = group.size() > 1;
+					for (size_t j = 0; j < group.size(); ++j) {
+						const auto* current = row.sorted[group[j]];
+						return_value << " ";
+						if (g == 0 && !is_tied) {
+							return_value << "**" << current->library_name << " " << std::fixed << std::setprecision(0) << current->throughput_mb_per_sec << " MB/s**";
+							if (row.groups.size() > 1) {
+								const auto* next = row.sorted[row.groups[1][0]];
+								double pct		 = (next->throughput_mb_per_sec > 1e-9)
+										  ? ((current->throughput_mb_per_sec - next->throughput_mb_per_sec) / next->throughput_mb_per_sec) * 100.0
+										  : 0.0;
+								return_value << " (+" << std::setprecision(1) << pct << "% over " << next->library_name << ")";
+							}
+						} else {
+							return_value << current->library_name << " " << std::fixed << std::setprecision(0) << current->throughput_mb_per_sec << " MB/s";
+							if (is_tied) {
+								if (group.size() == 2)
+									return_value << " `[TIE]`";
+								else
+									return_value << " `[" << group.size() << "-way TIE]`";
+							}
+						}
+						return_value << " |";
+					}
+				}
+				return_value << "\n";
+			}
+
+			if (!file_path.empty()) {
+				std::string file_name{ internal::operating_system_name.operator std::string() + "-" + internal::compiler_id.operator std::string() };
+				file_handle file{ file_path + "/" + file_name + "-" + stage_name.operator std::string() + ".md" };
+				file.get() = return_value.str();
+			}
 			return return_value.str();
 		}
 
@@ -618,32 +911,28 @@ namespace bnch_swt {
 			return ctx.template run_adaptive<function>(std::forward<arg_types>(args)...);
 		}
 
-		template<string_literal test_name_new, string_literal subject_name_new, typename function_type, internal::not_invocable... arg_types>
-		static auto& run_from_host(arg_types&&... args) {
+		template<string_literal test_name_new, string_literal subject_name_new, auto function_type, internal::not_invocable... arg_types>
+		static auto& run_benchmark_from_host(uint64_t bytes_processed, arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
-			if constexpr (benchmark_type == benchmark_types::cpu) {
-				using return_type = decltype(function_type::impl(std::declval<arg_types>()...));
-				static_assert(std::convertible_to<return_type, uint64_t>,
-					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
-			}
-
 			measurement_context<stage_name, test_name, subject_name, stage_config_new, benchmark_type, use_non_mbps_metric> ctx{};
-			return ctx.template run_adaptive<function_type>(std::forward<arg_types>(args)...);
+			return ctx.template run_adaptive_from_host<function_type>(bytes_processed, std::forward<arg_types>(args)...);
 		}
 
-		template<string_literal test_name_new, string_literal subject_name_new, auto function, internal::not_invocable... arg_types>
+		template<string_literal test_name_new, string_literal subject_name_new, typename function_type, internal::not_invocable... arg_types>
+		static auto& run_benchmark_from_host(uint64_t bytes_processed, arg_types&&... args) {
+			static constexpr string_literal subject_name{ subject_name_new };
+			static constexpr string_literal test_name{ test_name_new };
+			measurement_context<stage_name, test_name, subject_name, stage_config_new, benchmark_type, use_non_mbps_metric> ctx{};
+			return ctx.template run_adaptive_from_host<function_type>(bytes_processed, std::forward<arg_types>(args)...);
+		}
+
+		template<string_literal test_name_new, string_literal subject_name_new, internal::function_pointer_types auto function, internal::not_invocable... arg_types>
 		static auto& run_benchmark_cooperative(arg_types&&... args) {
 			static constexpr string_literal subject_name{ subject_name_new };
 			static constexpr string_literal test_name{ test_name_new };
-			if constexpr (benchmark_type == benchmark_types::cpu) {
-				using return_type = decltype(function(std::declval<arg_types>()...));
-				static_assert(std::convertible_to<return_type, uint64_t>,
-					"Sorry, but the lambda passed to run_benchmark() must return a uint64_t, reflecting the number of bytes processed!");
-			}
-
 			measurement_context<stage_name, test_name, subject_name, stage_config_new, benchmark_type, use_non_mbps_metric> ctx{};
-			return ctx.template run_adaptive<function>(std::forward<arg_types>(args)...);
+			return ctx.template run_adaptive_cooperative<function>(std::forward<arg_types>(args)...);
 		}
 	};
 
