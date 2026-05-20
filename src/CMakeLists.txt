@@ -22,6 +22,15 @@ set(MAIN_SOURCE $<IF:$<BOOL:${BNCH_SWT_DEPLOY}>,main_deploy,main>${BNCH_SWT_MAIN
 
 add_executable(benchmarksuite-main ${MAIN_SOURCE})
 
+include(FetchContent)
+FetchContent_Declare(
+  void-numerics
+  GIT_REPOSITORY https://github.com/nihilai-collective/void-numerics.git
+  GIT_TAG main
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(void-numerics)
+
 if (PRINT_ASSEMBLY)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         message(STATUS "Assembly printing enabled. Using Post-Build step to generate assembly file.")
@@ -69,6 +78,7 @@ endif()
 target_link_libraries(benchmarksuite-main
     PUBLIC
         benchmarksuite::benchmarksuite
+        void-numerics::void-numerics
 )
 
 install(
