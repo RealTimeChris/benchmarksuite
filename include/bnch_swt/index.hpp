@@ -33,6 +33,7 @@
 #include <bnch_swt/printable.hpp>
 #include <bnch_swt/metrics.hpp>
 #include <bnch_swt/config.hpp>
+#include <unordered_set>
 #include <unordered_map>
 #include <iostream>
 
@@ -568,13 +569,207 @@ namespace bnch_swt {
 		}
 
 		template<performance_metrics_presence<benchmark_type> metrics_presence = performance_metrics_presence<benchmark_type>{}>
-		BNCH_SWT_HOST static std::string generate_markdown(const std::string& results_title) {
+		BNCH_SWT_HOST static std::string generate_markdown(const std::string& results_title, const std::string& file_path = "") {
 			std::stringstream return_value{};
-			return_value << "# " + results_title + " Benchmark Results  " << std::endl;
-			return_value << "**Platform:** " + internal::get_device_info<benchmark_type>() + "  " << std::endl;
-			return_value << "**OS:** " << internal::operating_system_name.operator std::string() << " " << internal::operating_system_version.operator std::string() << std::endl;
-			return_value << "**Compiler:** " << internal::compiler_id.operator std::string() << " " << internal::compiler_version.operator std::string() << std::endl << std::endl;
-			return_value << "---" << std::endl;
+			return_value << "# " << results_title << " Benchmark Results  " << std::endl;
+			return_value << "**Platform:** " << internal::get_device_info<benchmark_type>() << "  " << std::endl;
+			return_value << "**OS:** " << internal::operating_system_name.operator std::string() << " " << internal::operating_system_version.operator std::string() << "  "
+						 << std::endl;
+			return_value << "**Compiler:** " << internal::compiler_id.operator std::string() << " " << internal::compiler_version.operator std::string() << "  " << std::endl
+						 << std::endl;
+			return_value << "---" << std::endl << std::endl;
+
+			using stage_t								  = bnch_swt::stage_results<stage_name, benchmark_type>;
+			static constexpr double confidence_multiplier = 1.96;
+			static constexpr double epsilon				  = 1e-12;
+
+			std::unordered_map<std::string, uint32_t> total_wins;
+			std::unordered_map<std::string, uint32_t> total_ties;
+			std::unordered_map<std::string, uint32_t> total_second_places;
+
+			auto ranges_overlap = [&](const auto* a, const auto* b) -> bool {
+				double a_stddev = std::abs(a->throughput_percentage_deviation) / 100.0;
+				double b_stddev = std::abs(b->throughput_percentage_deviation) / 100.0;
+				if (a_stddev < epsilon || b_stddev < epsilon) {
+					return std::abs(a->throughput_mb_per_sec - b->throughput_mb_per_sec) < epsilon;
+				}
+				double a_min = a->throughput_mb_per_sec * (1.0 - a_stddev * confidence_multiplier);
+				double a_max = a->throughput_mb_per_sec * (1.0 + a_stddev * confidence_multiplier);
+				double b_min = b->throughput_mb_per_sec * (1.0 - b_stddev * confidence_multiplier);
+				double b_max = b->throughput_mb_per_sec * (1.0 + b_stddev * confidence_multiplier);
+				return !(a_max + epsilon < b_min || b_max + epsilon < a_min);
+			};
+
+			struct processed_row {
+				std::string test_name;
+				std::vector<std::vector<size_t>> groups;
+				std::vector<const typename stage_t::performance_metrics_type*> sorted;
+			};
+
+			std::vector<processed_row> rows;
+			size_t max_competitors = 0;
+
+			for (const auto& library_results: stage_t::results) {
+				if (library_results.results.empty())
+					continue;
+
+				std::vector<const typename stage_t::performance_metrics_type*> sorted;
+				for (const auto& [lib_name, metrics]: library_results.results) {
+					sorted.push_back(&metrics);
+				}
+				std::sort(sorted.begin(), sorted.end(), [](auto a, auto b) {
+					return a->throughput_mb_per_sec > b->throughput_mb_per_sec;
+				});
+
+				std::vector<std::vector<size_t>> groups;
+				std::vector<bool> grouped(sorted.size(), false);
+				for (size_t i = 0; i < sorted.size(); ++i) {
+					if (grouped[i])
+						continue;
+					std::vector<size_t> group;
+					group.push_back(i);
+					grouped[i] = true;
+					for (size_t j = i + 1; j < sorted.size(); ++j) {
+						if (grouped[j])
+							continue;
+						bool overlaps_group = false;
+						for (size_t member: group) {
+							if (ranges_overlap(sorted[member], sorted[j])) {
+								overlaps_group = true;
+								break;
+							}
+						}
+						if (overlaps_group) {
+							group.push_back(j);
+							grouped[j] = true;
+						}
+					}
+					groups.push_back(std::move(group));
+				}
+
+				std::sort(groups.begin(), groups.end(), [&](const auto& a, const auto& b) {
+					double a_t = 0, b_t = 0;
+					for (size_t idx: a)
+						a_t += sorted[idx]->throughput_mb_per_sec;
+					for (size_t idx: b)
+						b_t += sorted[idx]->throughput_mb_per_sec;
+					return (a_t / a.size()) > (b_t / b.size());
+				});
+
+				if (!groups.empty()) {
+					if (groups[0].size() > 1) {
+						for (size_t idx: groups[0])
+							total_ties[sorted[idx]->library_name]++;
+					} else {
+						total_wins[sorted[groups[0][0]]->library_name]++;
+					}
+					if (groups.size() > 1 && groups[1].size() == 1)
+						total_second_places[sorted[groups[1][0]]->library_name]++;
+				}
+
+				max_competitors = std::max(max_competitors, sorted.size());
+				rows.push_back(processed_row{ static_cast<std::string>(library_results.test_name), std::move(groups), std::move(sorted) });
+			}
+
+			std::vector<library_win_count> total_wins_vector;
+			for (const auto& [lib, wins]: total_wins)
+				total_wins_vector.emplace_back(library_win_count{ .win_count = wins, .name = lib });
+			std::sort(total_wins_vector.begin(), total_wins_vector.end(), std::greater<library_win_count>{});
+
+			uint32_t max_wins = total_wins_vector.empty() ? 0 : total_wins_vector[0].win_count;
+
+			return_value << "## " << stage_name.operator std::string() << "\n\n";
+
+			return_value << "### " << stage_name.operator std::string() << " Statistical Summary\n\n";
+			return_value << "| Library | Outright Wins | 2nd Place | Statistical Ties for 1st |\n";
+			return_value << "|---|---|---|---|\n";
+
+			std::unordered_set<std::string> seen;
+			auto write_summary_row = [&](const std::string& lib) {
+				if (!seen.insert(lib).second)
+					return;
+				uint32_t wins	= total_wins.count(lib) ? total_wins.at(lib) : 0;
+				uint32_t second = total_second_places.count(lib) ? total_second_places.at(lib) : 0;
+				uint32_t ties	= total_ties.count(lib) ? total_ties.at(lib) : 0;
+				bool is_top		= (wins == max_wins && max_wins > 0);
+				return_value << "| " << (is_top ? "**" : "") << lib << (is_top ? "**" : "") << " | ";
+				if (wins > 0) {
+					if (is_top)
+						return_value << "**" << wins << "**";
+					else
+						return_value << wins;
+				} else {
+					return_value << "-";
+				}
+				return_value << " | ";
+				return_value << (second > 0 ? std::to_string(second) : "-") << " | ";
+				return_value << (ties > 0 ? std::to_string(ties) : "-") << " |\n";
+			};
+
+			for (const auto& entry: total_wins_vector)
+				write_summary_row(entry.name);
+			for (const auto& [lib, v]: total_ties)
+				write_summary_row(lib);
+			for (const auto& [lib, v]: total_second_places)
+				write_summary_row(lib);
+
+			return_value << "\n---\n\n";
+
+			return_value << "## " << stage_name.operator std::string() << "\n\n";
+
+			return_value << "| Test |";
+			for (size_t c = 0; c < max_competitors; ++c) {
+				if (c == 0)
+					return_value << " 1st |";
+				else if (c == 1)
+					return_value << " 2nd |";
+				else if (c == 2)
+					return_value << " 3rd |";
+				else
+					return_value << " " << (c + 1) << "th |";
+			}
+			return_value << "\n|---|";
+			for (size_t c = 0; c < max_competitors; ++c)
+				return_value << "---|";
+			return_value << "\n";
+
+			for (const auto& row: rows) {
+				return_value << "| " << row.test_name << " |";
+				for (size_t g = 0; g < row.groups.size(); ++g) {
+					const auto& group = row.groups[g];
+					bool is_tied	  = group.size() > 1;
+					for (size_t j = 0; j < group.size(); ++j) {
+						const auto* current = row.sorted[group[j]];
+						return_value << " ";
+						if (g == 0 && !is_tied) {
+							return_value << "**" << current->library_name << " " << std::fixed << std::setprecision(0) << current->throughput_mb_per_sec << " MB/s**";
+							if (row.groups.size() > 1) {
+								const auto* next = row.sorted[row.groups[1][0]];
+								double pct		 = (next->throughput_mb_per_sec > 1e-9)
+										  ? ((current->throughput_mb_per_sec - next->throughput_mb_per_sec) / next->throughput_mb_per_sec) * 100.0
+										  : 0.0;
+								return_value << " (+" << std::setprecision(1) << pct << "% over " << next->library_name << ")";
+							}
+						} else {
+							return_value << current->library_name << " " << std::fixed << std::setprecision(0) << current->throughput_mb_per_sec << " MB/s";
+							if (is_tied) {
+								if (group.size() == 2)
+									return_value << " `[TIE]`";
+								else
+									return_value << " `[" << group.size() << "-way TIE]`";
+							}
+						}
+						return_value << " |";
+					}
+				}
+				return_value << "\n";
+			}
+
+			if (!file_path.empty()) {
+				std::string file_name{ internal::operating_system_name.operator std::string() + "-" + internal::compiler_id.operator std::string() };
+				file_handle file{ file_path + "/" + file_name + "-" + stage_name.operator std::string() + ".md" };
+				file.get() = return_value.str();
+			}
 			return return_value.str();
 		}
 

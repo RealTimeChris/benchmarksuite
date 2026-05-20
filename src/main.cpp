@@ -83,7 +83,7 @@ int main() {
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
 		test_atomic_signed_lock_free>();
 	//bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::print_results();
-	auto markdown = bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::generate_markdown("void-numerics");
+	auto markdown = bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::generate_markdown("void-numerics", "../../../../");
 	std::cout << markdown << std::endl;
 	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::clear_all_results();
 	return 0;
