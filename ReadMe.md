@@ -1,4 +1,4 @@
-# Benchmark Suite v1.0.0
+# Benchmark Suite
 
 Hello and welcome to Benchmark Suite! This is a modern, header-only C++20 benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead.
 
@@ -24,7 +24,7 @@ The following operating systems and compilers are officially supported:
 
 ---
 
-# Quickstart Guide for benchmarksuite v1.0.0
+# Quickstart Guide for benchmarksuite v1.0.2
 
 This guide will walk you through setting up and running benchmarks using `benchmarksuite`.
 
@@ -35,6 +35,8 @@ This guide will walk you through setting up and running benchmarks using `benchm
   - [Requirements](#requirements)
 - [Basic Example](#basic-example)
 - [Creating Benchmarks](#creating-benchmarks)
+- [Adaptive Benchmarking](#adaptive-benchmarking)
+- [Statistical Analysis](#statistical-analysis)
 - [CPU vs GPU Benchmarking](#cpu-vs-gpu-benchmarking)
 - [Advanced Benchmark Methods](#advanced-benchmark-methods)
 - [Running Benchmarks](#running-benchmarks)
@@ -43,7 +45,7 @@ This guide will walk you through setting up and running benchmarks using `benchm
 - [Output and Results](#output-and-results)
 - [Features](#features)
 - [API Conventions](#api-conventions)
-- [Migrating from Pre-1.0.0](#migrating-from-pre-100)
+- [Migrating from v1.0.0](#migrating-from-v100)
 
 ## Installation
 
@@ -58,7 +60,7 @@ Create or update your `vcpkg.json` in your project root:
   "name": "your-project-name",
   "version": "1.0.0",
   "dependencies": [
-    "benchmarksuite"
+    "rtc-benchmarksuite"
   ]
 }
 ```
@@ -207,6 +209,14 @@ struct jsonifier_to_chars_benchmark {
 };
 
 int main() {
+    constexpr bnch_swt::stage_config config{
+        .max_execution_count = 200,
+        .measured_iteration_count = 25,
+        .benchmark_type = bnch_swt::benchmark_types::cpu,
+        .desired_percentage_deviation = 1.0,
+        .max_time_seconds = 5.5
+    };
+    
     constexpr uint64_t count = 512;
     
     std::vector<int64_t> test_values = generate_random_integers<int64_t>(count, 20);
@@ -217,13 +227,14 @@ int main() {
         test_values_00.emplace_back(std::to_string(test_values[x]));
     }
     
-    using benchmark = bnch_swt::benchmark_stage<"int-to-string-comparison", 200, 25, 
-                                                 bnch_swt::benchmark_types::cpu>;
+    using benchmark = bnch_swt::benchmark_stage<"int-to-string-comparison", config>;
     
-    benchmark::run_benchmark<"glz::to_chars", glz_to_chars_benchmark>(test_values, test_values_00, test_values_01);
-    benchmark::run_benchmark<"jsonifier::to_chars", jsonifier_to_chars_benchmark>(test_values, test_values_00, test_values_01);
+    benchmark::run_benchmark<"conversion-test", "glz::to_chars", glz_to_chars_benchmark>(
+        test_values, test_values_00, test_values_01);
+    benchmark::run_benchmark<"conversion-test", "jsonifier::to_chars", jsonifier_to_chars_benchmark>(
+        test_values, test_values_00, test_values_01);
     
-    benchmark::print_results(true, true);
+    benchmark::print_results();
     
     return 0;
 }
@@ -232,46 +243,65 @@ int main() {
 ## Creating Benchmarks
 To create a benchmark:
 1. Define your benchmark functions as structs with a static `impl()` method that returns `uint64_t` (bytes processed)
-2. Use `bnch_swt::benchmark_stage` with appropriate template parameters
-3. Call `run_benchmark` with your benchmark struct and any required arguments
+2. Use `bnch_swt::benchmark_stage` with `stage_config` for configuration
+3. Call `run_benchmark` with test name, subject name, benchmark struct, and arguments
 
 ### Benchmark Stage
 The `benchmark_stage` structure orchestrates each test and supports both CPU and GPU benchmarking:
 
 ```cpp
 template<bnch_swt::string_literal stage_name,
-         uint64_t max_execution_count = 200,
-         uint64_t measured_iteration_count = 25,
-         bnch_swt::benchmark_types benchmark_type = bnch_swt::benchmark_types::cpu,
-         bool clear_cpu_cache_between_each_iteration = false,
+         bnch_swt::stage_config stage_config_new = bnch_swt::stage_config{},
          bnch_swt::string_literal metric_name = bnch_swt::string_literal<1>{}
 >
 struct benchmark_stage;
 
+// Default configuration
 using cpu_benchmark = bnch_swt::benchmark_stage<"my-benchmark">;
-using gpu_benchmark = bnch_swt::benchmark_stage<"gpu-test", 100, 10, bnch_swt::benchmark_types::cuda>;
-using custom_metric = bnch_swt::benchmark_stage<"compression", 200, 25, bnch_swt::benchmark_types::cpu, false, "compression-ratio">;
+
+// Custom configuration
+constexpr bnch_swt::stage_config gpu_config{
+    .max_execution_count = 100,
+    .measured_iteration_count = 10,
+    .benchmark_type = bnch_swt::benchmark_types::cuda,
+    .clear_cpu_cache_between_each_iteration = false,
+    .clear_cpu_cache_before_all_iterations = true,
+    .desired_percentage_deviation = 0.5,
+    .max_time_seconds = 3.0
+};
+using gpu_benchmark = bnch_swt::benchmark_stage<"gpu-test", gpu_config>;
+
+// Custom metric name
+using compression_bench = bnch_swt::benchmark_stage<"compression", stage_config{}, "compression-ratio">;
 ```
 
-### Template Parameters
-- **stage_name** (required): String literal identifying the benchmark stage
-- **max_execution_count** (default 200): Total number of iterations including warmup
-- **measured_iteration_count** (default 25): Number of iterations to measure for final metrics
-- **benchmark_type** (default cpu): `bnch_swt::benchmark_types::cpu` or `bnch_swt::benchmark_types::cuda`
-- **clear_cpu_cache_between_each_iteration** (default false): Whether to clear CPU caches between iterations
-- **metric_name** (default empty): Custom metric name for specialized benchmarks (e.g., compression ratios)
+### Stage Configuration
+The `stage_config` struct controls benchmark behavior:
+
+```cpp
+struct stage_config {
+    uint64_t max_execution_count{ 200 };                    // Maximum iterations (including warmup)
+    uint64_t measured_iteration_count{ 10 };                // Number of iterations to measure
+    benchmark_types benchmark_type{ benchmark_types::cpu }; // CPU or CUDA
+    bool clear_cpu_cache_between_each_iteration{ false };   // Clear cache between iterations
+    bool clear_cpu_cache_before_all_iterations{ true };     // Clear cache before starting
+    double desired_percentage_deviation{ 1.0 };              // Target stability threshold (%)
+    double max_time_seconds{ 5.5 };                         // Maximum runtime limit
+};
+```
 
 ### Methods
 
-#### `run_benchmark<name, function_type>(args...)`
-Executes the benchmark using a struct with a static `impl()` method.
+#### `run_benchmark<test_name, subject_name, function_type>(args...)`
+Executes the benchmark using a struct with a static `impl()` method. The benchmark automatically scales iterations until statistical stability is reached.
 
 **Parameters:**
-- **name**: String literal identifying this specific benchmark within the stage
+- **test_name**: String literal grouping related benchmarks together
+- **subject_name**: String literal identifying this specific implementation
 - **function_type**: Struct type with a static `impl()` method
 - **args...**: Arguments forwarded to the `impl()` method
 
-**Returns:** `performance_metrics<benchmark_type>` object
+**Returns:** Reference to `performance_metrics<benchmark_type>` object
 
 **Example:**
 ```cpp
@@ -285,20 +315,20 @@ struct my_benchmark {
     }
 };
 
-using bench = bnch_swt::benchmark_stage<"test">;
+constexpr bnch_swt::stage_config config{ .max_execution_count = 500, .measured_iteration_count = 50 };
+using bench = bnch_swt::benchmark_stage<"test", config>;
 std::vector<int> data(1000);
-bench::run_benchmark<"my-test", my_benchmark>(data);
+bench::run_benchmark<"math-test", "my-implementation", my_benchmark>(data);
 ```
 
-#### `run_benchmark<name, function>(args...)`
+#### `run_benchmark<test_name, subject_name, function>(args...)`
 Executes the benchmark using a function or lambda directly (passed as non-type template parameter).
 
 **Parameters:**
-- **name**: String literal identifying this specific benchmark
+- **test_name**: String literal grouping related benchmarks
+- **subject_name**: String literal identifying this specific implementation
 - **function**: Function or lambda to benchmark (as non-type template parameter)
 - **args...**: Arguments forwarded to the function
-
-**Returns:** `performance_metrics<benchmark_type>` object
 
 **Example:**
 ```cpp
@@ -310,95 +340,99 @@ constexpr auto my_lambda = [](std::vector<int>& data) -> uint64_t {
     return data.size() * sizeof(int);
 };
 
-using bench = bnch_swt::benchmark_stage<"test">;
+constexpr bnch_swt::stage_config config{ .max_execution_count = 500, .measured_iteration_count = 50 };
+using bench = bnch_swt::benchmark_stage<"test", config>;
 std::vector<int> data(1000);
-bench::run_benchmark<"my-test", my_lambda>(data);
+bench::run_benchmark<"math-test", "my-implementation", my_lambda>(data);
 ```
 
-#### `run_from_host<name, function>(args...)`
-Executes the benchmark from the host (useful for CUDA kernels launched from host code).
+#### `run_benchmark_from_host<test_name, subject_name, function_type>(bytes_processed, args...)`
+Executes CUDA benchmarks launched from host code.
 
 **Parameters:**
-- **name**: String literal identifying this specific benchmark
-- **function**: Function type to benchmark
+- **test_name**: String literal grouping related benchmarks
+- **subject_name**: String literal identifying this specific implementation
+- **function_type**: Function type to benchmark
+- **bytes_processed**: Number of bytes processed per iteration
 - **args...**: Arguments forwarded to the function
-
-**Returns:** `performance_metrics<benchmark_type>` object
 
 **Example:**
 ```cpp
 struct cuda_host_launcher {
-    static uint64_t impl(float* gpu_data, uint64_t size) {
+    static void impl(float* gpu_data, uint64_t size) {
         dim3 grid{256};
         dim3 block{256};
         my_kernel<<<grid, block>>>(gpu_data, size);
         cudaDeviceSynchronize();
-        return size * sizeof(float);
     }
 };
 
-using bench = bnch_swt::benchmark_stage<"cuda-test", 100, 10, bnch_swt::benchmark_types::cuda>;
+constexpr bnch_swt::stage_config config{ 
+    .benchmark_type = bnch_swt::benchmark_types::cuda,
+    .measured_iteration_count = 10
+};
+using bench = bnch_swt::benchmark_stage<"cuda-test", config>;
 float* gpu_data;
 cudaMalloc(&gpu_data, 1024 * sizeof(float));
-bench::run_from_host<"kernel-test", cuda_host_launcher>(gpu_data, 1024);
+bench::run_benchmark_from_host<"kernel-test", "my-kernel", cuda_host_launcher>(
+    1024 * sizeof(float), gpu_data, 1024);
 ```
 
-#### `run_benchmark_cooperative<name, function>(args...)`
-Executes the benchmark using CUDA cooperative groups (for kernels requiring grid-wide synchronization).
+#### `run_benchmark_cooperative<test_name, subject_name, function>(args...)`
+Executes CUDA cooperative group kernels requiring grid-wide synchronization.
 
 **Parameters:**
-- **name**: String literal identifying this specific benchmark
+- **test_name**: String literal grouping related benchmarks
+- **subject_name**: String literal identifying this specific implementation
 - **function**: Function to benchmark (as non-type template parameter)
 - **args...**: Arguments forwarded to the function
 
-**Returns:** `performance_metrics<benchmark_type>` object
-
-**Example:**
-```cpp
-constexpr auto cooperative_kernel = [](float* data, uint64_t size) -> uint64_t {
-    return size * sizeof(float);
-};
-
-using bench = bnch_swt::benchmark_stage<"cooperative-test", 100, 10, bnch_swt::benchmark_types::cuda>;
-float* gpu_data;
-cudaMalloc(&gpu_data, 1024 * sizeof(float));
-bench::run_benchmark_cooperative<"coop-kernel", cooperative_kernel>(gpu_data, 1024);
-```
-
-#### `print_results(show_comparison = true, show_metrics = true)`
-Displays performance metrics and comparisons.
+#### `print_results<metrics_presence>(show_metrics)`
+Displays performance metrics with statistical analysis, rankings, and confidence intervals.
 
 **Parameters:**
-- **show_comparison**: Whether to show head-to-head comparisons between benchmarks
+- **metrics_presence**: Template parameter controlling which metrics to display
 - **show_metrics**: Whether to show detailed hardware counter metrics
 
 **Example:**
 ```cpp
-benchmark::print_results(true, true);
-```
+benchmark::print_results();  // Default metrics
 
-You can also customize which metrics are displayed:
-
-```cpp
+// Custom metric selection
 bnch_swt::performance_metrics_presence<bnch_swt::benchmark_types::cpu> custom_metrics{};
 custom_metrics.throughput_mb_per_sec = true;
 custom_metrics.cycles_per_byte = true;
 custom_metrics.instructions_per_cycle = true;
-benchmark::print_results<custom_metrics>(true, true);
+benchmark::print_results<custom_metrics>(true);
 ```
 
-#### `get_results()`
-Returns a sorted vector of all `performance_metrics` for programmatic access.
+#### `generate_markdown(title, file_path)`
+Generates a formatted Markdown report of all benchmark results.
 
-**Returns:** `std::vector<performance_metrics<benchmark_type>>`
+**Parameters:**
+- **title**: Title for the report
+- **file_path**: Optional directory path to save the report (auto-named with OS and compiler)
+
+**Returns:** `std::string` containing the Markdown report
 
 **Example:**
 ```cpp
-auto results = benchmark::get_results();
-for (const auto& metric : results) {
-    std::cout << metric.name << ": " << metric.throughput_mb_per_sec << " MB/s\n";
-}
+auto report = benchmark::generate_markdown("Performance Analysis", "./results/");
+std::cout << report << std::endl;
 ```
+
+#### `get_all_results()`
+Returns all results organized by test name.
+
+**Returns:** `std::vector<stage_results<stage_name, benchmark_type>::test_results>`
+
+#### `get_test_results(test_name)`
+Returns results for a specific test name.
+
+**Returns:** `std::unordered_map<std::string_view, performance_metrics<benchmark_type>>`
+
+#### `clear_all_results()`
+Resets all collected results for the stage.
 
 ### Benchmark Function Requirements
 Benchmark functions must be defined as structs with a static `impl()` method:
@@ -418,6 +452,7 @@ struct my_cpu_benchmark {
 struct my_cuda_benchmark {
     BNCH_SWT_DEVICE static void impl(/* your parameters */) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
+        // kernel code here
     }
 };
 ```
@@ -425,11 +460,72 @@ struct my_cuda_benchmark {
 **Key differences:**
 - **CPU**: `impl()` returns `uint64_t` (bytes processed) and uses `BNCH_SWT_HOST`
 - **CUDA**: `impl()` returns `void`, uses `BNCH_SWT_DEVICE`, and contains kernel code
-- **CUDA**: Bytes processed is passed as a parameter to `run_benchmark()`, not returned from `impl()`
+- **CUDA**: Bytes processed is passed as a parameter to `run_benchmark_from_host()`
+
+## Adaptive Benchmarking
+
+As of v1.0.2, benchmarksuite features **adaptive iteration scaling** that automatically determines the optimal number of iterations for statistical stability.
+
+### How It Works
+
+1. **Starts with small iteration count**: Begins with `measured_iteration_count * 2` iterations
+2. **Sliding window analysis**: Evaluates all consecutive windows of `measured_iteration_count` iterations
+3. **Stability detection**: Continues until throughput deviation ≤ `desired_percentage_deviation`
+4. **Iteration doubling**: Doubles iteration count each round until stability or limits reached
+5. **Time protection**: Automatically stops after `max_time_seconds` to prevent excessively long runs
+
+### Configuration Example
+
+```cpp
+constexpr bnch_swt::stage_config precise_config{
+    .max_execution_count = 10000,           // Upper limit
+    .measured_iteration_count = 50,          // Window size for analysis
+    .desired_percentage_deviation = 0.5,     // Target: 0.5% stability
+    .max_time_seconds = 10.0                // Max 10 seconds per benchmark
+};
+
+using bench = bnch_swt::benchmark_stage<"precise-benchmark", precise_config>;
+```
+
+### Benefits
+
+- **No more guessing**: No need to manually tune iteration counts
+- **Comparable results**: All benchmarks achieve similar statistical confidence
+- **Time-efficient**: Stops early for stable code, continues longer for noisy measurements
+- **Reproducible**: Same configuration produces consistent stability across runs
+
+## Statistical Analysis
+
+Benchmark results now include **95% confidence interval analysis** with automatic tie detection and ranking.
+
+### Statistical Features
+
+- **Confidence intervals**: Calculated from throughput deviation percentages
+- **Statistical tie detection**: Identifies when implementations are statistically indistinguishable
+- **Automated ranking**: Orders results with proper tie handling
+- **Win/loss/tie tracking**: Summary statistics across multiple tests
+- **Markdown export**: Professional reports for documentation
+
+### Output Example
+
+```
+=== STATISTICAL SUMMARY FOR int-to-string-comparison ===
+(95% confidence intervals, statistical ties don't count as wins)
+
+jsonifier::to_chars: 1 wins
+glz::to_chars: 0 wins (1 second place)
+
+=== STATISTICAL TIES (no clear winner) ===
+fast_float: 2 tests where statistically tied for first
+```
+
+### Understanding Statistical Ties
+
+When two implementations have overlapping confidence intervals, they are considered **statistically tied** - neither is significantly faster than the other. This is reported clearly to prevent over-interpretation of small performance differences.
 
 ## CPU vs GPU Benchmarking
 
-As of v1.0.0, benchmarksuite supports both CPU and GPU (CUDA) benchmarking through the `benchmark_types` enum.
+Benchmarksuite supports both CPU and GPU (CUDA) benchmarking through the `benchmark_type` enum in `stage_config`.
 
 ### CPU Benchmarks
 ```cpp
@@ -442,14 +538,19 @@ struct cpu_computation_benchmark {
     }
 };
 
-using cpu_stage = bnch_swt::benchmark_stage<"cpu-test", 200, 25, bnch_swt::benchmark_types::cpu>;
+constexpr bnch_swt::stage_config cpu_config{
+    .benchmark_type = bnch_swt::benchmark_types::cpu,
+    .max_execution_count = 200,
+    .measured_iteration_count = 25
+};
+
+using cpu_stage = bnch_swt::benchmark_stage<"cpu-test", cpu_config>;
 
 constexpr size_t data_size = 1024 * 1024;
 std::vector<float> input(data_size, 1.0f);
 std::vector<float> output(data_size);
 
-cpu_stage::run_benchmark<"my-cpu-function", cpu_computation_benchmark>(input, output);
-
+cpu_stage::run_benchmark<"math-test", "cpu-impl", cpu_computation_benchmark>(input, output);
 cpu_stage::print_results();
 ```
 
@@ -464,7 +565,14 @@ struct cuda_kernel_benchmark {
     }
 };
 
-using cuda_stage = bnch_swt::benchmark_stage<"gpu-test", 100, 10, bnch_swt::benchmark_types::cuda>;
+constexpr bnch_swt::stage_config gpu_config{
+    .benchmark_type = bnch_swt::benchmark_types::cuda,
+    .max_execution_count = 100,
+    .measured_iteration_count = 10,
+    .max_time_seconds = 5.0
+};
+
+using cuda_stage = bnch_swt::benchmark_stage<"gpu-test", gpu_config>;
 
 constexpr uint64_t data_size = 1024 * 1024;
 float* gpu_data;
@@ -472,25 +580,23 @@ cudaMalloc(&gpu_data, data_size * sizeof(float));
 
 dim3 grid{256, 1, 1};
 dim3 block{256, 1, 1};
-uint64_t shared_memory = 0;
 uint64_t bytes_processed = data_size * sizeof(float);
 
-cuda_stage::run_benchmark<"my-cuda-kernel", cuda_kernel_benchmark>(
-    grid, block, shared_memory, bytes_processed, 
-    gpu_data, data_size
-);
+cuda_stage::run_benchmark_from_host<"kernel-test", "gpu-impl", cuda_kernel_benchmark>(
+    bytes_processed, grid, block, 0, gpu_data, data_size);
 
 cuda_stage::print_results();
 cudaFree(gpu_data);
 ```
 
 ### Mixed CPU/GPU Benchmarking
-You can benchmark CPU and GPU implementations side-by-side:
+Compare CPU and GPU implementations side-by-side:
 
 ```cpp
 constexpr uint64_t data_size = 1024 * 1024;
 
-struct cpu_process_benchmark {
+// CPU implementation
+struct cpu_process {
     BNCH_SWT_HOST static uint64_t impl(std::vector<float>& cpu_data) {
         for (size_t i = 0; i < cpu_data.size(); ++i) {
             cpu_data[i] = cpu_data[i] * 2.0f;
@@ -499,7 +605,8 @@ struct cpu_process_benchmark {
     }
 };
 
-struct gpu_process_benchmark {
+// GPU implementation
+struct gpu_process {
     BNCH_SWT_DEVICE static void impl(float* gpu_data, uint64_t size) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx < size) {
@@ -508,147 +615,92 @@ struct gpu_process_benchmark {
     }
 };
 
+// Run both
+constexpr bnch_swt::stage_config config{ .max_execution_count = 100, .measured_iteration_count = 10 };
+using stage = bnch_swt::benchmark_stage<"cpu-vs-gpu", config>;
+
 std::vector<float> cpu_data(data_size);
 float* gpu_data;
 cudaMalloc(&gpu_data, data_size * sizeof(float));
 
-using cpu_test = bnch_swt::benchmark_stage<"cpu-vs-gpu", 100, 10, bnch_swt::benchmark_types::cpu>;
-cpu_test::run_benchmark<"cpu-version", cpu_process_benchmark>(cpu_data);
+stage::run_benchmark<"vector-multiply", "cpu-version", cpu_process>(cpu_data);
 
-using gpu_test = bnch_swt::benchmark_stage<"cpu-vs-gpu", 100, 10, bnch_swt::benchmark_types::cuda>;
 dim3 grid{(data_size + 255) / 256, 1, 1};
 dim3 block{256, 1, 1};
-gpu_test::run_benchmark<"gpu-version", gpu_process_benchmark>(
-    grid, block, 0, data_size * sizeof(float),
-    gpu_data, data_size
-);
+stage::run_benchmark_from_host<"vector-multiply", "gpu-version", gpu_process>(
+    data_size * sizeof(float), grid, block, 0, gpu_data, data_size);
 
-cpu_test::print_results();
-gpu_test::print_results();
-
+stage::print_results();
 cudaFree(gpu_data);
 ```
 
 ### Cache Clearing Option
-For more accurate CPU benchmarks, you can enable cache clearing between iterations:
+For accurate cold-cache CPU benchmarks:
 
 ```cpp
-using cache_cleared = bnch_swt::benchmark_stage<"cache-test", 200, 25, bnch_swt::benchmark_types::cpu, true>;
+constexpr bnch_swt::stage_config cold_cache_config{
+    .clear_cpu_cache_between_each_iteration = true,
+    .clear_cpu_cache_before_all_iterations = true,
+    .max_execution_count = 200,
+    .measured_iteration_count = 25
+};
+
+using cold_bench = bnch_swt::benchmark_stage<"cache-test", cold_cache_config>;
 ```
 
-This is useful when benchmarking memory-bound operations where you want to measure cold cache performance.
-
 ### Custom Metrics
-You can specify custom metric names for specialized benchmarks that don't measure traditional throughput:
+Specify custom metric names for specialized benchmarks:
 
 ```cpp
-using compression_bench = bnch_swt::benchmark_stage<"compression-test", 200, 25, 
-                                                     bnch_swt::benchmark_types::cpu, 
-                                                     false, 
-                                                     "compression-ratio">;
+constexpr bnch_swt::stage_config config{ .max_execution_count = 200, .measured_iteration_count = 25 };
+using compression_bench = bnch_swt::benchmark_stage<"compression-test", config, "compression-ratio">;
 
 struct compress_benchmark {
     BNCH_SWT_HOST static uint64_t impl(const std::vector<uint8_t>& input) {
         auto compressed = compress_data(input);
-        return (input.size() * 1000) / compressed.size();
+        return (input.size() * 1000) / compressed.size();  // Ratio * 1000
     }
 };
 
-compression_bench::run_benchmark<"my-compressor", compress_benchmark>(input_data);
-compression_bench::print_results();
+compression_bench::run_benchmark<"compression", "my-compressor", compress_benchmark>(input_data);
+compression_bench::print_results();  // Shows "compression-ratio" instead of MB/s
 ```
-
-When a custom metric name is provided, the results will display your custom metric instead of standard MB/s throughput.
 
 ## Advanced Benchmark Methods
 
 ### Host-Launched Kernels
-Use `run_from_host()` when you need to launch CUDA kernels from host code with custom configurations:
+Use `run_benchmark_from_host()` for custom CUDA kernel configurations:
 
 ```cpp
-struct custom_kernel_launcher {
-    static uint64_t impl(float* data, uint64_t size, int custom_param) {
+struct custom_launcher {
+    static void impl(float* data, uint64_t size, int shared_bytes) {
         dim3 grid{static_cast<unsigned int>((size + 255) / 256)};
         dim3 block{256};
-        size_t shared_mem = custom_param * sizeof(float);
-        
-        my_kernel<<<grid, block, shared_mem>>>(data, size);
+        my_kernel<<<grid, block, shared_bytes>>>(data, size);
         cudaDeviceSynchronize();
-        
-        return size * sizeof(float);
     }
 };
 
-using bench = bnch_swt::benchmark_stage<"custom-kernel", 100, 10, bnch_swt::benchmark_types::cuda>;
-float* gpu_data;
-cudaMalloc(&gpu_data, 1024 * sizeof(float));
-bench::run_from_host<"custom-launch", custom_kernel_launcher>(gpu_data, 1024, 32);
+constexpr bnch_swt::stage_config config{ .benchmark_type = bnch_swt::benchmark_types::cuda };
+using bench = bnch_swt::benchmark_stage<"custom-kernel", config>;
+
+bench::run_benchmark_from_host<"launch-test", "custom", custom_launcher>(
+    data_size * sizeof(float), gpu_data, data_size, 4096);
 ```
 
 ### Cooperative Kernels
-Use `run_benchmark_cooperative()` for kernels that require grid-wide synchronization:
+Use `run_benchmark_cooperative()` for kernels requiring grid-wide sync:
 
 ```cpp
 constexpr auto cooperative_reduce = [](float* data, float* result, uint64_t size) -> uint64_t {
     cooperative_groups::grid_group grid = cooperative_groups::this_grid();
-    
-    __shared__ float shared_data[256];
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    shared_data[threadIdx.x] = (idx < size) ? data[idx] : 0.0f;
-    __syncthreads();
-    
-    for (int stride = blockDim.x / 2; stride > 0; stride >>= 1) {
-        if (threadIdx.x < stride) {
-            shared_data[threadIdx.x] += shared_data[threadIdx.x + stride];
-        }
-        __syncthreads();
-    }
-    
-    if (threadIdx.x == 0) {
-        atomicAdd(result, shared_data[0]);
-    }
-    
+    // reduction logic here
     grid.sync();
-    
     return size * sizeof(float);
 };
 
-using bench = bnch_swt::benchmark_stage<"cooperative-test", 100, 10, bnch_swt::benchmark_types::cuda>;
-float* gpu_data;
-float* gpu_result;
-cudaMalloc(&gpu_data, 1024 * sizeof(float));
-cudaMalloc(&gpu_result, sizeof(float));
-bench::run_benchmark_cooperative<"grid-reduce", cooperative_reduce>(gpu_data, gpu_result, 1024);
-```
-
-### Function vs Struct Benchmarks
-You can use either approach depending on your needs:
-
-**Struct-based (recommended for complex benchmarks):**
-```cpp
-struct complex_benchmark {
-    BNCH_SWT_HOST static uint64_t impl(std::vector<int>& data, int multiplier) {
-        for (auto& val : data) {
-            val *= multiplier;
-        }
-        return data.size() * sizeof(int);
-    }
-};
-
-bench::run_benchmark<"complex", complex_benchmark>(data, 2);
-```
-
-**Function-based (convenient for simple benchmarks):**
-```cpp
-constexpr auto simple_benchmark = [](std::vector<int>& data, int multiplier) -> uint64_t {
-    for (auto& val : data) {
-        val *= multiplier;
-    }
-    return data.size() * sizeof(int);
-};
-
-bench::run_benchmark<"simple", simple_benchmark>(data, 2);
+bench::run_benchmark_cooperative<"reduce-test", "grid-reduce", cooperative_reduce>(
+    grid, block, shared_mem, stream, bytes_processed, gpu_data, gpu_result, size);
 ```
 
 ## Running Benchmarks
@@ -672,7 +724,7 @@ cmake --build build --config Release
 ./build/your_benchmark
 ```
 
-**For CUDA benchmarks, ensure CUDA is enabled:**
+**For CUDA benchmarks, specify target architecture:**
 
 ```bash
 cmake -B build -S . \
@@ -744,54 +796,67 @@ endif()
   "name": "my-benchmark",
   "version": "1.0.0",
   "dependencies": [
-    "benchmarksuite"
+    "rtc-benchmarksuite"
   ]
 }
 ```
 
 ## Output and Results
+
+### Standard Output
 ```
-CPU Performance Metrics for: int-to-string-comparisons-1
-Metrics for: benchmarksuite::internal::to_chars
-Total Iterations to Stabilize                               : 394
-Measured Iterations                                         : 20
-Bytes Processed                                             : 512.00
-Nanoseconds per Execution                                   : 5785.25
-Frequency (GHz)                                             : 4.83
-Throughput (MB/s)                                           : 84.58
-Throughput Percentage Deviation (+/-%)                      : 8.36
-Cycles per Execution                                        : 27921.20
-Cycles per Byte                                             : 54.53
-Instructions per Execution                                  : 52026.00
-Instructions per Cycle                                      : 1.86
-Instructions per Byte                                       : 101.61
-Branches per Execution                                      : 361.45
-Branch Misses per Execution                                 : 0.73
-Cache References per Execution                              : 97.03
-Cache Misses per Execution                                  : 74.68
+----------------------------------------
+CPU Performance Metrics for Stage: int-to-string-comparison
+Running on: AMD Ryzen 9 7950X 16-Core Processor
+OS: Linux 6.8.0
+Compiler: GNU 13.2.0
+----------------------------------------
+Test: conversion-test
+----------------------------------------
+1. jsonifier::to_chars (84.58 MB/s +/-1.23%) | ~11.36% faster than glz::to_chars
+----------------------------------------
+Metrics for: jsonifier::to_chars
+Total Iterations to Stabilize: 394
+Measured Iterations: 20
+Bytes Processed: 512.00
+Nanoseconds per Execution: 5785.25
+Frequency (GHz): 4.83
+Throughput (MB/s): 84.58
+Throughput Percentage Deviation (+/-%): 1.23
+Cycles per Execution: 27921.20
+Cycles per Byte: 54.53
+Instructions per Execution: 52026.00
+Instructions per Cycle: 1.86
+Instructions per Byte: 101.61
+----------------------------------------
+2. glz::to_chars (75.95 MB/s +/-2.17%)
 ----------------------------------------
 Metrics for: glz::to_chars
-Total Iterations to Stabilize                               : 421
-Measured Iterations                                         : 20
-Bytes Processed                                             : 512.00
-Nanoseconds per Execution                                   : 6480.30
-Frequency (GHz)                                             : 4.68
-Throughput (MB/s)                                           : 75.95
-Throughput Percentage Deviation (+/-%)                      : 17.58
-Cycles per Execution                                        : 30314.40
-Cycles per Byte                                             : 59.21
-Instructions per Execution                                  : 51513.00
-Instructions per Cycle                                      : 1.70
-Instructions per Byte                                       : 100.61
-Branches per Execution                                      : 438.25
-Branch Misses per Execution                                 : 0.73
-Cache References per Execution                              : 95.93
-Cache Misses per Execution                                  : 73.59
+Total Iterations to Stabilize: 421
+Measured Iterations: 20
+Bytes Processed: 512.00
+Nanoseconds per Execution: 6480.30
+Throughput (MB/s): 75.95
+Throughput Percentage Deviation (+/-%): 2.17
+Cycles per Execution: 30314.40
+Cycles per Byte: 59.21
+Instructions per Execution: 51513.00
+Instructions per Cycle: 1.70
 ----------------------------------------
-Library benchmarksuite::internal::to_chars is faster than library glz::to_chars by 11.36%.
+
+=== STATISTICAL SUMMARY FOR int-to-string-comparison ===
+(95% confidence intervals, statistical ties don't count as wins)
+
+jsonifier::to_chars: 1 wins
+glz::to_chars: 0 wins (1 second place)
 ```
 
-This structured output helps you quickly identify which implementation is faster or more efficient.
+### Markdown Report Generation
+```cpp
+auto report = benchmark::generate_markdown("Performance Analysis", "./results/");
+```
+
+Generates formatted Markdown files with complete statistical analysis, perfect for CI/CD documentation.
 
 ## Features
 
@@ -799,109 +864,136 @@ This structured output helps you quickly identify which implementation is faster
 - **CPU Benchmarking**: Traditional CPU performance measurement with hardware counters
 - **GPU/CUDA Benchmarking**: Native CUDA kernel benchmarking with grid/block configuration
 - **Mixed Workloads**: Compare CPU vs GPU implementations side-by-side
-- **Automatic Device Selection**: Choose benchmark type via `bnch_swt::benchmark_types::cpu` or `bnch_swt::benchmark_types::cuda`
+- **Automatic Device Selection**: Choose benchmark type via `stage_config`
+
+### Adaptive Benchmarking (v1.0.2+)
+- **Automatic iteration scaling**: Dynamically increases iterations until statistical stability
+- **Sliding window analysis**: Finds optimal consecutive block of iterations
+- **Percentage deviation targeting**: Configurable stability threshold (default: 1%)
+- **Time-based termination**: Maximum runtime protection (default: 5.5 seconds)
+
+### Statistical Analysis (v1.0.2+)
+- **Confidence intervals**: 95% confidence intervals for throughput comparisons
+- **Statistical tie detection**: Automatically identifies indistinguishable implementations
+- **Automated ranking**: Orders results with proper tie handling
+- **Win/loss/tie tracking**: Summary statistics across multiple tests
+- **Markdown export**: Professional reports for documentation
 
 ### Advanced Execution Modes
-- **Standard Benchmarking**: Default `run_benchmark()` for most use cases
-- **Host-Launched Kernels**: `run_from_host()` for custom kernel launch configurations
+- **Standard Benchmarking**: Default `run_benchmark()` with adaptive iteration scaling
+- **Host-Launched Kernels**: `run_benchmark_from_host()` for custom kernel launch configurations
 - **Cooperative Groups**: `run_benchmark_cooperative()` for grid-wide synchronization
 - **Function or Struct**: Support for both function-based and struct-based benchmarks
 
 ### Advanced Options
 - **Cache Clearing**: Optional cache eviction between iterations for cold-cache benchmarks
-- **Custom Metrics**: Define custom metric names for specialized benchmarks (e.g., compression ratios, custom throughput units)
-- **Configurable Iterations**: Separate control over warmup iterations and measured iterations
-- **Programmatic Access**: Retrieve raw performance metrics via `get_results()` for custom analysis
+- **Custom Metrics**: Define custom metric names for specialized benchmarks
+- **Configurable Iterations**: Control over warmup iterations and measured iterations via `stage_config`
+- **Programmatic Access**: Retrieve raw performance metrics via `get_test_results()`
 - **Selective Metric Display**: Customize which metrics are shown in output
 
 ### Hardware Introspection
-- **CPU Properties**: Comprehensive CPU detection and properties via `benchmarksuite_cpu_properties.hpp`
-- **GPU Properties**: CUDA device detection and properties via `benchmarksuite_gpu_properties.hpp`
+- **CPU Properties**: Comprehensive CPU detection and automatic reporting
+- **GPU Properties**: CUDA device detection and reporting
+- **Compiler Info**: Automatic compiler ID and version capture
+- **OS Detection**: Operating system name and version in results
 
 ### Performance Counters
-- **Cross-platform CPU counters**: Windows, Linux, macOS, Android, Apple ARM
-- **CUDA performance events**: GPU-specific performance monitoring via `counters/cuda_perf_events.hpp`
-
-### Utilities
-- **Cache management**: Cross-platform cache clearing utilities
-- **Aligned constants**: Compile-time aligned data structures
-- **Random generators**: High-quality random data generation for benchmarks
+- **Cross-platform CPU counters**: Windows, Linux, macOS, Apple ARM
+- **CUDA performance events**: GPU-specific performance monitoring
 
 ## API Conventions
 
 As of v1.0.0, all APIs follow snake_case naming convention:
 - Functions: `do_not_optimize_away()`, `generate_random_integers()`, `print_results()`
-- Types: `size_type`, `string_literal`
+- Types: `size_type`, `string_literal`, `stage_config`
 - Variables: `bytes_processed`, `test_values`
 
-## Migrating from Pre-1.0.0
+## Migrating from v1.0.0
 
-If you're upgrading from an earlier version:
+If you're upgrading from v1.0.0 to v1.0.2:
 
-1. **Update package name**: Keep using `benchmarksuite`
+### 1. Update stage_config usage
 
-2. **Update include paths**: All includes are lowercase (already standard)
+**Old:**
+```cpp
+bnch_swt::benchmark_stage<"test", 200, 25, bnch_swt::benchmark_types::cpu>
+```
 
-3. **Update API calls**: Convert camelCase/PascalCase to snake_case
-   - `doNotOptimizeAway()` → `do_not_optimize_away()`
-   - `printResults()` → `print_results()`
-   - `generateRandomIntegers()` → `generate_random_integers()`
+**New:**
+```cpp
+constexpr bnch_swt::stage_config config{
+    .max_execution_count = 200,
+    .measured_iteration_count = 25,
+    .benchmark_type = bnch_swt::benchmark_types::cpu
+};
+bnch_swt::benchmark_stage<"test", config>
+```
 
-4. **Change benchmark interface**: Lambdas are replaced with structs (or use function template parameter)
-   ```cpp
-   // Old (removed)
-   benchmark_stage<"test">::run_benchmark<"name">([&] {
-       return bytes_processed;
-   });
-   
-   // New - Option 1: Struct
-   struct my_benchmark {
-       BNCH_SWT_HOST static uint64_t impl(/* params */) {
-           return bytes_processed;
-       }
-   };
-   benchmark_stage<"test">::run_benchmark<"name", my_benchmark>(/* args */);
-   
-   // New - Option 2: Lambda as NTTP
-   constexpr auto my_lambda = [](/* params */) -> uint64_t {
-       return bytes_processed;
-   };
-   benchmark_stage<"test">::run_benchmark<"name", my_lambda>(/* args */);
-   ```
+### 2. Add test name parameter to run_benchmark
 
-5. **Update template parameters**: benchmark_stage now has more options
-   ```cpp
-   // Old
-   benchmark_stage<"test", iterations, measured>
-   
-   // New
-   benchmark_stage<"test", 200, 25, benchmark_types::cpu, false, "">
-   ```
+**Old:**
+```cpp
+benchmark_stage::run_benchmark<"subject_name", function_type>(args...)
+```
 
-6. **New feature - Device types**: Specify CPU or CUDA benchmarking:
-   ```cpp
-   benchmark_stage<"test", 200, 25, bnch_swt::benchmark_types::cpu>
-   benchmark_stage<"test", 100, 10, bnch_swt::benchmark_types::cuda>
-   ```
+**New:**
+```cpp
+benchmark_stage::run_benchmark<"test_name", "subject_name", function_type>(args...)
+```
 
-7. **New feature - Cache clearing**: Enable cache clearing between iterations:
-   ```cpp
-   benchmark_stage<"test", 200, 25, benchmark_types::cpu, true>
-   ```
+### 3. Update run_from_host to run_benchmark_from_host
 
-8. **New feature - Custom metrics**: Specify custom metric names:
-   ```cpp
-   benchmark_stage<"compression-test", 200, 25, benchmark_types::cpu, false, "compression-ratio">
-   ```
+**Old:**
+```cpp
+benchmark_stage::run_from_host<"subject_name", function_type>(bytes_processed, args...)
+```
 
-9. **New feature - Advanced execution modes**:
-   ```cpp
-   benchmark_stage::run_from_host<"name", function>(args...);
-   benchmark_stage::run_benchmark_cooperative<"name", function>(args...);
-   ```
+**New:**
+```cpp
+benchmark_stage::run_benchmark_from_host<"test_name", "subject_name", function_type>(
+    bytes_processed, args...)
+```
+
+### 4. Remove show_comparison parameter
+
+**Old:**
+```cpp
+benchmark_stage::print_results(true, true)
+```
+
+**New:**
+```cpp
+benchmark_stage::print_results(true)  // show_metrics only
+```
+
+### 5. Update result access
+
+**Old:**
+```cpp
+auto results = benchmark_stage::get_results();  // vector<performance_metrics>
+```
+
+**New:**
+```cpp
+auto all = benchmark_stage::get_all_results();           // vector<test_results>
+auto test = benchmark_stage::get_test_results("test_name");  // unordered_map<string_view, metrics>
+benchmark_stage::clear_all_results();  // New method
+```
+
+### 6. (Optional) Enable adaptive benchmarking features
+
+```cpp
+constexpr bnch_swt::stage_config adaptive_config{
+    .max_execution_count = 10000,
+    .measured_iteration_count = 50,
+    .desired_percentage_deviation = 0.5,  // New: target stability
+    .max_time_seconds = 10.0              // New: time limit
+};
+```
 
 ---
 
-**Happy benchmarking with benchmarksuite v1.0.0!** 🚀
+**Happy benchmarking with benchmarksuite v1.0.2!** 🚀
 
 For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/RealTimeChris/benchmarksuite).
