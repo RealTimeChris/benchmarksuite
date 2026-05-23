@@ -34,7 +34,7 @@ namespace bnch_swt {
 
 		template<const auto& function, uint64_t current_index = 0, typename variant_type, typename... arg_types>
 		constexpr void visit(variant_type&& variant, arg_types&&... args) noexcept {
-			if constexpr (current_index < std::variant_size_v<std::remove_cvref_t<variant_type>>) {
+			if constexpr (current_index < std::variant_size_v<base_t<variant_type>>) {
 				variant_type&& variant_new = std::forward<variant_type>(variant);
 				if (variant_new.index() == current_index) {
 					function(std::get<current_index>(std::forward<variant_type>(variant_new)), std::forward<arg_types>(args)...);
@@ -108,9 +108,9 @@ namespace bnch_swt {
 		}
 
 		template<tuple_t value_type, uint64_t index> void print_value(std::ostream& os, const value_type& value) {
-			if constexpr (index < std::tuple_size_v<std::remove_cvref_t<value_type>>) {
+			if constexpr (index < std::tuple_size_v<base_t<value_type>>) {
 				print_value(os, std::get<index>(value));
-				if constexpr (index < std::tuple_size_v<std::remove_cvref_t<value_type>> - 1) {
+				if constexpr (index < std::tuple_size_v<base_t<value_type>> - 1) {
 					os << ",";
 				}
 				print_value<value_type, index + 1>(os, value);

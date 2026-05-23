@@ -28,7 +28,7 @@
 namespace bnch_swt::internal {
 
 	template<typename value_type, typename... arg_types>
-	concept invocable = std::is_invocable_v<std::remove_cvref_t<value_type>, arg_types...>;
+	concept invocable = std::is_invocable_v<base_t<value_type>, arg_types...>;
 
 	template<typename value_type, typename... arg_types>
 	concept not_invocable = !invocable<value_type, arg_types...>;

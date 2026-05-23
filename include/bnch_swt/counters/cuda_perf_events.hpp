@@ -181,7 +181,7 @@ namespace bnch_swt {
 					return;
 				}
 				if constexpr (sizeof...(args_new) > 0) {
-					void* args[] = { ( void* )std::addressof(args_new)... };
+					void* args[] = { static_cast<void*>(std::addressof(args_new))... };
 					events[current_index].start();
 					cudaLaunchCooperativeKernel(function, grid, block, args, shared_mem, stream);
 					check_cuda_status();

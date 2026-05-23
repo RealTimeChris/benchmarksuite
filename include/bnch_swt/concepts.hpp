@@ -36,96 +36,93 @@ namespace bnch_swt {
 	namespace internal {
 
 		template<typename value_type>
-		concept has_range = requires(std::remove_cvref_t<value_type> value) {
+		concept has_range = requires(base_t<value_type> value) {
 			{ value.begin() };
 			{ value.end() };
 		};
 
 		template<typename value_type>
-		concept map_subscriptable = requires(std::remove_cvref_t<value_type> value) {
-			{ value[typename std::remove_cvref_t<value_type>::key_type{}] } -> std::same_as<const typename std::remove_cvref_t<value_type>::mapped_type&>;
-		} || requires(std::remove_cvref_t<value_type> value) {
-			{ value[typename std::remove_cvref_t<value_type>::key_type{}] } -> std::same_as<typename std::remove_cvref_t<value_type>::mapped_type&>;
+		concept map_subscriptable = requires(base_t<value_type> value) {
+			{ value[std::declval<typename base_t<value_type>::key_type>()] } -> std::same_as<const typename base_t<value_type>::mapped_type&>;
+		} || requires(base_t<value_type> value) {
+			{ value[std::declval<typename base_t<value_type>::key_type>()] } -> std::same_as<typename base_t<value_type>::mapped_type&>;
 		};
 
 		template<typename value_type>
-		concept vector_subscriptable = requires(std::remove_cvref_t<value_type> value) {
-			{ value[typename std::remove_cvref_t<value_type>::size_type{}] } -> std::same_as<typename std::remove_cvref_t<value_type>::const_reference>;
-		} || requires(std::remove_cvref_t<value_type> value) {
-			{ value[typename std::remove_cvref_t<value_type>::size_type{}] } -> std::same_as<typename std::remove_cvref_t<value_type>::reference>;
+		concept vector_subscriptable = requires(base_t<value_type> value) {
+			{ value[std::declval<typename base_t<value_type>::size_type>()] } -> std::same_as<typename base_t<value_type>::const_reference>;
+		} || requires(base_t<value_type> value) {
+			{ value[std::declval<typename base_t<value_type>::size_type>()] } -> std::same_as<typename base_t<value_type>::reference>;
 		};
 
 		template<typename value_type>
-		concept has_size = requires(std::remove_cvref_t<value_type> value) {
-			{ value.size() } -> std::same_as<typename std::remove_cvref_t<value_type>::size_type>;
+		concept has_size = requires(base_t<value_type> value) {
+			{ value.size() } -> std::same_as<typename base_t<value_type>::size_type>;
 		};
 
 		template<typename value_type>
-		concept has_empty = requires(std::remove_cvref_t<value_type> value) {
+		concept has_empty = requires(base_t<value_type> value) {
 			{ value.empty() } -> std::same_as<bool>;
 		};
 
 		template<typename value_type>
-		concept variant_t = requires(std::remove_cvref_t<value_type> var) {
+		concept variant_t = requires(base_t<value_type> var) {
 			{ var.index() } -> std::same_as<uint64_t>;
 			{ var.valueless_by_exception() } -> std::same_as<bool>;
 			{ std::holds_alternative<decltype(std::get<0>(var))>(var) } -> std::same_as<bool>;
 			{ std::get<0>(var) } -> std::same_as<decltype(std::get<0>(var))&>;
-			{ std::get_if<0>(&var) } -> std::same_as<std::remove_cvref_t<decltype(std::get<0>(var))>*>;
+			{ std::get_if<0>(&var) } -> std::same_as<base_t<decltype(std::get<0>(var))>*>;
 		};
 
 		template<typename value_type>
-		concept has_resize = requires(std::remove_cvref_t<value_type> value) { value.resize(typename std::remove_cvref_t<value_type>::size_type{}); };
+		concept has_resize = requires(base_t<value_type> value) { value.resize(std::declval<typename base_t<value_type>::size_type>()); };
 
 		template<typename value_type>
-		concept has_reserve = requires(std::remove_cvref_t<value_type> value) { value.reserve(typename std::remove_cvref_t<value_type>::size_type{}); };
+		concept has_reserve = requires(base_t<value_type> value) { value.reserve(std::declval<typename base_t<value_type>::size_type>()); };
 
 		template<typename value_type>
-		concept has_data = requires(std::remove_cvref_t<value_type> value) {
-			{ value.data() } -> std::same_as<typename std::remove_cvref_t<value_type>::const_pointer>;
-		} || requires(std::remove_cvref_t<value_type> value) {
-			{ value.data() } -> std::same_as<typename std::remove_cvref_t<value_type>::pointer>;
+		concept has_data = requires(base_t<value_type> value) {
+			{ value.data() } -> std::same_as<typename base_t<value_type>::const_pointer>;
+		} || requires(base_t<value_type> value) {
+			{ value.data() } -> std::same_as<typename base_t<value_type>::pointer>;
 		};
 
 		template<typename value_type>
-		concept stateless = std::is_empty_v<std::remove_cvref_t<value_type>>;
+		concept stateless = std::is_empty_v<base_t<value_type>>;
 
 		template<typename value_type>
-		concept bool_t = std::same_as<std::remove_cvref_t<value_type>, bool> || std::same_as<std::remove_cvref_t<value_type>, std::vector<bool>::reference> ||
-			std::same_as<std::remove_cvref_t<value_type>, std::vector<bool>::const_reference>;
+		concept bool_t = std::same_as<base_t<value_type>, bool> || std::same_as<base_t<value_type>, std::vector<bool>::reference> ||
+			std::same_as<base_t<value_type>, std::vector<bool>::const_reference>;
 
 		template<typename value_type>
-		concept always_null_t = std::same_as<std::remove_cvref_t<value_type>, std::nullptr_t> || std::same_as<std::remove_cvref_t<value_type>, std::monostate> ||
-			std::same_as<std::remove_cvref_t<value_type>, std::nullopt_t>;
+		concept always_null_t = std::same_as<base_t<value_type>, std::nullptr_t> || std::same_as<base_t<value_type>, std::monostate> ||
+			std::same_as<base_t<value_type>, std::nullopt_t>;
 
 		template<typename value_type>
-		concept pointer_t = (std::is_pointer_v<std::remove_cvref_t<value_type>> ||
-								( std::is_null_pointer_v<std::remove_cvref_t<value_type>> && !std::is_array_v<std::remove_cvref_t<value_type>> )) &&
+		concept pointer_t = (std::is_pointer_v<base_t<value_type>> ||
+								( std::is_null_pointer_v<base_t<value_type>> && !std::is_array_v<base_t<value_type>> )) &&
 			!always_null_t<value_type>;
 
 		template<typename value_type>
-		concept floating_point_t = std::floating_point<std::remove_cvref_t<value_type>>;
+		concept floating_point_t = std::floating_point<base_t<value_type>>;
 
 		template<typename value_type>
-		concept char_t = std::same_as<std::remove_cvref_t<value_type>, char>;
-
-		template<typename value_type>
-		concept has_substr = requires(std::remove_cvref_t<value_type> value) {
+		concept has_substr = requires(base_t<value_type> value) {
 			{
-				value.substr(typename std::remove_cvref_t<value_type>::size_type{}, typename std::remove_cvref_t<value_type>::size_type{})
-			} -> std::same_as<std::remove_cvref_t<value_type>>;
+				value.substr(std::declval<typename base_t<value_type>::size_type>(), std::declval<typename base_t<value_type>::size_type>())
+			} -> std::same_as<base_t<value_type>>;
 		};
 
 		template<typename value_type>
 		concept function_pointer_types = std::is_pointer_v<value_type> && std::is_function_v<std::remove_pointer_t<value_type>>;
 
 		template<typename value_type>
-		concept has_find = requires(std::remove_cvref_t<value_type> value) {
-			{ value.find(typename std::remove_cvref_t<value_type>::value_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::size_type>;
-		} || requires(std::remove_cvref_t<value_type> value) {
-			{ value.find(typename std::remove_cvref_t<value_type>::key_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::iterator>;
-		} || requires(std::remove_cvref_t<value_type> value) {
-			{ value.find(typename std::remove_cvref_t<value_type>::key_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::const_iterator>;
+		concept has_find = requires(base_t<value_type> value) {
+			{ value.find(std::declval<typename base_t<value_type>::value_type>()) } -> std::same_as<typename base_t<value_type>::size_type>;
+		} || requires(base_t<value_type> value) {
+			{ value.find(std::declval<typename base_t<value_type>::key_type>()) } -> std::same_as<typename base_t<value_type>::iterator>;
+		} || requires(base_t<value_type> value) {
+			{ value.find(std::declval<typename base_t<value_type>::key_type>()) } -> std::same_as<typename base_t<value_type>::const_iterator>;
 		};
 
 		template<typename value_type>
@@ -139,50 +136,50 @@ namespace bnch_swt {
 		concept map_t = map_subscriptable<value_type> && has_range<value_type> && has_size<value_type> && has_find<value_type> && has_empty<value_type>;
 
 		template<typename value_type>
-		concept pair_t = requires(std::remove_cvref_t<value_type> value) {
-			typename std::remove_cvref_t<value_type>::first_type;
-			typename std::remove_cvref_t<value_type>::second_type;
+		concept pair_t = requires(base_t<value_type> value) {
+			typename base_t<value_type>::first_type;
+			typename base_t<value_type>::second_type;
 		};
 
 		template<typename value_type>
-		concept has_fill = requires(std::remove_cvref_t<value_type> value) {
-			{ value.fill(typename std::remove_cvref_t<value_type>::value_type{}) } -> std::same_as<void>;
+		concept has_fill = requires(base_t<value_type> value) {
+			{ value.fill(std::declval<typename base_t<value_type>::value_type>()) } -> std::same_as<void>;
 		};
 
 		template<typename value_type>
-		concept has_emplace_back = requires(std::remove_cvref_t<value_type> value) {
-			{ value.emplace_back(typename std::remove_cvref_t<value_type>::value_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::reference>;
+		concept has_emplace_back = requires(base_t<value_type> value) {
+			{ value.emplace_back(std::declval<typename base_t<value_type>::value_type>()) } -> std::same_as<typename base_t<value_type>::reference>;
 		};
 
 		template<typename value_type>
-		concept has_release = requires(std::remove_cvref_t<value_type> value) {
-			{ value.release() } -> std::same_as<typename std::remove_cvref_t<value_type>::pointer>;
+		concept has_release = requires(base_t<value_type> value) {
+			{ value.release() } -> std::same_as<typename base_t<value_type>::pointer>;
 		};
 
 		template<typename value_type>
-		concept has_reset = requires(std::remove_cvref_t<value_type> value) {
+		concept has_reset = requires(base_t<value_type> value) {
 			{ value.reset() } -> std::same_as<void>;
 		};
 
 		template<typename value_type>
-		concept has_get = requires(std::remove_cvref_t<value_type> value) {
-			{ value.get() } -> std::same_as<typename std::remove_cvref_t<value_type>::element_type*>;
+		concept has_get = requires(base_t<value_type> value) {
+			{ value.get() } -> std::same_as<typename base_t<value_type>::element_type*>;
 		};
 
 		template<typename value_type>
-		concept copyable = std::copyable<std::remove_cvref_t<value_type>>;
+		concept copyable = std::copyable<base_t<value_type>>;
 
 		template<typename value_type>
-		concept unique_ptr_t = requires(std::remove_cvref_t<value_type> value) {
-			typename std::remove_cvref_t<value_type>::element_type;
-			typename std::remove_cvref_t<value_type>::deleter_type;
+		concept unique_ptr_t = requires(base_t<value_type> value) {
+			typename base_t<value_type>::element_type;
+			typename base_t<value_type>::deleter_type;
 		} && has_release<value_type> && has_get<value_type>;
 
 		template<typename value_type>
 		concept shared_ptr_t = has_reset<value_type> && has_get<value_type> && copyable<value_type>;
 
 		template<typename value_type>
-		concept nullable_t = !string_t<value_type> && requires(std::remove_cvref_t<value_type> value) {
+		concept nullable_t = !string_t<value_type> && requires(base_t<value_type> value) {
 			bool(value);
 			{ *value };
 		};
@@ -190,41 +187,41 @@ namespace bnch_swt {
 		template<typename value_type>
 		concept null_t = nullable_t<value_type> || always_null_t<value_type>;
 
-		template<typename value_type> constexpr bool has_size_equal_to_zero{ std::tuple_size_v<std::remove_cvref_t<value_type>> == 0 };
+		template<typename value_type> constexpr bool has_size_equal_to_zero{ std::tuple_size_v<base_t<value_type>> == 0 };
 
 		template<typename value_type>
-		concept has_get_template = requires(std::remove_cvref_t<value_type> value) {
+		concept has_get_template = requires(base_t<value_type> value) {
 			{ std::get<0>(value) } -> std::same_as<decltype(std::get<0>(value))&>;
 		};
 
 		template<typename value_type>
-		concept tuple_t = requires(std::remove_cvref_t<value_type> t) { std::tuple_size<std::remove_cvref_t<value_type>>::value; } &&
+		concept tuple_t = requires(base_t<value_type> t) { std::tuple_size<base_t<value_type>>::value; } &&
 			(has_size_equal_to_zero<value_type> || has_get_template<value_type>) && !has_data<value_type>;
 
 		template<typename value_type>
-		concept optional_t = requires(std::remove_cvref_t<value_type> opt) {
+		concept optional_t = requires(base_t<value_type> opt) {
 			{ opt.has_value() } -> std::same_as<bool>;
-			{ opt.value() } -> std::same_as<typename std::remove_cvref_t<value_type>::value_type&>;
-			{ *opt } -> std::same_as<typename std::remove_cvref_t<value_type>::value_type&>;
+			{ opt.value() } -> std::same_as<typename base_t<value_type>::value_type&>;
+			{ *opt } -> std::same_as<typename base_t<value_type>::value_type&>;
 			{ opt.reset() } -> std::same_as<void>;
-			{ opt.emplace(typename std::remove_cvref_t<value_type>::value_type{}) } -> std::same_as<typename std::remove_cvref_t<value_type>::value_type&>;
+			{ opt.emplace(std::declval<typename base_t<value_type>::value_type>()) } -> std::same_as<typename base_t<value_type>::value_type&>;
 		};
 
 		template<typename value_type>
-		concept enum_t = std::is_enum_v<std::remove_cvref_t<value_type>>;
+		concept enum_t = std::is_enum_v<base_t<value_type>>;
 
 		template<typename value_type>
 		concept vector_t = vector_subscriptable<value_type> && !string_t<value_type> && !requires() { value_type::values; };
 
 		template<typename value_type>
-		concept raw_array_t = ( std::is_array_v<std::remove_cvref_t<value_type>> && !std::is_pointer_v<std::remove_cvref_t<value_type>> ) ||
+		concept raw_array_t = ( std::is_array_v<base_t<value_type>> && !std::is_pointer_v<base_t<value_type>> ) ||
 			(vector_subscriptable<value_type> && !vector_t<value_type> && !has_substr<value_type> && !tuple_t<value_type>);
 
 		template<typename value_type>
-		concept integer_t = std::integral<std::remove_cvref_t<value_type>> && !bool_t<value_type> && !std::floating_point<std::remove_cvref_t<value_type>>;
+		concept integer_t = std::integral<base_t<value_type>> && !bool_t<value_type> && !std::floating_point<base_t<value_type>>;
 
 		template<typename value_type>
-		concept printable = requires(std::remove_cvref_t<value_type> value) { std::cout << value << std::endl; };
+		concept printable = requires(base_t<value_type> value) { std::cout << value << std::endl; };
 
 		template<typename value_type>
 		concept not_printable = !printable<value_type>;

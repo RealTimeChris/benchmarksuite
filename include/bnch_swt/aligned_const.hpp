@@ -37,7 +37,7 @@ namespace bnch_swt {
 	}() };
 
 	template<typename value_type>
-	concept derivable_from = std::is_class_v<std::remove_cvref_t<value_type>> && !std::is_final_v<std::remove_cvref_t<value_type>>;
+	concept derivable_from = std::is_class_v<base_t<value_type>> && !std::is_final_v<base_t<value_type>>;
 
 	template<typename value_type_new, uint64_t device_alignment = 16> struct BNCH_SWT_ALIGN(device_alignment) aligned_const {
 		using value_type = value_type_new;

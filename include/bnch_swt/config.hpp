@@ -53,4 +53,6 @@ namespace bnch_swt {
 
 	}
 
+	template<typename value_type> using base_t = std::remove_cvref_t<value_type>;
+
 }

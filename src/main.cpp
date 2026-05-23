@@ -1,90 +1,57 @@
-/*
-	MIT License
-	Copyright (c) 2024 RealTimeChris
-	Permission is hereby granted, free of charge, to any person obtaining a copy of this
-	software and associated documentation files (the "Software"), to deal in the Software
-	without restriction, including without limitation the rights to use, copy, modify, merge,
-	publish, distribute, sublicense, and/or sell copies of the Software, and to permit
-	persons to whom the Software is furnished to do so, subject to the following conditions:
-	The above copyright notice and this permission notice shall be included in all copies or
-	substantial portions of the Software.
-	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
-	INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
-	PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
-	FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-	DEALINGS IN THE SOFTWARE.
-*/
+#include <cstddef>
+#include <cstdint>
+#include <array>
 #include <bnch_swt/index.hpp>
-#include <source_location>
-#include <atomic>
-#include <thread>
 
-static constexpr uint64_t total_iterations{ 10000000 };
-static constexpr uint64_t measured_iterations{ 10 };
-static constexpr uint64_t wait_notify_cycles{ 1000 };
+// Two implementations representing the streaming vs regular variant choice.
+// Marked noinline so we can see the dispatch site clearly rather than full
+// inlining hiding what's happening.
 
-struct test_atomic_uint64 {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic<int64_t> flag{ 0 };
-		std::thread waiter([&]() {
-			int64_t value{};
-			for (int64_t i = 0; i < wait_notify_cycles; ++i) {
-				int64_t expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		int64_t value{};
-		for (int64_t i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
+BNCH_SWT_HOST bool compare_regular(const char* lhs, const char* rhs, std::size_t length) noexcept {
+	for (std::size_t i = 0; i < length; ++i) {
+		if (lhs[i] != rhs[i])
+			return false;
 	}
-};
-
-struct test_atomic_signed_lock_free {
-	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic_signed_lock_free flag{ 0 };
-		std::thread waiter([&]() {
-			typename std::atomic_signed_lock_free::value_type value{};
-			for (typename std::atomic_signed_lock_free::value_type i = 0; i < wait_notify_cycles; ++i) {
-				typename std::atomic_signed_lock_free::value_type expected = i;
-				++value;
-				flag.wait(expected);
-				bnch_swt::do_not_optimize_away(value);
-			}
-		});
-		typename std::atomic_signed_lock_free::value_type value{};
-		for (typename std::atomic_signed_lock_free::value_type i = 1; i <= wait_notify_cycles; ++i) {
-			flag.store(i, std::memory_order_release);
-			flag.notify_one();
-			value = flag.load();
-			bnch_swt::do_not_optimize_away(value);
-		}
-		waiter.join();
-		return 20000;
-	}
-};
-
-template<typename function_type> void test_function() {
-	static constexpr function_type function{};
-	function();
+	return true;
 }
 
-int main() {
-	static constexpr bnch_swt::stage_config stage_config_data{ .max_execution_count = total_iterations, .measured_iteration_count = measured_iterations, .max_time_seconds = 1 };
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_uint64_t", test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
-		test_atomic_signed_lock_free>();
-	//bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::print_results();
-	auto markdown = bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::generate_markdown("void-numerics", "../../../../");
-	std::cout << markdown << std::endl;
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::clear_all_results();
+BNCH_SWT_HOST bool compare_streaming(const char* lhs, const char* rhs, std::size_t length) noexcept {
+	// Pretend this uses streaming variants — body intentionally different so
+	// the compiler can't recognize them as identical and dedupe.
+	bool result = true;
+	for (std::size_t i = 0; i < length; ++i) {
+		result &= (lhs[i] == rhs[i]);
+	}
+	return result;
+}
+
+using compare_fn = bool (*)(const char*, const char*, std::size_t) noexcept;
+
+// The dispatch table: constexpr, two entries, indexed by a bool.
+static constexpr std::array<compare_fn, 2> dispatch_table{ &compare_regular, &compare_streaming };
+
+// Threshold above which we want streaming variant.
+static constexpr std::size_t streaming_threshold = 2048;
+
+// The dispatch function — this is what we want to see compiled.
+BNCH_SWT_NOINLINE bool dispatch_compare(const char* lhs, const char* rhs, std::size_t length) noexcept {
+	return dispatch_table[length >= streaming_threshold](lhs, rhs, length);
+}
+
+// For comparison: the equivalent if-branch version.
+BNCH_SWT_NOINLINE bool dispatch_compare_branch(const char* lhs, const char* rhs, std::size_t length) noexcept {
+	if (length >= streaming_threshold) {
+		return compare_streaming(lhs, rhs, length);
+	} else {
+		return compare_regular(lhs, rhs, length);
+	}
+}
+
+// Force the compiler to actually emit these by referencing them.
+extern "C" int main() {
+	bnch_swt::random_generator<uint64_t> rg_01{};
+	bnch_swt::random_generator<std::string> rg{};
+	auto string_01 = rg.impl(rg_01.impl(4096, 8192));
+	dispatch_compare(string_01.data(), string_01.data(), 4096) + dispatch_compare_branch(string_01.data(), string_01.data(), 4096);
 	return 0;
 }
