@@ -23,15 +23,15 @@
 #pragma once
 
 #include <cstdint>
-#include <bnch_swt/config.hpp>
-#include <bnch_swt/aligned_const.hpp>
+#include <bnch_swt-incl/config.hpp>
+#include <bnch_swt-incl/aligned_const.hpp>
 
 namespace bnch_swt {
 
 	struct BNCH_SWT_ALIGN(512) uint512_aligner {
 		BNCH_SWT_ALIGN(512) uint64_t value{};
 
-		BNCH_SWT_HOST consteval operator const uint64_t&() const {
+		BNCH_SWT_HOST consteval operator const uint64_t&() const BNCH_SWT_LIFETIME_BOUND {
 			return value;
 		}
 	};

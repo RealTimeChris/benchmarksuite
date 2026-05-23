@@ -22,6 +22,7 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
+#include <optional>
 #include <cstdint>
 #include <chrono>
 
@@ -35,12 +36,32 @@
 
 namespace bnch_swt {
 
-	using clock_type			  = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>;
-	using nanoseconds			  = std::chrono::duration<double, std::nano>;
-	using milliseconds			  = std::chrono::duration<double, std::milli>;
-	using seconds				  = std::chrono::duration<double>;
-	using time_point_type_nano	  = std::chrono::time_point<clock_type, nanoseconds>;
-	using time_point_type_seconds = std::chrono::time_point<clock_type, seconds>;
+	using nanoseconds  = std::chrono::duration<double, std::nano>;
+	using milliseconds = std::chrono::duration<double, std::milli>;
+
+	struct steady_clock {
+		using clock_type			  = std::conditional_t<std::chrono::high_resolution_clock::is_steady, std::chrono::high_resolution_clock, std::chrono::steady_clock>;
+		using seconds				  = std::chrono::duration<double>;
+		using time_point_type_nano	  = std::chrono::time_point<clock_type, nanoseconds>;
+		using time_point_type_seconds = std::chrono::time_point<clock_type, seconds>;
+		using rep					  = double;
+		using period				  = std::nano;
+		using duration				  = std::chrono::duration<rep, period>;
+		using time_point			  = std::chrono::time_point<steady_clock>;
+
+		static constexpr bool is_steady = true;
+
+		static time_point now() noexcept {
+			auto system_now			  = std::chrono::steady_clock::now();
+			auto duration_since_epoch = system_now.time_since_epoch();
+
+			auto casted_duration = std::chrono::duration_cast<duration>(duration_since_epoch);
+
+			return time_point(casted_duration);
+		}
+	};
+
+	using clock_type = steady_clock;
 
 	enum class benchmark_types {
 		cpu,
@@ -52,5 +73,13 @@ namespace bnch_swt {
 		template<typename event_count, benchmark_types, uint64_t count> struct event_collector_type;
 
 	}
+
+	template<typename value_type> using base_t = std::remove_cvref_t<value_type>;
+
+	struct iteration_metrics {
+		std::optional<uint64_t> cycles;
+		uint64_t bytes_processed;
+		double time_in_ns;
+	};
 
 }

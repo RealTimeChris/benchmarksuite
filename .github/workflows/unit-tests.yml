@@ -1,4 +1,4 @@
-name: Benchmark
+name: Unit Tests
 on:
   push:
     branches: [ "**" ]
@@ -71,60 +71,27 @@ jobs:
 
       - name: Configure CMake (Unix)
         if: runner.os != 'Windows'
-        run: cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ env.CXX_BIN }} -DBNCH_SWT_BENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+        run: cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=${{ env.CXX_BIN }} -DBNCH_SWT_UNIT_TESTS=TRUE -DBNCH_SWT_ASAN=TRUE -DBNCH_SWT_UBSAN=TRUE
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
-        run: cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.cmake_cxx }} -DBNCH_SWT_BENCHMARKS=TRUE -DPRINT_ASSEMBLY=TRUE
+        run: cmake -S . -B ./Build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=${{ matrix.cmake_cxx }} -DBNCH_SWT_UNIT_TESTS=TRUE -DBNCH_SWT_ASAN=TRUE -DBNCH_SWT_UBSAN=TRUE
 
       - name: Build
-        run: cmake --build ./Build --config=Release -v
-
-      - name: Find and Print Assembly Files (Unix)
-        if: runner.os != 'Windows'
-        run: |
-          echo "=== Searching for assembly files ==="
-          find ./Build -name "*.asm" -type f
-          echo ""
-          echo "=== Assembly file details ==="
-          find ./Build -name "*.asm" -type f -exec sh -c 'echo "File: {}"; ls -lh "{}"; echo "Lines: $(wc -l < "{}")"; echo ""' \;
-          echo ""
-          echo "=== Printing COMPLETE assembly files ==="
-          find ./Build -name "*.asm" -type f -exec sh -c 'echo "========== {} =========="; cat "{}"; echo ""; echo "========== END OF {} =========="; echo ""' \;
-
-      - name: Find and Print Assembly Files (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          echo "=== Searching for assembly files ==="
-          $asmFiles = Get-ChildItem -Path ./Build -Recurse -Filter "*.cod" -File -ErrorAction SilentlyContinue
-          if ($null -eq $asmFiles -or $asmFiles.Count -eq 0) {
-            echo "NO .COD FILES FOUND!"
-          } else {
-            echo "Found $($asmFiles.Count) assembly file(s):"
-            $asmFiles | ForEach-Object { echo $_.FullName }
-            echo ""
-            echo "=== Printing COMPLETE assembly files ==="
-            $asmFiles | ForEach-Object {
-              echo "========== $($_.FullName) =========="
-              Get-Content $_.FullName
-              echo "========== END OF $($_.FullName) =========="
-              echo ""
-            }
-          }
+        run: cmake --build ./Build --config=Debug -v
 
       - name: Install
         run: |
-          ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install ./Build --config=Release
+          ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install ./Build --config=Debug
 
       - name: Run (Unix)
         if: runner.os != 'Windows'
         run: |
-          sudo chmod +x /usr/local/bin/benchmarksuite-main
-          /usr/local/bin/benchmarksuite-main
+          sudo chmod +x /usr/local/bin/benchmarksuite-unit-tests
+          /usr/local/bin/benchmarksuite-unit-tests
 
       - name: Run (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & "C:/Program Files (x86)/benchmarksuite/bin/benchmarksuite-main.exe"
+          & "C:/Program Files (x86)/benchmarksuite/bin/benchmarksuite-unit-tests.exe"

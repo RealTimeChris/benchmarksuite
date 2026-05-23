@@ -23,103 +23,90 @@
 
 #pragma once
 
-#include <bnch_swt/config.hpp>
+#include <bnch_swt-incl/config.hpp>
 #include <string_view>
 #include <algorithm>
 #include <array>
 
 namespace bnch_swt {
 
-	template<uint64_t size_val> struct BNCH_SWT_ALIGN(64) string_literal {
-		using value_type	  = char;
-		using const_reference = const value_type&;
-		using reference		  = value_type&;
-		using const_pointer	  = const value_type*;
-		using pointer		  = value_type*;
-		using size_type		  = uint64_t;
+	template<uint64_t size_val> struct string_literal {
+		using value_type			 = char;
+		using const_reference		 = const value_type&;
+		using reference				 = value_type&;
+		using const_pointer			 = const value_type*;
+		using pointer				 = value_type*;
+		using size_type				 = uint64_t;
 
 		static constexpr size_type length{ size_val > 0 ? size_val - 1 : 0 };
 
-		constexpr string_literal() noexcept {
+		BNCH_SWT_HOST constexpr string_literal() noexcept {
 		}
 
-		constexpr string_literal(const char (&str)[size_val]) noexcept {
-			std::copy_n(str, size_val, values);
-			values[length] = '\0';
+		BNCH_SWT_HOST constexpr string_literal(const char *str) noexcept {
+			std::copy_n(str, length, data_val);
 		}
 
-		constexpr const_pointer data() const noexcept {
-			return values;
+		template<uint64_t starting_index, uint64_t end_index> constexpr auto substr() const noexcept {
+			string_literal<(end_index - starting_index) + 1> return_data{};
+			std::copy_n(data_val + starting_index, (end_index - starting_index), return_data.data_val);
+			return return_data;
 		}
 
-		constexpr pointer data() noexcept {
-			return values;
-		}
-
-		template<size_type size_new> constexpr auto operator+=(const string_literal<size_new>& str) const noexcept {
+		template<size_type size_new> BNCH_SWT_HOST consteval string_literal<size_new + size_val - 1> operator+(const string_literal<size_new>& str) const noexcept {
 			string_literal<size_new + size_val - 1> new_literal{};
-			std::copy_n(values, size(), new_literal.data());
-			std::copy_n(str.data(), size_new, new_literal.data() + size());
+			std::copy_n(data_val, size(), new_literal.data_val);
+			std::copy_n(str.data_val, str.size(), new_literal.data_val + size());
 			return new_literal;
 		}
 
-		template<size_type size_new> constexpr auto operator+=(const value_type (&str)[size_new]) const noexcept {
-			string_literal<size_new + size_val - 1> new_literal{};
-			std::copy_n(values, size(), new_literal.data());
-			std::copy_n(str, size_new, new_literal.data() + size());
-			return new_literal;
+		template<size_type size_new> BNCH_SWT_HOST consteval auto operator+(const value_type (&str)[size_new]) const noexcept {
+			string_literal<size_new> new_literal{ str };
+			return *this + new_literal;
 		}
 
-		template<size_type size_new> constexpr auto operator+(const string_literal<size_new>& str) const noexcept {
-			string_literal<size_new + size_val - 1> new_literal{};
-			std::copy_n(values, size(), new_literal.data());
-			std::copy_n(str.data(), size_new, new_literal.data() + size());
-			return new_literal;
+		template<size_type size_new> BNCH_SWT_HOST consteval friend auto operator+(const value_type (&lhs)[size_new], const string_literal<size_val>& str) noexcept {
+			string_literal<size_new> new_literal{ lhs };
+			return new_literal + str;
 		}
 
-		template<size_type size_new> constexpr auto operator+(const value_type (&str)[size_new]) const noexcept {
-			string_literal<size_new + size_val - 1> new_literal{};
-			std::copy_n(values, size(), new_literal.data());
-			std::copy_n(str, size_new, new_literal.data() + size());
-			return new_literal;
+		BNCH_SWT_HOST constexpr reference operator[](size_type index) noexcept {
+			return data_val[index];
 		}
 
-		template<size_type size_new> constexpr friend auto operator+(const value_type (&lhs)[size_new], const string_literal<size_val>& str) noexcept {
-			return string_literal<size_new>{ lhs } + str;
+		BNCH_SWT_HOST constexpr const_reference operator[](size_type index) const noexcept {
+			return data_val[index];
 		}
 
-		constexpr reference operator[](size_type index) noexcept {
-			return values[index];
+		BNCH_SWT_HOST static constexpr size_type size() noexcept {
+			return static_cast<size_type>(length);
 		}
 
-		constexpr const_reference operator[](size_type index) const noexcept {
-			return values[index];
+		template<typename string_types> BNCH_SWT_HOST explicit constexpr operator string_types() const noexcept {
+			string_types return_datas{ data_val, size() };
+			return return_datas;
 		}
 
-		constexpr size_type size() const noexcept {
-			return length;
-		}
-
-		template<typename string_type> explicit constexpr operator string_type() const {
-			BNCH_SWT_ALIGN(64) string_type return_values{ values, length };
-			return return_values;
-		}
-
-		BNCH_SWT_ALIGN(64) char values[size_val > 0 ? size_val : 1] {};
+		BNCH_SWT_ALIGN(cpu_properties::cpu_alignment) value_type data_val[size_val] {};
 	};
 
 	template<uint64_t size> string_literal(const char (&str)[size]) -> string_literal<size>;
 
-	template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream&, const string_literal<size>& input) noexcept {
-		std::cout << input.operator std::string_view();
-		return std::cout;
+	template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream&os, const string_literal<size>& input) noexcept {
+		os.write(input.data_val, input.size());
+		return os;
 	}
 
 	namespace internal {
 
+		BNCH_SWT_HOST_DEVICE constexpr uint64_t str_len(const char* input) noexcept {
+			std::string_view string{ input };
+			return string.size();
+		}
+
 		template<uint64_t N, typename string_type> constexpr auto string_literal_from_view(string_type str) noexcept {
 			string_literal<N + 1> sl{};
-			std::copy_n(str.data(), str.size(), sl.values);
+			std::copy_n(str.data_val, str.size(), sl.data_val);
 			sl[N] = '\0';
 			return sl;
 		}

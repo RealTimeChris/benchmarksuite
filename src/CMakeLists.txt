@@ -18,7 +18,7 @@
 #	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #	DEALINGS IN THE SOFTWARE.
 
-set(MAIN_SOURCE $<IF:$<BOOL:${BNCH_SWT_DEPLOY}>,main_deploy,main>${BNCH_SWT_MAIN_FILE_EXTENSION})
+set(MAIN_SOURCE main${BNCH_SWT_MAIN_FILE_EXTENSION})
 
 add_executable(benchmarksuite-main ${MAIN_SOURCE})
 
@@ -69,6 +69,47 @@ endif()
 target_link_libraries(benchmarksuite-main
     PUBLIC
         benchmarksuite::benchmarksuite
+)
+
+set(BNCH_SWT_MSVC_COMPILER_OPTIONS
+    /wd4820
+    /wd5039
+    /wd4710
+    /wd4711
+    /Wall
+    /W4
+    /WX
+)
+
+set(BNCH_SWT_CLANG_COMPILER_OPTIONS
+    -Weverything
+    -Wpedantic
+    -Werror
+    -Wno-unsafe-buffer-usage
+    -Wno-c++20-extensions
+    -Wextra
+    -Wall
+    -Wno-c++98-compat-pedantic
+    -Wno-c++98-compat
+    -Wno-padded
+)
+
+set(BNCH_SWT_GNU_COMPILER_OPTIONS
+    -Wpedantic
+    -Werror
+    -Wextra
+    -Wall
+)
+
+set(BNCH_SWT_COMPILER_OPTIONS
+    $<$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>:${BNCH_SWT_CLANG_COMPILER_OPTIONS}>
+    $<$<CXX_COMPILER_ID:GNU>:${BNCH_SWT_GNU_COMPILER_OPTIONS}>
+    $<$<CXX_COMPILER_ID:MSVC>:${BNCH_SWT_MSVC_COMPILER_OPTIONS}>
+)
+
+target_compile_options(
+    benchmarksuite-main PUBLIC
+    ${BNCH_SWT_COMPILER_OPTIONS}
 )
 
 install(

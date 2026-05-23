@@ -204,6 +204,6 @@ message(STATUS "CPU Configuration: ${BNCH_SWT_THREAD_COUNT} threads, L1: ${BNCH_
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/benchmarksuite_cpu_properties.hpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bnch_swt/benchmarksuite_cpu_properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/bnch_swt-incl/benchmarksuite_cpu_properties.hpp
     @ONLY
 )

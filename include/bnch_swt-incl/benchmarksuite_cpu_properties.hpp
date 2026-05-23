@@ -20,58 +20,36 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
-
 #pragma once
 
-#include <bnch_swt/config.hpp>
-#include <filesystem>
-#include <sstream>
-#include <fstream>
+#include <bnch_swt-incl/config.hpp>
 
 namespace bnch_swt {
 
-	class file_handle {
+	struct BNCH_SWT_ALIGN(64) uint64_holder {
+		BNCH_SWT_ALIGN(64) uint64_t value {};
+
+		BNCH_SWT_HOST constexpr operator const uint64_t&() const BNCH_SWT_LIFETIME_BOUND {
+			return value;
+		}
+	};
+
+	struct cpu_properties {
+	  protected:
+		static constexpr uint64_holder thread_count_raw{ 32ULL };
+		static constexpr uint64_holder l1_cache_size_raw{ 49152ULL };
+		static constexpr uint64_holder l2_cache_size_raw{ 2097152ULL };
+		static constexpr uint64_holder l3_cache_size_raw{ 37748736ULL };
+		static constexpr uint64_holder cpu_arch_index_raw{ 1ULL };
+		static constexpr uint64_holder cpu_alignment_raw{ 32ULL };
+
 	  public:
-		explicit file_handle(const std::string& path) : path(std::filesystem::absolute(path)) {
-			stream.open(this->path, std::ios::in);
-			if (stream.is_open()) {
-				contents = std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
-				stream.close();
-			}
-		}
-
-		~file_handle() {
-			if (!dirty)
-				return;
-			stream.open(path, std::ios::out | std::ios::trunc);
-			if (stream.is_open()) {
-				stream << contents;
-				stream.flush();
-				bool ok = stream.good();
-				stream.close();
-				std::cout << (ok ? "Saved: " : "Write error: ") << path.string() << std::endl;
-			} else {
-				std::cout << "Failed to open for writing: " << path.string() << std::endl;
-			}
-		}
-
-		file_handle(const file_handle&)			   = delete;
-		file_handle& operator=(const file_handle&) = delete;
-
-		std::string& get() {
-			dirty = true;
-			return contents;
-		}
-
-		const std::string& get() const {
-			return contents;
-		}
-
-	  private:
-		std::filesystem::path path{};
-		std::string contents{};
-		std::fstream stream{};
-		bool dirty{ false };
+		static constexpr const uint64_t& thread_count{ thread_count_raw };
+		static constexpr const uint64_t& l1_cache_size{ l1_cache_size_raw };
+		static constexpr const uint64_t& l2_cache_size{ l2_cache_size_raw };
+		static constexpr const uint64_t& l3_cache_size{ l3_cache_size_raw };
+		static constexpr const uint64_t& cpu_arch_index{ cpu_arch_index_raw };
+		static constexpr const uint64_t& cpu_alignment{ cpu_alignment_raw };
 	};
 
 }

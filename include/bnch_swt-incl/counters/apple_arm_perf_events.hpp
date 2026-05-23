@@ -34,23 +34,31 @@
 
 #pragma once
 
-#include <bnch_swt/config.hpp>
+#include <bnch_swt-incl/config.hpp>
 
 #if BNCH_SWT_PLATFORM_MAC
+
+	#ifndef xnu_static_assert_struct_size
+		#define xnu_static_assert_struct_size(...)
+	#endif
+	#ifndef xnu_static_assert_struct_size_kernel_user
+		#define xnu_static_assert_struct_size_kernel_user(...)
+	#endif
 
 	#include <mach/mach_time.h>
 	#include <sys/sysctl.h>
 	#include <sys/kdebug.h>
+	#include <string_view>
 	#include <iostream>
 	#include <unistd.h>
 	#include <dlfcn.h>
 	#include <cstring>
-	#include <array>
-	#include <span>
 	#include <vector>
-	#include <mutex>
+	#include <memory>
 	#include <string>
-	#include <string_view>
+	#include <array>
+	#include <mutex>
+	#include <span>
 	#include <bit>
 
 namespace bnch_swt::internal {
@@ -68,7 +76,7 @@ namespace bnch_swt::internal {
 		}
 	};
 
-	BNCH_SWT_HOST performance_counters operator-(const performance_counters& a, const performance_counters& b) {
+	static inline performance_counters operator-(const performance_counters& a, const performance_counters& b) {
 		return performance_counters(a.cycles - b.cycles, a.branches - b.branches, a.branch_misses - b.branch_misses, a.instructions - b.instructions);
 	}
 
@@ -193,7 +201,11 @@ namespace bnch_swt::internal {
 		inline static void* lib_handle_kperf{ nullptr };
 		inline static void* lib_handle_kperfdata{ nullptr };
 		inline static bool has_events_val{};
-		inline static std::mutex mutex{};
+
+		inline static std::mutex& get_mutex() {
+			static std::mutex* holder{ new std::mutex{} };
+			return *holder;
+		}
 
 		inline static std::array<uint64_t, kpc_max_counters> regs{ 0 };
 		inline static std::array<size_t, kpc_max_counters> counter_map{ 0 };
@@ -317,8 +329,8 @@ namespace bnch_swt::internal {
 		}
 
 		BNCH_SWT_HOST static bool setup_performance_counters() {
-			std::lock_guard lock{ mutex };
-			static bool init   = false;
+			std::lock_guard lock{ get_mutex() };
+			static bool init = false;
 			if (init) {
 				return has_events_val;
 			}
@@ -450,6 +462,31 @@ namespace bnch_swt::internal {
 			}
 			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
 			++current_index;
+		}
+	};
+
+	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector {
+		performance_counters diff{};
+		BNCH_SWT_HOST iteration_metric_collector() : diff{} {
+			performance_monitor::setup_performance_counters();
+		}
+
+		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE void impl(metric_type& iteration_data, arg_types&&... args) {
+			if (performance_monitor::has_events()) {
+				diff = performance_monitor::get_counters();
+			}
+			const auto start_clock		   = clock_type::now();
+			iteration_data.bytes_processed = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
+			const auto end_clock		   = clock_type::now();
+			iteration_data.time_in_ns	   = (end_clock - start_clock).count();
+			//if (performance_monitor::has_events()) {
+			//performance_counters end = performance_monitor::get_counters();
+			//				diff					 = end - diff;
+			//				iteration_data.cycles.emplace(diff.cycles);
+			//				iteration_data.instructions.emplace(diff.instructions);
+			//				iteration_data.branches.emplace(diff.branches);
+			//				iteration_data.branch_misses.emplace(diff.branch_misses);
+			//}
 		}
 	};
 }

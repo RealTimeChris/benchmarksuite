@@ -23,7 +23,7 @@
 
 #pragma once
 
-#include <bnch_swt/config.hpp>
+#include <bnch_swt-incl/config.hpp>
 
 #if BNCH_SWT_PLATFORM_WINDOWS
 
@@ -31,6 +31,18 @@
 	#include <vector>
 
 namespace bnch_swt::internal {
+
+	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector {
+		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE void impl(metric_type& iteration_data, arg_types&&... args) {
+			const auto start_clock				= clock_type::now();
+			const volatile uint64_t cycle_start = __rdtsc();
+			iteration_data.bytes_processed		= static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
+			const volatile uint64_t cycle_end	= __rdtsc();
+			const auto end_clock				= clock_type::now();
+			iteration_data.time_in_ns			= (end_clock - start_clock).count();
+			iteration_data.cycles.emplace(cycle_end - cycle_start);
+		}
+	};
 
 	template<typename event_count, uint64_t count> struct event_collector_type<event_count, benchmark_types::cpu, count> : public std::vector<event_count> {
 		uint64_t current_index{};
@@ -47,7 +59,7 @@ namespace bnch_swt::internal {
 			volatile uint64_t cycleStart = __rdtsc();
 			result						 = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
 			volatile uint64_t cycleEnd	 = __rdtsc();
-			const auto end_clock			 = clock_type::now();
+			const auto end_clock		 = clock_type::now();
 			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycleEnd - cycleStart);
 			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
 			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(result);

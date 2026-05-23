@@ -22,14 +22,14 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
-#include <bnch_swt/config.hpp>
+#include <bnch_swt-incl/config.hpp>
 
 namespace bnch_swt {
 
 	struct BNCH_SWT_ALIGN(64) uint64_holder {
 		BNCH_SWT_ALIGN(64) uint64_t value {};
 
-		BNCH_SWT_HOST constexpr operator const uint64_t&() const {
+		BNCH_SWT_HOST constexpr operator const uint64_t&() const BNCH_SWT_LIFETIME_BOUND {
 			return value;
 		}
 	};

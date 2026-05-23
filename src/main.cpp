@@ -15,29 +15,30 @@
 	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 	DEALINGS IN THE SOFTWARE.
 */
-#include <bnch_swt/index.hpp>
+#include <bnch_swt>
 #include <source_location>
 #include <atomic>
 #include <thread>
 
-static constexpr uint64_t total_iterations{ 10000000 };
-static constexpr uint64_t measured_iterations{ 10 };
+using namespace bnch_swt;
+
 static constexpr uint64_t wait_notify_cycles{ 1000 };
 
 struct test_atomic_uint64 {
 	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic<int64_t> flag{ 0 };
+		std::atomic<uint64_t> flag{ 0 };
 		std::thread waiter([&]() {
-			int64_t value{};
-			for (int64_t i = 0; i < wait_notify_cycles; ++i) {
-				int64_t expected = i;
+			uint64_t value{};
+			for (uint64_t i = 0; i < wait_notify_cycles; ++i) {
+				uint64_t expected = i;
 				++value;
 				flag.wait(expected);
 				bnch_swt::do_not_optimize_away(value);
 			}
+			//std::this_thread::sleep_for(std::chrono::microseconds{ rand() % 1000 });
 		});
-		int64_t value{};
-		for (int64_t i = 1; i <= wait_notify_cycles; ++i) {
+		uint64_t value{};
+		for (uint64_t i = 1; i <= wait_notify_cycles; ++i) {
 			flag.store(i, std::memory_order_release);
 			flag.notify_one();
 			value = flag.load();
@@ -50,18 +51,18 @@ struct test_atomic_uint64 {
 
 struct test_atomic_signed_lock_free {
 	BNCH_SWT_HOST static uint64_t impl() {
-		std::atomic_signed_lock_free flag{ 0 };
+		std::atomic_unsigned_lock_free flag{ 0 };
 		std::thread waiter([&]() {
-			typename std::atomic_signed_lock_free::value_type value{};
-			for (typename std::atomic_signed_lock_free::value_type i = 0; i < wait_notify_cycles; ++i) {
-				typename std::atomic_signed_lock_free::value_type expected = i;
+			typename std::atomic_unsigned_lock_free::value_type value{};
+			for (typename std::atomic_unsigned_lock_free::value_type i = 0; i < wait_notify_cycles; ++i) {
+				typename std::atomic_unsigned_lock_free::value_type expected = i;
 				++value;
 				flag.wait(expected);
 				bnch_swt::do_not_optimize_away(value);
 			}
 		});
-		typename std::atomic_signed_lock_free::value_type value{};
-		for (typename std::atomic_signed_lock_free::value_type i = 1; i <= wait_notify_cycles; ++i) {
+		typename std::atomic_unsigned_lock_free::value_type value{};
+		for (typename std::atomic_unsigned_lock_free::value_type i = 1; i <= wait_notify_cycles; ++i) {
 			flag.store(i, std::memory_order_release);
 			flag.notify_one();
 			value = flag.load();
@@ -78,13 +79,13 @@ template<typename function_type> void test_function() {
 }
 
 int main() {
-	static constexpr bnch_swt::stage_config stage_config_data{ .max_execution_count = total_iterations, .measured_iteration_count = measured_iterations, .max_time_seconds = 1 };
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_uint64_t", test_atomic_uint64>();
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::template run_benchmark<"wait_notify_benchmark", "atomic_signed_lock_free",
-		test_atomic_signed_lock_free>();
-	//bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::print_results();
-	auto markdown = bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::generate_markdown("void-numerics", "../../../../");
-	std::cout << markdown << std::endl;
-	bnch_swt::benchmark_stage<"wait_notify_benchmark", stage_config_data>::clear_all_results();
+	using stage_type = benchmark_stage<"test_stage_01", stage_config_data{}>;
+	bnch_swt::pin_for_benchmark();
+	stage_type ::run_benchmark<"test-test", "test_atomic_signed_lock_free", test_atomic_signed_lock_free>();
+	stage_type ::run_benchmark<"test-test", "test_atomic_uint64", test_atomic_uint64::impl>();
+	auto test_rankings = stage_type::get_test_results("test-test");
+	std::cout << test_rankings.to_csv() << std::endl;
+	auto all_rankings = stage_type::get_all_results();
+	std::cout << all_rankings.to_csv() << std::endl;
 	return 0;
 }

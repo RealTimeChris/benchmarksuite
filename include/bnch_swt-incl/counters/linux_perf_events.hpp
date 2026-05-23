@@ -24,7 +24,7 @@
 // Sampled mostly from https://github.com/fastfloat/fast_float
 #pragma once
 
-#include <bnch_swt/config.hpp>
+#include <bnch_swt-incl/config.hpp>
 
 #if BNCH_SWT_PLATFORM_LINUX
 
@@ -37,20 +37,6 @@
 
 namespace bnch_swt::internal {
 
-	BNCH_SWT_HOST uint64_t rdtsc() {
-	#if defined(__x86_64__)
-		uint32_t a, d;
-		__asm__ volatile("rdtsc" : "=a"(a), "=d"(d));
-		return static_cast<unsigned long>(a) | (static_cast<unsigned long>(d) << 32);
-	#elif defined(__i386__)
-		uint64_t x;
-		__asm__ volatile("rdtsc" : "=A"(x));
-		return x;
-	#else
-		return 0;
-	#endif
-	}
-
 	class linux_events {
 	  protected:
 		std::vector<uint64_t> temp_result_vec{};
@@ -61,8 +47,22 @@ namespace bnch_swt::internal {
 		int32_t fd{};
 
 	  public:
+		BNCH_SWT_HOST static uint64_t rdtsc() {
+	#if defined(__x86_64__)
+			uint32_t a, d;
+			__asm__ volatile("rdtsc" : "=a"(a), "=d"(d));
+			return static_cast<unsigned long>(a) | (static_cast<unsigned long>(d) << 32);
+	#elif defined(__i386__)
+			uint64_t x;
+			__asm__ volatile("rdtsc" : "=A"(x));
+			return x;
+	#else
+			return 0;
+	#endif
+		}
+
 		BNCH_SWT_HOST explicit linux_events(std::vector<int32_t> config_vec) : working(true) {
-			memset(&attribs, 0, sizeof(attribs));
+			std::fill_n(&attribs, 1, perf_event_attr{});
 			attribs.type		   = PERF_TYPE_HARDWARE;
 			attribs.size		   = sizeof(attribs);
 			attribs.disabled	   = 1;
@@ -167,9 +167,9 @@ namespace bnch_swt::internal {
 			}
 			uint64_t result;
 			const auto start_clock		  = clock_type::now();
-			volatile uint64_t cycle_start = rdtsc();
+			volatile uint64_t cycle_start = linux_events::rdtsc();
 			result						  = static_cast<uint64_t>(function(std::forward<arg_types>(args)...));
-			volatile uint64_t cycle_end	  = rdtsc();
+			volatile uint64_t cycle_end	  = linux_events::rdtsc();
 			const auto end_clock		  = clock_type::now();
 			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycle_end - cycle_start);
 			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
@@ -195,9 +195,9 @@ namespace bnch_swt::internal {
 			}
 			uint64_t result;
 			const auto start_clock		  = clock_type::now();
-			volatile uint64_t cycle_start = rdtsc();
+			volatile uint64_t cycle_start = linux_events::rdtsc();
 			result						  = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
-			volatile uint64_t cycle_end	  = rdtsc();
+			volatile uint64_t cycle_end	  = linux_events::rdtsc();
 			const auto end_clock		  = clock_type::now();
 			std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycle_end - cycle_start);
 			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
@@ -217,6 +217,43 @@ namespace bnch_swt::internal {
 			return;
 		}
 	};
+
+	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector : public linux_events {
+		std::vector<uint64_t> results{};
+		BNCH_SWT_HOST iteration_metric_collector()
+			: linux_events{ std::vector<int32_t>{ PERF_COUNT_HW_CPU_CYCLES, PERF_COUNT_HW_INSTRUCTIONS, PERF_COUNT_HW_BRANCH_INSTRUCTIONS, PERF_COUNT_HW_BRANCH_MISSES,
+				  PERF_COUNT_HW_CACHE_REFERENCES, PERF_COUNT_HW_CACHE_MISSES } } {
+		}
+
+		BNCH_SWT_HOST bool has_events() {
+			return linux_events::is_working();
+		}
+
+		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE void impl(metric_type& iteration_data, arg_types&&... args) {
+			if (has_events()) {
+				linux_events::run();
+			}
+			const auto start_clock				= clock_type::now();
+			const volatile uint64_t cycle_start = linux_events::rdtsc();
+			iteration_data.bytes_processed		= static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
+			const volatile uint64_t cycle_end	= linux_events::rdtsc();
+			const auto end_clock				= clock_type::now();
+			iteration_data.time_in_ns			= (end_clock - start_clock).count();
+			iteration_data.cycles.emplace(cycle_end - cycle_start);
+			//if (has_events()) {
+			//if (results.size() != linux_events::temp_result_vec.size()) {
+			//results.resize(linux_events::temp_result_vec.size());
+			//}
+			//linux_events::end(results);
+			//iteration_data.instructions.emplace(results[1]);
+			//iteration_data.branches.emplace(results[2]);
+			//iteration_data.branch_misses.emplace(results[3]);
+			//iteration_data.cache_references.emplace(results[4]);
+			//iteration_data.cache_misses.emplace(results[5]);
+			//}
+		}
+	};
+
 }
 
 #endif

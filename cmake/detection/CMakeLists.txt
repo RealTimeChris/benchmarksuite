@@ -27,8 +27,6 @@ project(feature_detector
 
 add_executable(feature_detector main.cpp)
 
-include(${CMAKE_SOURCE_DIR}/../flags_and_options.cmake)
-
 if(BNCH_SWT_DETECT_CPU_PROPERTIES)
     target_compile_definitions(feature_detector
         PUBLIC

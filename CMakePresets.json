@@ -57,7 +57,7 @@
       "inherits": "debug-base",
       "cacheVariables": {
         "BNCH_SWT_CPU": true,
-        "BENCHMARKS": true
+        "BNCH_SWT_BENCHMARKS": true
       }
     },
     {
@@ -65,7 +65,7 @@
       "inherits": "release-base",
       "cacheVariables": {
         "BNCH_SWT_CPU": true,
-        "BENCHMARKS": true
+        "BNCH_SWT_BENCHMARKS": true
       }
     },
     {
@@ -88,7 +88,7 @@
       "inherits": "debug-base",
       "cacheVariables": {
         "BNCH_SWT_CUDA": true,
-        "BENCHMARKS": true
+        "BNCH_SWT_BENCHMARKS": true
       }
     },
     {
@@ -96,7 +96,7 @@
       "inherits": "release-base",
       "cacheVariables": {
         "BNCH_SWT_CUDA": true,
-        "BENCHMARKS": true
+        "BNCH_SWT_BENCHMARKS": true
       }
     },
     {

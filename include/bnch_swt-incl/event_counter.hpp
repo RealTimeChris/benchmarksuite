@@ -1,4 +1,4 @@
-// bnch_swt/event_counter.hpp
+// bnch_swt-incl/event_counter.hpp
 /*
 	MIT License
 
@@ -24,11 +24,11 @@
 
 #pragma once
 
-#include <bnch_swt/config.hpp>
-#include <bnch_swt/counters/apple_arm_perf_events.hpp>
-#include <bnch_swt/counters/windows_perf_events.hpp>
-#include <bnch_swt/counters/linux_perf_events.hpp>
-#include <bnch_swt/counters/cuda_perf_events.hpp>
+#include <bnch_swt-incl/config.hpp>
+#include <bnch_swt-incl/counters/apple_arm_perf_events.hpp>
+#include <bnch_swt-incl/counters/windows_perf_events.hpp>
+#include <bnch_swt-incl/counters/linux_perf_events.hpp>
+#include <bnch_swt-incl/counters/cuda_perf_events.hpp>
 #include <optional>
 #include <chrono>
 
