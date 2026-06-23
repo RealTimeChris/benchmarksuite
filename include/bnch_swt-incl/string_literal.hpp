@@ -82,7 +82,7 @@ namespace bnch_swt {
 			return static_cast<size_type>(length);
 		}
 
-		template<typename string_types> BNCH_SWT_HOST explicit constexpr operator string_types() const noexcept {
+		template<typename string_types> BNCH_SWT_HOST constexpr operator string_types() const noexcept {
 			string_types return_datas{ data_val, size() };
 			return return_datas;
 		}

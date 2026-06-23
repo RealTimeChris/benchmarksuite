@@ -92,6 +92,7 @@ set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd5039
     /wd4710
     /wd4711
+    /wd5045
     /Wall
     /W4
     /WX

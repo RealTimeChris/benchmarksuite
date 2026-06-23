@@ -61,6 +61,22 @@
       }
     },
     {
+      "name": "release-unit-tests-benchmarksuite-cpu",
+      "inherits": "release-base",
+      "cacheVariables": {
+        "BNCH_SWT_CPU": true,
+        "BNCH_SWT_UNIT_TESTS": true
+      }
+    },
+    {
+      "name": "debug-unit-tests-benchmarksuite-cpu",
+      "inherits": "debug-base",
+      "cacheVariables": {
+        "BNCH_SWT_CPU": true,
+        "BNCH_SWT_UNIT_TESTS": true
+      }
+    },
+    {
       "name": "release-dev-benchmarksuite-cpu",
       "inherits": "release-base",
       "cacheVariables": {

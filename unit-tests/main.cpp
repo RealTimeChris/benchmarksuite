@@ -1,5 +1,5 @@
-#include <rt-ut>
 #include <bnch_swt>
+#include <rt-ut>
 
 #include <cmath>
 #include <cstdint>
@@ -363,38 +363,38 @@ int main() {
 
 	std::cout << "==== output formatting ====" << std::endl;
 	check(unit_test<"fmt_csv_header_fields", true, false>::run([] {
-		auto h = final_test_results::csv_header();
+		auto h = final_test_results<benchmark_types::cpu>::csv_header();
 		return contains(h, "Library") && contains(h, "Throughput") && contains(h, "Position");
 	}));
 
 	check(unit_test<"fmt_md_header_starts_pipe", true, false>::run([] {
-		return final_test_results::md_header_row().rfind("| Library", 0) == 0;
+		return final_test_results<benchmark_types::cpu>::md_header_row().rfind("| Library", 0) == 0;
 	}));
 
 	check(unit_test<"fmt_md_separator_has_dashes", true, false>::run([] {
-		return contains(final_test_results::md_separator_row(), "---");
+		return contains(final_test_results<benchmark_types::cpu>::md_separator_row(), "---");
 	}));
 
 	check(unit_test<"fmt_csv_line_win_label", true, false>::run([] {
 		auto r	  = make_completion("LibWin", 123.0, position_type::win, 1);
-		auto line = final_test_results::result_to_csv_line(r);
+		auto line = final_test_results<benchmark_types::cpu>::result_to_csv_line(r);
 		return contains(line, "LibWin") && contains(line, "Win");
 	}));
 
 	check(unit_test<"fmt_csv_line_tie_label", true, false>::run([] {
 		auto r	  = make_completion("LibTie", 99.0, position_type::tie, 1);
-		auto line = final_test_results::result_to_csv_line(r);
+		auto line = final_test_results<benchmark_types::cpu>::result_to_csv_line(r);
 		return contains(line, "Tie");
 	}));
 
 	check(unit_test<"fmt_md_row_marks_tie", true, false>::run([] {
 		auto r	 = make_completion("LibTie", 99.0, position_type::tie, 1);
-		auto row = final_test_results::result_to_md_row(r);
+		auto row = final_test_results<benchmark_types::cpu>::result_to_md_row(r);
 		return contains(row, "STATISTICAL TIE");
 	}));
 
 	check(unit_test<"fmt_to_csv_emits_rows", true, false>::run([] {
-		final_test_results ftr{};
+		final_test_results<benchmark_types::cpu> ftr{};
 		ftr.test_name = "Demo";
 		ftr.sorted_results.push_back(make_completion("OnlyLib", 555.0, position_type::win, 1));
 
@@ -403,7 +403,7 @@ int main() {
 	}));
 
 	check(unit_test<"fmt_to_markdown_emits_rows", true, false>::run([] {
-		final_test_results ftr{};
+		final_test_results<benchmark_types::cpu> ftr{};
 		ftr.test_name = "Demo";
 		ftr.sorted_results.push_back(make_completion("MdLib", 777.0, position_type::win, 1));
 
@@ -412,19 +412,19 @@ int main() {
 	}));
 
 	check(unit_test<"fmt_stage_csv_header_fields", true, false>::run([] {
-		auto h = stage_results_data::csv_header();
+		auto h = stage_results_data<benchmark_types::cpu>::csv_header();
 		return contains(h, "Wins") && contains(h, "Ties") && contains(h, "Losses");
 	}));
 
 	check(unit_test<"fmt_stage_accum_line", true, false>::run([] {
-		stage_results_data srd{};
+		stage_results_data<benchmark_types::cpu> srd{};
 		library_positions lp{ "AggLib", 2, 3, 1 };
 		auto line = srd.accum_to_csv_line(lp);
 		return contains(line, "AggLib") && contains(line, "3");
 	}));
 
 	check(unit_test<"fmt_stage_to_csv", true, false>::run([] {
-		stage_results_data srd{};
+		stage_results_data<benchmark_types::cpu> srd{};
 		srd.lib_positions.push_back(library_positions{ "StageLib", 0, 4, 0 });
 		auto csv = srd.to_csv();
 		return contains(csv, "Library") && contains(csv, "StageLib");
@@ -472,7 +472,7 @@ int main() {
 
 	std::cout << "==== system info smoke ====" << std::endl;
 	check(unit_test<"sys_device_name_non_empty", true, false>::run([] {
-		return !get_device_name<benchmark_types::cpu>().empty();
+		return !system_info_data<benchmark_types::cpu>::device_name().empty();
 	}));
 
 	std::cout << std::endl << "==== SUMMARY ====" << std::endl;

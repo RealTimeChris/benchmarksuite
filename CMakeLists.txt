@@ -24,9 +24,12 @@ option(BNCH_SWT_DETECT_CPU_PROPERTIES "Override cpu-cache-size selection" OFF)
 option(BNCH_SWT_DETECT_GPU_PROPERTIES "Override cuda-cache-size selection" OFF)
 option(BNCH_SWT_CUDA "Enable CUDA support" OFF)
 
+include(cmake/get_version.cmake)
+
 if(BNCH_SWT_CUDA)
     set(BNCH_SWT_LANGUAGE CUDA)
     project(benchmarksuite
+        VERSION ${CLEAN_VERSION}
         DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CUDA CXX
     )
@@ -39,6 +42,7 @@ if(BNCH_SWT_CUDA)
 else()
     set(BNCH_SWT_LANGUAGE CXX)
     project(benchmarksuite
+        VERSION ${CLEAN_VERSION}
         DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
         LANGUAGES CXX
     )
@@ -55,6 +59,7 @@ include(cmake/installation_setup.cmake)
 
 message(STATUS "benchmarksuite Configuration Summary:")
 message(STATUS "=============================")
+message(STATUS "Library Version: ${CLEAN_VERSION}")
 message(STATUS "Max Thread Count: ${BNCH_SWT_THREAD_COUNT}")
 message(STATUS "Architecture: ${CMAKE_SYSTEM_PROCESSOR}")
 message(STATUS "Compiler: ${BNCH_SWT_COMPILER_ID}")

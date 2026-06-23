@@ -184,16 +184,16 @@ namespace bnch_swt {
 		std::string test_name;
 	};
 
-	struct final_test_results {
+	template<benchmark_types benchmark_type> struct final_test_results {
 		std::vector<library_completion_data> sorted_results{};
-		system_info_data_final system_info;
+		system_info_data<benchmark_type> system_info;
 		std::string test_name;
 		std::string_view stage_name_str;
 
 		std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << test_name << " Test Results " << std::endl;
-			ss << "#**" << system_info.device_type << ":** " << system_info.device_name << std::endl;
+			ss << "#**" << system_info.device_type << ":** " << system_info.device_name() << std::endl;
 			ss << "#**OS:** " << system_info.os_id << "-" << system_info.os_version << std::endl;
 			ss << "#**Compiler:** " << system_info.compiler_id << "-" << system_info.compiler_version << std::endl << std::endl;
 			return ss.str();
@@ -268,7 +268,7 @@ namespace bnch_swt {
 		std::string md_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << test_name << " Test Results" << std::endl << std::endl;
-			ss << "**" << system_info.device_type << ":** " << system_info.device_name << "  " << std::endl;
+			ss << "**" << system_info.device_type << ":** " << system_info.device_name() << "  " << std::endl;
 			ss << "**OS:** " << system_info.os_id << "-" << system_info.os_version << "  " << std::endl;
 			ss << "**Compiler:** " << system_info.compiler_id << "-" << system_info.compiler_version << "  " << std::endl << std::endl;
 			return ss.str();
@@ -381,15 +381,16 @@ namespace bnch_swt {
 		}
 	};
 
+	template<benchmark_types benchmark_type> 
 	struct stage_results_data {
 		std::vector<library_positions> lib_positions;
-		std::vector<final_test_results> results{};
-		system_info_data_final system_info;
+		std::vector<final_test_results<benchmark_type>> results{};
+		system_info_data<benchmark_type> system_info;
 		std::string_view stage_name_str;
 		std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << stage_name_str << " Stage Results" << "\n";
-			ss << "#**" << system_info.device_type << ":** " << system_info.device_name << "\n";
+			ss << "#**" << system_info.device_type << ":** " << system_info.device_name() << "\n";
 			ss << "#**OS:** " << system_info.os_id << "-" << system_info.os_version << "\n";
 			ss << "#**Compiler:** " << system_info.compiler_id << "-" << system_info.compiler_version << "\n\n";
 			return ss.str();
@@ -521,13 +522,11 @@ namespace bnch_swt {
 		return t_stat < t_critical;
 	}
 
-	template<benchmark_types benchmark_type> inline final_test_results process_test_rankings(const test_data& raw_data) {
+	template<benchmark_types benchmark_type> inline final_test_results<benchmark_type> process_test_rankings(const test_data& raw_data) {
 		std::vector<library_completion_data> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
-		final_test_results return_value;
-		system_info_data_final system_info;
-		system_info.device_name	 = system_info_data<benchmark_type>::device_name();
-		system_info.device_type	 = benchmark_type == benchmark_types::cpu ? "CPU" : "GPU";
+		final_test_results<benchmark_type> return_value;
+		system_info_data<benchmark_type> system_info;
 		return_value.test_name	 = raw_data.test_name;
 		return_value.system_info = system_info;
 		for (const auto& [lib_name, bench]: raw_data.results) {
@@ -580,14 +579,12 @@ namespace bnch_swt {
 		return return_value;
 	}
 
-	template<benchmark_types benchmark_type> inline stage_results_data process_stage_rankings(const stage_data& raw_data) {
-		std::vector<final_test_results> leaderboard;
+	template<benchmark_types benchmark_type> inline stage_results_data<benchmark_type> process_stage_rankings(const stage_data& raw_data) {
+		std::vector<final_test_results<benchmark_type>> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
 		std::unordered_map<std::string, library_positions> lib_positions{};
-		stage_results_data return_value;
-		system_info_data_final system_info;
-		system_info.device_name		= system_info_data<benchmark_type>::device_name();
-		system_info.device_type		= benchmark_type == benchmark_types::cpu ? "CPU" : "GPU";
+		stage_results_data<benchmark_type> return_value;
+		system_info_data<benchmark_type> system_info;
 		return_value.stage_name_str = raw_data.stage_name_str;
 		return_value.system_info	= system_info;
 		for (const auto& [test_name, bench]: raw_data.results) {

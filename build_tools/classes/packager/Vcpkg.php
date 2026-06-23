@@ -160,54 +160,83 @@ vcpkg_install_copyright(FILE_LIST "${SOURCE_PATH}/License.md")
         return '';
     }
 
-    public function secondBuild(string $portFileContent): bool
-    {
-        if (!$this->firstBuildComplete) {
-            throw new RuntimeException("No SHA512 sum is available, first build has not been run!");
-        }
+   public function secondBuild(string $portFileContent): bool
+     {
+         if (!$this->firstBuildComplete) {
+             throw new RuntimeException("No SHA512 sum is available, first build has not been run!");
+         }
+         $portFileContent = str_replace("\r\n", "\n", $portFileContent);
+         echo GREEN . "Executing second build\n" . WHITE;
+         echo GREEN . "Copy local port files to /usr/local/share...\n" . WHITE;
+         $this->git('config --global core.autocrlf false', true);
+         $this->git('config --global core.eol lf', true);
+         $this->git('config core.autocrlf false', true);
+         $this->git('config core.eol lf', true);
+         chdir(getenv("HOME") . '/rtc-benchmarksuite');
+         file_put_contents('./vcpkg/ports/rtc-benchmarksuite/portfile.cmake', $portFileContent);
+         $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
+         $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/portfile.cmake /usr/local/share/vcpkg/ports/rtc-benchmarksuite/portfile.cmake');
+         $this->sudo('cp -v -R ./vcpkg/ports/* /usr/local/share/vcpkg/ports/');
 
-        echo GREEN . "Executing second build\n" . WHITE;
-        echo GREEN . "Copy local port files to /usr/local/share...\n" . WHITE;
-        chdir(getenv("HOME") . '/rtc-benchmarksuite');
-        file_put_contents('./vcpkg/ports/rtc-benchmarksuite/portfile.cmake', $portFileContent);
-        $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
-        $this->sudo('cp -v -R ./vcpkg/ports/rtc-benchmarksuite/portfile.cmake /usr/local/share/vcpkg/ports/rtc-benchmarksuite/portfile.cmake');
-        $this->sudo('cp -v -R ./vcpkg/ports/* /usr/local/share/vcpkg/ports/');
+         echo GREEN . "vcpkg x-add-version...\n" . WHITE;
+         chdir('/usr/local/share/vcpkg');
+         $this->sudo('./vcpkg format-manifest ./ports/rtc-benchmarksuite/vcpkg.json');
+     
+         $this->normalizeDirectoryLineEndings('./ports/rtc-benchmarksuite');
 
-        echo GREEN . "vcpkg x-add-version...\n" . WHITE;
-        chdir('/usr/local/share/vcpkg');
-        $this->sudo('./vcpkg format-manifest ./ports/rtc-benchmarksuite/vcpkg.json');
-        $this->git('add .', true);
-        $this->git('commit -m "VCPKG info update"', true);
-        $this->sudo('/usr/local/share/vcpkg/vcpkg x-add-version --overwrite-version --all');
+         $this->git('add .', true);
+         $this->git('commit -m "VCPKG info update"', true);
+         $this->sudo('/usr/local/share/vcpkg/vcpkg x-add-version --overwrite-version --all');
 
-        echo GREEN . "Copy back port files from /usr/local/share...\n" . WHITE;
-        chdir(getenv('HOME') . '/rtc-benchmarksuite');
-        system('cp -v -R /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
-        system('cp -v -R /usr/local/share/vcpkg/versions/r-/rtc-benchmarksuite.json ./vcpkg/versions/r-/rtc-benchmarksuite.json');
+         echo GREEN . "Copy back port files from /usr/local/share...\n" . WHITE;
+         chdir(getenv('HOME') . '/rtc-benchmarksuite');
+         system('cp -v -R /usr/local/share/vcpkg/ports/rtc-benchmarksuite/vcpkg.json ./vcpkg/ports/rtc-benchmarksuite/vcpkg.json');
+         system('cp -v -R /usr/local/share/vcpkg/versions/r-/rtc-benchmarksuite.json ./vcpkg/versions/r-/rtc-benchmarksuite.json');
 
-        echo GREEN . "Commit and push changes to main branch\n" . WHITE;
-        $this->git('checkout -B main');
-        $this->git('add .');
-        $this->git('commit -m "VCPKG info update [skip ci]"');
-        $this->git('push origin HEAD:main');
+         echo GREEN . "Commit and push changes to main branch\n" . WHITE;
+         $this->git('checkout -B main');
+     
+         $this->normalizeDirectoryLineEndings('./vcpkg');
 
-        echo GREEN . "vcpkg install...\n" . WHITE;
-        $resultCode = 0;
-        $output     = [];
-        exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install rtc-benchmarksuite:x64-linux 2>&1', $output, $resultCode);
+         $this->git('add .');
+         $this->git('commit -m "VCPKG info update [skip ci]"');
+         $this->git('push origin HEAD:main');
 
-        if ($resultCode != 0) {
-            echo RED . "There were build errors!\n\nBuild log:\n" . WHITE;
-            echo implode("\n", $output) . "\n";
-            $logPath = "/usr/local/share/vcpkg/buildtrees/rtc-benchmarksuite/install-x64-linux-dbg-out.log";
-            if (file_exists($logPath)) {
-                readfile($logPath);
-            }
-        }
+         echo GREEN . "vcpkg install...\n" . WHITE;
+         $resultCode = 0;
+         $output     = [];
+         exec($this->sudo . ' /usr/local/share/vcpkg/vcpkg install rtc-benchmarksuite:x64-linux 2>&1', $output, $resultCode);
 
-        return $resultCode == 0;
-    }
+         if ($resultCode != 0) {
+             echo RED . "There were build errors!\n\nBuild log:\n" . WHITE;
+             echo implode("\n", $output) . "\n";
+             $logPath = "/usr/local/share/vcpkg/buildtrees/rtc-benchmarksuite/install-x64-linux-dbg-out.log";
+             if (file_exists($logPath)) {
+                 readfile($logPath);
+             }
+         }
+
+         return $resultCode == 0;
+     }
+
+     private function normalizeDirectoryLineEndings(string $dirPath): void
+     {
+         if (!is_dir($dirPath)) {
+             return;
+         }
+
+         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($dirPath));
+         foreach ($iterator as $file) {
+             if ($file->isFile()) {
+                 $path = $file->getRealPath();
+                 $content = file_get_contents($path);
+                 if (str_contains($content, "\r\n")) {
+                     $normalized = str_replace("\r\n", "\n", $content);
+                     file_put_contents($path, $normalized, LOCK_EX);
+                 }
+             }
+         }
+     }
 }
 
 $vcpkg       = new vcpkg();

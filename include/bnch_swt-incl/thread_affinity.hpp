@@ -24,6 +24,8 @@
 
 #pragma once
 
+#include <bnch_swt-incl/config.hpp>
+
 #if BNCH_SWT_COMPILER_CLANG
 	#pragma clang diagnostic push
 	#pragma clang diagnostic ignored "-Wunsafe-buffer-usage-in-libc-call"
@@ -38,13 +40,6 @@
 	#include <windows.h>
 	#include <intrin.h>
 #elif BNCH_SWT_PLATFORM_MAC
-	#ifndef xnu_static_assert_struct_size
-		#define xnu_static_assert_struct_size(...)
-	#endif
-	#ifndef xnu_static_assert_struct_size_kernel_user
-		#define xnu_static_assert_struct_size_kernel_user(...)
-	#endif
-
 	#include <pthread.h>
 	#include <sys/qos.h>
 	#include <mach/mach.h>

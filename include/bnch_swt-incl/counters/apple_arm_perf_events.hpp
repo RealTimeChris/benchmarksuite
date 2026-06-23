@@ -38,13 +38,6 @@
 
 #if BNCH_SWT_PLATFORM_MAC
 
-	#ifndef xnu_static_assert_struct_size
-		#define xnu_static_assert_struct_size(...)
-	#endif
-	#ifndef xnu_static_assert_struct_size_kernel_user
-		#define xnu_static_assert_struct_size_kernel_user(...)
-	#endif
-
 	#include <mach/mach_time.h>
 	#include <sys/sysctl.h>
 	#include <sys/kdebug.h>

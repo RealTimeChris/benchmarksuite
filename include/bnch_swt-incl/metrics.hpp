@@ -509,28 +509,16 @@ namespace bnch_swt {
 		uint64_t position{};
 	};
 
-	template<benchmark_types benchmark_type> inline static std::string& get_device_name() {
-		static std::string* holder{ new std::string{ internal::get_device_info<benchmark_type>() } };
-		return *holder;
-	}	
-
 	template<benchmark_types benchmark_type> struct system_info_data {
-		inline static const std::string_view compiler_version{ internal::compiler_version };
-		inline static const std::string_view compiler_id{ internal::compiler_id };
-		inline static const std::string_view os_version{ internal::operating_system_version };
-		inline static const std::string_view os_id{ internal::operating_system_name };
-		inline static std::string_view device_name() {
-			return get_device_name<benchmark_type>();
-		}
-	};
-
-	struct system_info_data_final {
 		inline static constexpr std::string_view compiler_version{ internal::compiler_version };
 		inline static constexpr std::string_view compiler_id{ internal::compiler_id };
 		inline static constexpr std::string_view os_version{ internal::operating_system_version };
 		inline static constexpr std::string_view os_id{ internal::operating_system_name };
-		std::string device_type{};
-		std::string device_name{};
+		inline static constexpr std::string_view device_type{ benchmark_type == benchmark_types::cpu ? "CPU" : "GPU" };
+		static std::string_view device_name() noexcept {
+			static const std::string* name{ new std::string{ internal::get_device_info<benchmark_type>() } };
+			return *name;
+		}
 	};
 
 	template<benchmark_types benchmark_type, performance_metrics_presence<benchmark_type> metrics_presence> struct test_results {
