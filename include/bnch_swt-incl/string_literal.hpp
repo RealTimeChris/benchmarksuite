@@ -31,19 +31,19 @@
 namespace bnch_swt {
 
 	template<uint64_t size_val> struct string_literal {
-		using value_type			 = char;
-		using const_reference		 = const value_type&;
-		using reference				 = value_type&;
-		using const_pointer			 = const value_type*;
-		using pointer				 = value_type*;
-		using size_type				 = uint64_t;
+		using value_type	  = char;
+		using const_reference = const value_type&;
+		using reference		  = value_type&;
+		using const_pointer	  = const value_type*;
+		using pointer		  = value_type*;
+		using size_type		  = uint64_t;
 
 		static constexpr size_type length{ size_val > 0 ? size_val - 1 : 0 };
 
 		BNCH_SWT_HOST constexpr string_literal() noexcept {
 		}
 
-		BNCH_SWT_HOST constexpr string_literal(const char *str) noexcept {
+		BNCH_SWT_HOST constexpr string_literal(const char* str) noexcept {
 			std::copy_n(str, length, data_val);
 		}
 
@@ -78,6 +78,14 @@ namespace bnch_swt {
 			return data_val[index];
 		}
 
+		BNCH_SWT_HOST constexpr const_pointer data() const noexcept {
+			return data_val;
+		}
+
+		BNCH_SWT_HOST constexpr pointer data() noexcept {
+			return data_val;
+		}
+
 		BNCH_SWT_HOST static constexpr size_type size() noexcept {
 			return static_cast<size_type>(length);
 		}
@@ -87,12 +95,12 @@ namespace bnch_swt {
 			return return_datas;
 		}
 
-		BNCH_SWT_ALIGN(cpu_properties::cpu_alignment) value_type data_val[size_val] {};
+		BNCH_SWT_ALIGN(64) value_type data_val[size_val] {};
 	};
 
 	template<uint64_t size> string_literal(const char (&str)[size]) -> string_literal<size>;
 
-	template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream&os, const string_literal<size>& input) noexcept {
+	template<uint64_t size> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const string_literal<size>& input) noexcept {
 		os.write(input.data_val, input.size());
 		return os;
 	}
@@ -106,7 +114,7 @@ namespace bnch_swt {
 
 		template<uint64_t N, typename string_type> constexpr auto string_literal_from_view(string_type str) noexcept {
 			string_literal<N + 1> sl{};
-			std::copy_n(str.data_val, str.size(), sl.data_val);
+			std::copy_n(str.data(), str.size(), sl.data_val);
 			sl[N] = '\0';
 			return sl;
 		}

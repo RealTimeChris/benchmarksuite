@@ -20,7 +20,7 @@
 
 if(UNIX OR APPLE)
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh "#!/bin/bash\n"
-        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
+        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DCMAKE_C_COMPILER=\"${CMAKE_C_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
         "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
     )
     
@@ -172,7 +172,7 @@ if(NOT DEFINED BNCH_SWT_CPU_ARCH_INDEX)
         set(BNCH_SWT_CPU_ALIGNMENT 64 CACHE STRING "CPU Alignment" FORCE)
         set(BNCH_SWT_SIMD_FLAGS $<IF:$<CUDA_COMPILER_ID:NVIDIA>,,$<IF:$<CXX_COMPILER_ID:MSVC>,/arch:AVX512,-mavx512f;-mavx512bw;-mfma;-mavx2;-mavx;-mlzcnt;-mpopcnt;-mbmi;-mbmi2;-msse4.2;-mf16c>> CACHE STRING "SIMD flags" FORCE)
         set(BNCH_SWT_SIMD_DEFINITIONS BNCH_SWT_SVE2=0;BNCH_SWT_AVX512=1;BNCH_SWT_AVX2=0;BNCH_SWT_NEON=0 CACHE STRING "SIMD definitions" FORCE)
-        set(BNCH_SWT_INSTRUCTION_SET_NAME AVX512 CACHE STRING "Instruction set name" FORCE)        
+        set(BNCH_SWT_INSTRUCTION_SET_NAME AVX512 CACHE STRING "Instruction set name" FORCE)
     elseif(BNCH_SWT_HAS_AVX2)
         set(BNCH_SWT_CPU_ARCH_INDEX 1 CACHE STRING "CPU architecture index - AVX2" FORCE)
         set(BNCH_SWT_CPU_ALIGNMENT 32 CACHE STRING "CPU Alignment" FORCE)

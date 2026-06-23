@@ -38,7 +38,6 @@
 
 #if BNCH_SWT_PLATFORM_MAC
 
-	#include <mach/mach_time.h>
 	#include <sys/sysctl.h>
 	#include <sys/kdebug.h>
 	#include <string_view>
@@ -407,79 +406,23 @@ namespace bnch_swt::internal {
 		}
 	};
 
-	template<typename event_count, uint64_t count> struct event_collector_type<event_count, benchmark_types::cpu, count> : public std::vector<event_count> {
-		performance_counters diff{};
-		size_t current_index{};
-
-		BNCH_SWT_HOST event_collector_type() : std::vector<event_count>{ count }, diff{}, current_index{} {
-			performance_monitor::setup_performance_counters();
-		}
-
-		BNCH_SWT_HOST void reset() {
-			current_index = 0;
-		}
-
-		template<auto function, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
-			if (performance_monitor::has_events()) {
-				diff = performance_monitor::get_counters();
-			}
-			const auto start_clock = clock_type::now();
-			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(static_cast<size_t>(function(std::forward<arg_types>(args)...)));
-			const auto end_clock = clock_type::now();
-			if (performance_monitor::has_events()) {
-				performance_counters end = performance_monitor::get_counters();
-				diff					 = end - diff;
-				std::vector<event_count>::operator[](current_index).cycles_val.emplace(diff.cycles);
-				std::vector<event_count>::operator[](current_index).instructions_val.emplace(diff.instructions);
-				std::vector<event_count>::operator[](current_index).branches_val.emplace(diff.branches);
-				std::vector<event_count>::operator[](current_index).branch_misses_val.emplace(diff.branch_misses);
-			}
-			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
-			++current_index;
-		}
-
-		template<typename function_type, typename... arg_types> BNCH_SWT_NOINLINE void run(arg_types&&... args) {
-			if (performance_monitor::has_events()) {
-				diff = performance_monitor::get_counters();
-			}
-			const auto start_clock = clock_type::now();
-			std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(static_cast<size_t>(function_type::impl(std::forward<arg_types>(args)...)));
-			const auto end_clock = clock_type::now();
-			if (performance_monitor::has_events()) {
-				performance_counters end = performance_monitor::get_counters();
-				diff					 = end - diff;
-				std::vector<event_count>::operator[](current_index).cycles_val.emplace(diff.cycles);
-				std::vector<event_count>::operator[](current_index).instructions_val.emplace(diff.instructions);
-				std::vector<event_count>::operator[](current_index).branches_val.emplace(diff.branches);
-				std::vector<event_count>::operator[](current_index).branch_misses_val.emplace(diff.branch_misses);
-			}
-			std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(end_clock - start_clock);
-			++current_index;
-		}
-	};
-
 	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector {
-		performance_counters diff{};
-		BNCH_SWT_HOST iteration_metric_collector() : diff{} {
+		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE static void impl(metric_type& iteration_data, arg_types&&... args) {
 			performance_monitor::setup_performance_counters();
-		}
-
-		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE void impl(metric_type& iteration_data, arg_types&&... args) {
-			if (performance_monitor::has_events()) {
+			const bool has_perf_events = performance_monitor::has_events();
+			performance_counters diff{};
+			if (has_perf_events) {
 				diff = performance_monitor::get_counters();
 			}
 			const auto start_clock		   = clock_type::now();
 			iteration_data.bytes_processed = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
 			const auto end_clock		   = clock_type::now();
-			iteration_data.time_in_ns	   = (end_clock - start_clock).count();
-			//if (performance_monitor::has_events()) {
-			//performance_counters end = performance_monitor::get_counters();
-			//				diff					 = end - diff;
-			//				iteration_data.cycles.emplace(diff.cycles);
-			//				iteration_data.instructions.emplace(diff.instructions);
-			//				iteration_data.branches.emplace(diff.branches);
-			//				iteration_data.branch_misses.emplace(diff.branch_misses);
-			//}
+			if (has_perf_events) {
+				performance_counters end = performance_monitor::get_counters();
+				diff					 = end - diff;
+				iteration_data.cycles.emplace(static_cast<uint64_t>(diff.cycles));
+			}
+			iteration_data.time_in_ns = (end_clock - start_clock).count();
 		}
 	};
 }

@@ -22,8 +22,9 @@
 
 #pragma once
 
-#include <bnch_swt-incl/benchmarksuite_gpu_properties.hpp>
+#include <bnch_swt-incl/config.hpp>
 #include <bnch_swt-incl/benchmarksuite_cpu_properties.hpp>
+#include <bnch_swt-incl/benchmarksuite_gpu_properties.hpp>
 #include <bnch_swt-incl/random_generators.hpp>
 #include <bnch_swt-incl/do_not_optimize.hpp>
 #include <bnch_swt-incl/thread_affinity.hpp>
@@ -34,7 +35,6 @@
 #include <bnch_swt-incl/printable.hpp>
 #include <bnch_swt-incl/metrics.hpp>
 #include <bnch_swt-incl/utility.hpp>
-#include <bnch_swt-incl/config.hpp>
 #include <unordered_set>
 #include <unordered_map>
 #include <iostream>
@@ -73,6 +73,7 @@ namespace bnch_swt {
 	};
 
 	struct library_benchmark_data {
+		std::optional<double> final_cycles_per_byte;
 		printable_milliseconds final_ms_spent;
 		uint64_t final_sample_size;
 		double final_rse{ 100.0 };
@@ -96,14 +97,20 @@ namespace bnch_swt {
 		if (k == 0) {
 			return {};
 		}
-
 		uint64_t start_idx = iterations - k;
 
-		double time_sum		 = 0.0;
-		uint64_t total_bytes = 0;
+		double time_sum		  = 0.0;
+		uint64_t total_bytes  = 0;
+		uint64_t total_cycles = 0;
+		bool has_cycles		  = true;
 		for (uint64_t i = start_idx; i < iterations; ++i) {
 			time_sum += iteration_data[i].time_in_ns;
 			total_bytes += iteration_data[i].bytes_processed;
+			if (iteration_data[i].cycles.has_value()) {
+				total_cycles += iteration_data[i].cycles.value();
+			} else {
+				has_cycles = false;
+			}
 		}
 
 		double mean = time_sum / static_cast<double>(k);
@@ -135,6 +142,9 @@ namespace bnch_swt {
 		results.final_throughput  = throughput;
 		results.converged		  = false;
 		results.bytes_processed	  = total_bytes / k;
+		if (has_cycles && total_bytes > 0) {
+			results.final_cycles_per_byte = static_cast<double>(total_cycles) / static_cast<double>(total_bytes);
+		}
 
 		return results;
 	}
@@ -163,10 +173,9 @@ namespace bnch_swt {
 			iterations = stage_config.max_iteration_count;
 		}
 
-		functor_type functor_runner{};
 		for (uint64_t x = 0; x < iterations; ++x) {
 			auto& metrics = iteration_data[x];
-			functor_runner.impl(metrics, std::forward<arg_types>(args)...);
+			functor_type::impl(metrics, std::forward<arg_types>(args)...);
 		}
 
 		uint64_t k = std::max(iterations / 10, stage_config.min_k);
@@ -187,8 +196,11 @@ namespace bnch_swt {
 	template<benchmark_types benchmark_type> struct final_test_results {
 		std::vector<library_completion_data> sorted_results{};
 		system_info_data<benchmark_type> system_info;
-		std::string test_name;
 		std::string_view stage_name_str;
+		std::string_view test_name;
+
+		final_test_results(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
+		}
 
 		std::string csv_preamble() const {
 			std::stringstream ss{};
@@ -199,20 +211,23 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string csv_header() {
+		static std::string csv_header(bool include_cycles_per_byte) {
 			std::string h = "Library";
 			h += ",Throughput (MB/s)";
 			h += ",RSE (%)";
-			h += ",Time (ms)";
-			h += ",Bytes Processed";
-			h += ",Measured Sample Size";
+			h += ",Window Duration";
+			h += ",File Size (Bytes)";
+			h += ",Window Samples (k)";
 			h += ",Variance";
-			h += ",Mean";
+			h += ",Latency / Run (ns)";
+			if (include_cycles_per_byte) {
+				h += ",Cycles/Byte";
+			}
 			h += ",Position";
 			return h;
 		}
 
-		static std::string result_to_csv_line(const library_completion_data& r) {
+		static std::string result_to_csv_line(const library_completion_data& r, bool include_cycles_per_byte) {
 			std::stringstream ss{};
 			ss << r.name;
 			ss << "," << r.final_throughput;
@@ -222,6 +237,9 @@ namespace bnch_swt {
 			ss << "," << r.final_sample_size;
 			ss << "," << r.final_variance;
 			ss << "," << r.final_mean;
+			if (include_cycles_per_byte) {
+				ss << "," << r.final_cycles_per_byte.value();
+			}
 			switch (static_cast<uint64_t>(r.position_type_val)) {
 				case static_cast<uint64_t>(position_type::win):
 					ss << ",Win";
@@ -247,11 +265,13 @@ namespace bnch_swt {
 			if (include_preamble) {
 				ss << csv_preamble();
 			}
-			ss << csv_header() << std::endl;
+			bool include_cycles_per_byte = std::any_of(sorted_results.begin(), sorted_results.end(), [](const library_completion_data& r) {
+				return r.final_cycles_per_byte.has_value();
+			});
+			ss << csv_header(include_cycles_per_byte) << std::endl;
 			for (const auto& r: sorted_results) {
-				ss << result_to_csv_line(r);
+				ss << result_to_csv_line(r, include_cycles_per_byte);
 			}
-
 			const std::string text = ss.str();
 
 			if (!file_path.empty()) {
@@ -274,20 +294,23 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string md_header_row() {
+		static std::string md_header_row(bool include_cycles_per_byte) {
 			std::string h = "| Library";
 			h += " | Throughput (MB/s)";
 			h += " | RSE (%)";
-			h += " | Time (ms)";
-			h += " | Bytes Processed";
-			h += " | Measured Sample Size";
+			h += " | Window Duration";
+			h += " | File Size (Bytes)";
+			h += " | Window Samples (k)";
 			h += " | Variance";
-			h += " | Mean";
+			h += " | Latency / Run (ns)";
+			if (include_cycles_per_byte) {
+				h += " | Cycles/Byte";
+			}
 			h += " | Position |";
 			return h;
 		}
 
-		static std::string md_separator_row() {
+		static std::string md_separator_row(bool include_cycles_per_byte) {
 			std::string s = "| -------";
 			s += " | -----------";
 			s += " | -------";
@@ -296,15 +319,17 @@ namespace bnch_swt {
 			s += " | --------------------";
 			s += " | ----------";
 			s += " | ----";
+			if (include_cycles_per_byte) {
+				s += " | -----------";
+			}
 			s += " | -------- |";
 			return s;
 		}
 
-		static std::string result_to_md_row(const library_completion_data& r) {
+		static std::string result_to_md_row(const library_completion_data& r, bool include_cycles_per_byte) {
 			std::string lib_cell = static_cast<std::string>(r.name);
 			if (r.position_type_val == position_type::tie)
-				lib_cell += " **STATISTICAL TIE**";
-
+				lib_cell += " STATISTICAL TIE";
 			std::stringstream ss{};
 			ss << "| " << lib_cell;
 			ss << " | " << r.final_throughput;
@@ -314,6 +339,9 @@ namespace bnch_swt {
 			ss << " | " << r.final_sample_size;
 			ss << " | " << r.final_variance;
 			ss << " | " << r.final_mean;
+			if (include_cycles_per_byte) {
+				ss << " | " << r.final_cycles_per_byte.value();
+			}
 			ss << " | " << r.position;
 			switch (static_cast<uint64_t>(r.position_type_val)) {
 				case static_cast<uint64_t>(position_type::win):
@@ -342,12 +370,14 @@ namespace bnch_swt {
 			if (include_preamble) {
 				ss << md_preamble();
 			}
-			ss << md_header_row() << std::endl;
-			ss << md_separator_row() << std::endl;
+			bool include_cycles_per_byte = std::any_of(sorted_results.begin(), sorted_results.end(), [](const library_completion_data& r) {
+				return r.final_cycles_per_byte.has_value();
+			});
+			ss << md_header_row(include_cycles_per_byte) << std::endl;
+			ss << md_separator_row(include_cycles_per_byte) << std::endl;
 			for (const auto& r: sorted_results) {
-				ss << result_to_md_row(r);
+				ss << result_to_md_row(r, include_cycles_per_byte);
 			}
-
 			const std::string text = ss.str();
 
 			if (!file_path.empty()) {
@@ -368,7 +398,6 @@ namespace bnch_swt {
 
 	struct stage_data {
 		std::unordered_map<std::string_view, test_data> results{};
-		std::string_view stage_name_str;
 	};
 
 	struct library_positions {
@@ -381,18 +410,46 @@ namespace bnch_swt {
 		}
 	};
 
-	template<benchmark_types benchmark_type> 
-	struct stage_results_data {
+	template<stage_config_data stage_config> struct stage_results_data {
 		std::vector<library_positions> lib_positions;
-		std::vector<final_test_results<benchmark_type>> results{};
-		system_info_data<benchmark_type> system_info;
+		std::vector<final_test_results<stage_config.benchmark_type>> results{};
+		system_info_data<stage_config.benchmark_type> system_info;
 		std::string_view stage_name_str;
+
+		stage_results_data(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
+		}
+
 		std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << stage_name_str << " Stage Results" << "\n";
-			ss << "#**" << system_info.device_type << ":** " << system_info.device_name() << "\n";
-			ss << "#**OS:** " << system_info.os_id << "-" << system_info.os_version << "\n";
-			ss << "#**Compiler:** " << system_info.compiler_id << "-" << system_info.compiler_version << "\n\n";
+			ss << "#" << system_info.device_type << ": " << system_info.device_name() << "\n";
+			ss << "#OS: " << system_info.os_id << "-" << system_info.os_version << "\n";
+			ss << "#Compiler: " << system_info.compiler_id << "-" << system_info.compiler_version << "\n\n";
+			return ss.str();
+		}
+
+		static std::string config_csv_header() {
+			std::string h = "ClearCpuCachesBeforeIterations";
+			h += ",MeasuredIterationCount";
+			h += ",MaxIterationCount";
+			h += ",ConvergenceThreshold";
+			h += ",MaxTimeInS";
+			h += ",RseThreshold";
+			h += ",MaxK";
+			h += ",MinK";
+			return h;
+		}
+
+		static std::string config_to_csv_line() {
+			std::stringstream ss{};
+			ss << (stage_config.clear_cpu_caches_before_iterations ? "true" : "false") << ",";
+			ss << stage_config.measured_iteration_count << ",";
+			ss << stage_config.max_iteration_count << ",";
+			ss << stage_config.convergence_threshold << ",";
+			ss << stage_config.max_time_in_s << ",";
+			ss << stage_config.rse_threshold << ",";
+			ss << stage_config.max_k << ",";
+			ss << stage_config.min_k << "\n";
 			return ss.str();
 		}
 
@@ -416,22 +473,23 @@ namespace bnch_swt {
 		std::string to_csv(const std::string& file_path = "") const {
 			std::stringstream ss{};
 			ss << csv_preamble();
+			ss << "# " << stage_name_str << " Stage Config" << "\n\n";
+			ss << config_csv_header() << "\n";
+			ss << config_to_csv_line();
+			ss << "\n";
 			ss << csv_header() << "\n";
 			for (const auto& lib: lib_positions) {
 				ss << accum_to_csv_line(lib);
 			}
-
-
 			const std::string text = ss.str();
-
 			if (!file_path.empty()) {
 				std::string file_name{ internal::operating_system_name.operator std::string() + "-" + internal::compiler_id.operator std::string() };
 				file_handle::save_file(text, file_path + "/" + file_name + "-" + static_cast<std::string>(stage_name_str) + ".md");
 			}
-
 			return text;
 		}
 	};
+
 
 	template<typename functor_type_new, stage_config_data stage_config, typename... arg_types> inline library_benchmark_data run_adaptive_benchmark(arg_types&&... args) {
 		static constexpr double max_time_in_ns{ static_cast<double>(stage_config.max_time_in_s) * 1e9 };
@@ -522,10 +580,11 @@ namespace bnch_swt {
 		return t_stat < t_critical;
 	}
 
-	template<benchmark_types benchmark_type> inline final_test_results<benchmark_type> process_test_rankings(const test_data& raw_data) {
+	template<string_literal stage_name_new, benchmark_types benchmark_type> inline final_test_results<benchmark_type> process_test_rankings(const test_data& raw_data) {
+		static constexpr string_literal stage_name{ stage_name_new };
 		std::vector<library_completion_data> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
-		final_test_results<benchmark_type> return_value;
+		final_test_results<benchmark_type> return_value{ stage_name.operator std::string_view() };
 		system_info_data<benchmark_type> system_info;
 		return_value.test_name	 = raw_data.test_name;
 		return_value.system_info = system_info;
@@ -579,16 +638,16 @@ namespace bnch_swt {
 		return return_value;
 	}
 
-	template<benchmark_types benchmark_type> inline stage_results_data<benchmark_type> process_stage_rankings(const stage_data& raw_data) {
-		std::vector<final_test_results<benchmark_type>> leaderboard;
+	template<string_literal stage_name_new, stage_config_data stage_config> inline stage_results_data<stage_config> process_stage_rankings(const stage_data& raw_data) {
+		static constexpr string_literal stage_name{ stage_name_new };
+		std::vector<final_test_results<stage_config.benchmark_type>> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
 		std::unordered_map<std::string, library_positions> lib_positions{};
-		stage_results_data<benchmark_type> return_value;
-		system_info_data<benchmark_type> system_info;
-		return_value.stage_name_str = raw_data.stage_name_str;
-		return_value.system_info	= system_info;
+		stage_results_data<stage_config> return_value{ stage_name.operator std::string_view() };
+		system_info_data<stage_config.benchmark_type> system_info;
+		return_value.system_info = system_info;
 		for (const auto& [test_name, bench]: raw_data.results) {
-			leaderboard.push_back(process_test_rankings<benchmark_type>(bench));
+			leaderboard.push_back(process_test_rankings<stage_name_new, stage_config.benchmark_type>(bench));
 		}
 
 		for (size_t i = 0; i < leaderboard.size(); ++i) {
@@ -620,19 +679,18 @@ namespace bnch_swt {
 	}
 
 	template<string_literal stage_name_new, const stage_config_data stage_config> struct benchmark_stage {
-
 		inline static stage_data& get_raw_test_data() {
 			static stage_data* raw_test_data{ new stage_data{} };
 			return *raw_test_data;
 		}
-		
+
 		template<bnch_swt::string_literal test_name_new, bnch_swt::string_literal library_name_new, typename functor_type, typename... arg_types>
 		static void run_benchmark(arg_types&&... args) {
 			[[maybe_unused]] static constexpr string_literal stage_name{ stage_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			static constexpr string_literal library_name{ library_name_new };
 			test_data& test_data_val = get_raw_test_data().results[test_name.operator std::string_view()];
-			test_data_val.test_name	 = test_name.operator std::string();
+			test_data_val.test_name	 = test_name.operator std::string_view();
 			if constexpr (stage_config.clear_cpu_caches_before_iterations) {
 				internal::cache_clearer<stage_config.benchmark_type> cclearer{};
 				cclearer.evict_caches();
@@ -647,16 +705,16 @@ namespace bnch_swt {
 			static constexpr string_literal library_name{ library_name_new };
 			using function_type												= function_holder<function>;
 			test_data& test_data_val										= get_raw_test_data().results[test_name.operator std::string_view()];
-			test_data_val.test_name											= test_name.operator std::string();
+			test_data_val.test_name											= test_name.operator std::string_view();
 			test_data_val.results[library_name.operator std::string_view()] = run_adaptive_benchmark<function_type, stage_config>(std::forward<arg_types>(args)...);
 		}
 
 		inline static auto get_test_results(const std::string& test_name) {
-			return process_test_rankings<stage_config.benchmark_type>(get_raw_test_data().results[test_name]);
+			return process_test_rankings<stage_name_new, stage_config.benchmark_type>(get_raw_test_data().results[test_name]);
 		}
 
 		inline static auto get_all_results() {
-			return process_stage_rankings<stage_config.benchmark_type>(get_raw_test_data());
+			return process_stage_rankings<stage_name_new, stage_config>(get_raw_test_data());
 		}
 	};
 
