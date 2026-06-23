@@ -20,7 +20,7 @@
 
 if(UNIX OR APPLE)
     file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh "#!/bin/bash\n"
-        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
+        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DCMAKE_C_COMPILER=\"${CMAKE_C_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
         "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
     )
     

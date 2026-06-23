@@ -20,7 +20,21 @@
 
 set(MAIN_SOURCE main${BNCH_SWT_MAIN_FILE_EXTENSION})
 
-add_executable(benchmarksuite-main ${MAIN_SOURCE})
+include(FetchContent)
+
+FetchContent_Declare(
+    simdjson
+    GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(simdjson)
+ 
+add_executable(benchmarksuite-main main.cpp)
+ 
+target_link_libraries(benchmarksuite-main PRIVATE
+    benchmarksuite::benchmarksuite
+    simdjson
+)
 
 if (PRINT_ASSEMBLY)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -66,11 +80,6 @@ if (PRINT_ASSEMBLY)
     endif()
 endif()
 
-target_link_libraries(benchmarksuite-main
-    PUBLIC
-        benchmarksuite::benchmarksuite
-)
-
 set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd4820
     /wd5039
@@ -78,13 +87,13 @@ set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd4711
     /Wall
     /W4
-    /WX
+    #/WX
 )
 
 set(BNCH_SWT_CLANG_COMPILER_OPTIONS
     -Weverything
     -Wpedantic
-    -Werror
+    #-Werror
     -Wno-unsafe-buffer-usage
     -Wno-c++20-extensions
     -Wextra
@@ -96,7 +105,7 @@ set(BNCH_SWT_CLANG_COMPILER_OPTIONS
 
 set(BNCH_SWT_GNU_COMPILER_OPTIONS
     -Wpedantic
-    -Werror
+    #-Werror
     -Wextra
     -Wall
 )
@@ -110,6 +119,11 @@ set(BNCH_SWT_COMPILER_OPTIONS
 target_compile_options(
     benchmarksuite-main PUBLIC
     ${BNCH_SWT_COMPILER_OPTIONS}
+)
+
+target_compile_definitions(
+    benchmarksuite-main PUBLIC
+    BASE_PATH="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 install(

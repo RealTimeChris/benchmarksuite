@@ -16,7 +16,12 @@ set(BNCH_SWT_COMPILE_DEFINITIONS
     BNCH_SWT_COMPILER_CLANG=$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,1,0>
     BNCH_SWT_COMPILER_MSVC=$<IF:$<CXX_COMPILER_ID:MSVC>,1,0>
     BNCH_SWT_COMPILER_GCC=$<IF:$<CXX_COMPILER_ID:GNU>,1,0>
-    BNCH_SWT_DEV=$<IF:$<STREQUAL:${BNCH_SWT_DEV},TRUE>,1,0>
+    BNCH_SWT_CPB_ASCII=$<IF:$<CXX_COMPILER_ID:MSVC>,8,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,16,$<IF:$<CXX_COMPILER_ID:GNU>,1,8>>>
+    BNCH_SWT_BPS_ASCII=$<IF:$<CXX_COMPILER_ID:MSVC>,2,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,2,$<IF:$<CXX_COMPILER_ID:GNU>,4,4>>>
+    BNCH_SWT_CPB_MIXED=$<IF:$<CXX_COMPILER_ID:MSVC>,8,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,4,$<IF:$<CXX_COMPILER_ID:GNU>,1,4>>>
+    BNCH_SWT_BPS_MIXED=$<IF:$<CXX_COMPILER_ID:MSVC>,8,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,1,$<IF:$<CXX_COMPILER_ID:GNU>,2,1>>>
+    BNCH_SWT_CPB_MULTIBYTE=$<IF:$<CXX_COMPILER_ID:MSVC>,8,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,8,$<IF:$<CXX_COMPILER_ID:GNU>,1,4>>>
+    BNCH_SWT_BPS_MULTIBYTE=$<IF:$<CXX_COMPILER_ID:MSVC>,1,$<IF:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,1,$<IF:$<CXX_COMPILER_ID:GNU>,1,1>>>
     "BNCH_SWT_HOST_DEVICE=$<IF:$<CUDA_COMPILER_ID:NVIDIA>,$<IF:$<CONFIG:Release>,__forceinline__ __host__ __device__,__noinline__ __host__ __device__>,$<IF:$<CONFIG:Release>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::forceinline]] inline,inline __attribute__((always_inline))>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::noinline]],__attribute__((noinline))>>>"
     "BNCH_SWT_HOST=$<IF:$<CUDA_COMPILER_ID:NVIDIA>,$<IF:$<CONFIG:Release>,__forceinline__ __host__,__noinline__ __host__>,$<IF:$<CONFIG:Release>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::forceinline]] inline,inline __attribute__((always_inline))>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::noinline]],__attribute__((noinline))>>>"
     "BNCH_SWT_STATIC_HOST=$<IF:$<CUDA_COMPILER_ID:NVIDIA>,$<IF:$<CONFIG:Release>,static __forceinline__ __host__,static __noinline__ __host__>,$<IF:$<CONFIG:Release>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::forceinline]] static inline,inline static __attribute__((always_inline))>,$<IF:$<CXX_COMPILER_ID:MSVC>,[[msvc::noinline]] static ,__attribute__((noinline))>>>"
@@ -38,7 +43,7 @@ target_include_directories(${PROJECT_NAME}
 
 target_compile_options(${PROJECT_NAME}
     INTERFACE
-        ${BNCH_SWT_SIMD_FLAGS}
+    ${BNCH_SWT_SIMD_FLAGS}
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -46,9 +51,21 @@ target_link_libraries(${PROJECT_NAME}
         $<$<TARGET_EXISTS:CUDA::cudart_static>:CUDA::cudart_static>
 )
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_VERSION VERSION_GREATER "24.99.99")
+    set(BNCH_SWT_DISABLE_PINNING 1)
+else()
+    set(BNCH_SWT_DISABLE_PINNING 0)
+endif()
+
 target_compile_definitions(${PROJECT_NAME}
     INTERFACE
 	BNCH_SWT_OPERATING_SYSTEM_VERSION=\"${CMAKE_SYSTEM_VERSION}\"
 	BNCH_SWT_COMPILER_VERSION=\"${CMAKE_CXX_COMPILER_VERSION}\"
+    BNCH_SWT_CPU_SUPPORT=$<IF:$<BOOL:${BNCH_SWT_BUILD_CPU_SUPPORT}>,1,0>
+    BNCH_SWT_GPU_SUPPORT=$<IF:$<BOOL:${BNCH_SWT_BUILD_GPU_SUPPORT}>,1,0>
+    BNCH_SWT_DISABLE_PINNING=${BNCH_SWT_DISABLE_PINNING}
+    BNCH_SWT_CHUNKS_PER_BLOCK=4
+    BNCH_SWT_BLOCKS_PER_STEP=8
+    ${BNCH_SWT_SIMD_DEFINITIONS}
     ${BNCH_SWT_COMPILE_DEFINITIONS}
 )

@@ -203,7 +203,7 @@ inline static uint32_t detect_supported_architectures() {
 	}
 
 	uint64_t xcr0 = xgetbv();
-	if ((xcr0 & cpuid_avx256_saved) == 0) {
+	if ((xcr0 & cpuid_avx256_saved) != cpuid_avx256_saved) {
 		return host_isa;
 	}
 
@@ -215,12 +215,10 @@ inline static uint32_t detect_supported_architectures() {
 		host_isa |= static_cast<uint32_t>(instruction_set::AVX2);
 	}
 
-	if (!((xcr0 & cpuid_avx512_saved) == cpuid_avx512_saved)) {
-		return host_isa;
-	}
-
-	if (ebx & cpuid_avx512_bit) {
-		host_isa |= static_cast<uint32_t>(instruction_set::AVX512f);
+	if ((xcr0 & cpuid_avx512_saved) == cpuid_avx512_saved) {
+		if (ebx & cpuid_avx512_bit) {
+			host_isa |= static_cast<uint32_t>(instruction_set::AVX512f);
+		}
 	}
 
 	return host_isa;
