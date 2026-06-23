@@ -1,5 +1,6 @@
 .vs/
 out/
+Build_msvc/
 Build/
 build/
 

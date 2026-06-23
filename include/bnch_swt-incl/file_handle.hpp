@@ -32,7 +32,6 @@ namespace bnch_swt {
 
 	class file_handle {
 	  public:
-
 		static void save_file(const std::string& data, const std::string& path) {
 			std::filesystem::path abs_path = std::filesystem::absolute(path);
 			std::filesystem::create_directories(abs_path.parent_path());
@@ -52,6 +51,8 @@ namespace bnch_swt {
 			std::fstream stream{ std::filesystem::absolute(path), std::ios::in };
 			if (stream.is_open()) {
 				return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+			} else {
+				throw std::runtime_error{ "Sorry, but we failed to load the file at: " + path };
 			}
 			return {};
 		}

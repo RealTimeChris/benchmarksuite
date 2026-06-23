@@ -1,0 +1,33 @@
+# COMPILER=msvc CHUNKS_PER_BLOCK=8 BLOCKS_PER_STEP=8
+Blocks Per Step: 8
+Chunks Per Block: 4
+--- Correctness tests ---
+
+
+# utf8-validate Test Results 
+#**CPU:** Intel(R) Core(TM) i9-14900KF
+#**OS:** Windows-10.0.26200
+#**Compiler:** MSVC-19.44.35228.0
+
+Library,Throughput (MB/s),RSE (%),Window Duration,File Size (Bytes),Window Samples (k),Variance,Latency / Run (ns),Position
+jsonifier,137426,0.157081,2.5194ms,1048576,30,3919.54,7276.67,Win
+simdjson,106345,1.22424,3.0934ms,1048576,30,397575,9403.33,Loss
+
+# utf8-validate Test Results 
+#**CPU:** Intel(R) Core(TM) i9-14900KF
+#**OS:** Windows-10.0.26200
+#**Compiler:** MSVC-19.44.35228.0
+
+Library,Throughput (MB/s),RSE (%),Window Duration,File Size (Bytes),Window Samples (k),Variance,Latency / Run (ns),Position
+jsonifier,19186.5,0.955719,17.7136ms,1048579,30,7.44372e+06,52120,Win
+simdjson,9057.45,0.674461,36.4342ms,1048579,30,1.66351e+07,110407,Loss
+
+# utf8-validate Test Results 
+#**CPU:** Intel(R) Core(TM) i9-14900KF
+#**OS:** Windows-10.0.26200
+#**Compiler:** MSVC-19.44.35228.0
+
+Library,Throughput (MB/s),RSE (%),Window Duration,File Size (Bytes),Window Samples (k),Variance,Latency / Run (ns),Position
+jsonifier,18424.1,1.19708,18.0246ms,1048576,30,1.26646e+07,54276.7,Win
+simdjson,9083.27,1.07008,89.9159ms,1048576,40,5.55151e+07,110092,Loss
+

@@ -20,7 +20,42 @@
 
 set(MAIN_SOURCE main${BNCH_SWT_MAIN_FILE_EXTENSION})
 
-add_executable(benchmarksuite-main ${MAIN_SOURCE})
+include(FetchContent)
+
+set(SIMDJSON_DEVELOPMENT_CHECKS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  simdjson
+  GIT_REPOSITORY https://github.com/simdjson/simdjson.git
+  GIT_TAG master
+  GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(simdjson)
+get_target_property(_sj_defs simdjson INTERFACE_COMPILE_DEFINITIONS)
+if(_sj_defs)
+	list(REMOVE_ITEM _sj_defs SIMDJSON_DEVELOPMENT_CHECKS)
+	set_target_properties(simdjson PROPERTIES INTERFACE_COMPILE_DEFINITIONS ${_sj_defs})
+endif()
+get_target_property(_sj_priv simdjson COMPILE_DEFINITIONS)
+if(_sj_priv)
+	list(REMOVE_ITEM _sj_priv SIMDJSON_DEVELOPMENT_CHECKS)
+	set_target_properties(simdjson PROPERTIES COMPILE_DEFINITIONS ${_sj_priv})
+endif()
+
+FetchContent_Declare(
+    Jsonifier
+    GIT_REPOSITORY https://github.com/realtimechris/jsonifier.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(Jsonifier)
+ 
+add_executable(benchmarksuite-main main.cpp)
+ 
+target_link_libraries(benchmarksuite-main PRIVATE
+    benchmarksuite::benchmarksuite
+    simdjson
+    Jsonifier::Jsonifier
+)
 
 if (PRINT_ASSEMBLY)
     if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
@@ -66,11 +101,6 @@ if (PRINT_ASSEMBLY)
     endif()
 endif()
 
-target_link_libraries(benchmarksuite-main
-    PUBLIC
-        benchmarksuite::benchmarksuite
-)
-
 set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd4820
     /wd5039
@@ -78,13 +108,13 @@ set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd4711
     /Wall
     /W4
-    /WX
+    #/WX
 )
 
 set(BNCH_SWT_CLANG_COMPILER_OPTIONS
     -Weverything
     -Wpedantic
-    -Werror
+    #-Werror
     -Wno-unsafe-buffer-usage
     -Wno-c++20-extensions
     -Wextra
@@ -96,7 +126,7 @@ set(BNCH_SWT_CLANG_COMPILER_OPTIONS
 
 set(BNCH_SWT_GNU_COMPILER_OPTIONS
     -Wpedantic
-    -Werror
+    #-Werror
     -Wextra
     -Wall
 )

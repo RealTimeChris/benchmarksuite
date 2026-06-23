@@ -197,7 +197,7 @@ The `converged` field on each result records whether both criteria were met befo
 ## Statistical Analysis
 
 - **RSE-based convergence** rather than raw deviation range.
-- **Mean convergence** as a second gate against false stability.
+- **Latency / Run (ns) convergence** as a second gate against false stability.
 - **Welch's t-test tie detection** — proper unequal-variance handling when sample sizes differ. When `position_type_val` is `position_type::tie`, neither implementation is significantly faster under the available data.
 - **Automated ranking** with proper tie grouping, plus win/loss/tie tracking aggregated across all tests via `stage_results_data`.
 - **CSV and Markdown export** with a hardware-info preamble.
@@ -263,7 +263,7 @@ Results come from objects returned by `get_test_results()` and `get_all_results(
 **OS:** Linux-6.8.0
 **Compiler:** GCC-13.2.0
 
-| Library | Throughput (MB/s) | RSE (%) | Time (ms) | ... | Converged | Position |
+| Library | Throughput (MB/s) | RSE (%) | Window Duration | ... | Converged | Position |
 | ------- | ----------------- | ------- | --------- | --- | --------- | -------- |
 | jsonifier::to_chars | 84.58 | 1.23 | 5.79 | ... | true | 1 (Win) |
 | glz::to_chars | 75.95 | 2.17 | 6.48 | ... | true | 2 (Loss) |
