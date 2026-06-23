@@ -38,7 +38,6 @@
 
 #if BNCH_SWT_PLATFORM_MAC
 
-	#include <mach/mach_time.h>
 	#include <sys/sysctl.h>
 	#include <sys/kdebug.h>
 	#include <string_view>

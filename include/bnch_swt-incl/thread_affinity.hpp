@@ -39,12 +39,12 @@
 #if BNCH_SWT_PLATFORM_WINDOWS
 	#include <windows.h>
 	#include <intrin.h>
-#elif BNCH_SWT_PLATFORM_MAC
-	#include <pthread.h>
-	#include <sys/qos.h>
-	#include <mach/mach.h>
-	#include <mach/thread_policy.h>
-	#include <mach/thread_act.h>
+#elif BNCH_SWT_PLATFORM_MAC && !BNCH_SWT_DISABLE_PINNING
+    #include <pthread.h>
+    #include <sys/qos.h>
+    #include <mach/mach.h>
+    #include <mach/thread_policy.h>
+    #include <mach/thread_act.h>
 #elif BNCH_SWT_PLATFORM_LINUX
 	#ifndef _GNU_SOURCE
 		#define _GNU_SOURCE
@@ -250,7 +250,7 @@ namespace bnch_swt {
 		return aff_ok && prio_ok;
 	}
 
-#elif BNCH_SWT_PLATFORM_MAC
+#elif BNCH_SWT_PLATFORM_MAC && !BNCH_SWT_DISABLE_PINNING
 
 	inline bool pin_for_benchmark() noexcept {
 		const int qos_rc = pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);

@@ -22,8 +22,9 @@
 
 #pragma once
 
-#include <bnch_swt-incl/benchmarksuite_gpu_properties.hpp>
+#include <bnch_swt-incl/config.hpp>
 #include <bnch_swt-incl/benchmarksuite_cpu_properties.hpp>
+#include <bnch_swt-incl/benchmarksuite_gpu_properties.hpp>
 #include <bnch_swt-incl/random_generators.hpp>
 #include <bnch_swt-incl/do_not_optimize.hpp>
 #include <bnch_swt-incl/thread_affinity.hpp>
@@ -34,7 +35,6 @@
 #include <bnch_swt-incl/printable.hpp>
 #include <bnch_swt-incl/metrics.hpp>
 #include <bnch_swt-incl/utility.hpp>
-#include <bnch_swt-incl/config.hpp>
 #include <unordered_set>
 #include <unordered_map>
 #include <iostream>
@@ -187,8 +187,8 @@ namespace bnch_swt {
 	template<benchmark_types benchmark_type> struct final_test_results {
 		std::vector<library_completion_data> sorted_results{};
 		system_info_data<benchmark_type> system_info;
-		std::string test_name;
 		std::string_view stage_name_str;
+		std::string test_name;
 
 		std::string csv_preamble() const {
 			std::stringstream ss{};
@@ -203,11 +203,11 @@ namespace bnch_swt {
 			std::string h = "Library";
 			h += ",Throughput (MB/s)";
 			h += ",RSE (%)";
-			h += ",Time (ms)";
-			h += ",Bytes Processed";
-			h += ",Measured Sample Size";
+			h += ",Window Duration";
+			h += ",File Size (Bytes)";
+			h += ",Window Samples (k)";
 			h += ",Variance";
-			h += ",Mean";
+			h += ",Latency / Run (ns)";
 			h += ",Position";
 			return h;
 		}
@@ -278,11 +278,11 @@ namespace bnch_swt {
 			std::string h = "| Library";
 			h += " | Throughput (MB/s)";
 			h += " | RSE (%)";
-			h += " | Time (ms)";
-			h += " | Bytes Processed";
-			h += " | Measured Sample Size";
+			h += " | Window Duration";
+			h += " | File Size (Bytes)";
+			h += " | Window Samples (k)";
 			h += " | Variance";
-			h += " | Mean";
+			h += " | Latency / Run (ns)";
 			h += " | Position |";
 			return h;
 		}
@@ -381,8 +381,7 @@ namespace bnch_swt {
 		}
 	};
 
-	template<benchmark_types benchmark_type> 
-	struct stage_results_data {
+	template<benchmark_types benchmark_type> struct stage_results_data {
 		std::vector<library_positions> lib_positions;
 		std::vector<final_test_results<benchmark_type>> results{};
 		system_info_data<benchmark_type> system_info;
@@ -620,12 +619,11 @@ namespace bnch_swt {
 	}
 
 	template<string_literal stage_name_new, const stage_config_data stage_config> struct benchmark_stage {
-
 		inline static stage_data& get_raw_test_data() {
 			static stage_data* raw_test_data{ new stage_data{} };
 			return *raw_test_data;
 		}
-		
+
 		template<bnch_swt::string_literal test_name_new, bnch_swt::string_literal library_name_new, typename functor_type, typename... arg_types>
 		static void run_benchmark(arg_types&&... args) {
 			[[maybe_unused]] static constexpr string_literal stage_name{ stage_name_new };
