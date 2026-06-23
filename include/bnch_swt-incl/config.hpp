@@ -34,18 +34,6 @@
 	#define BNCH_SWT_ALIGN(x) alignas(x)
 #endif
 
-#if !defined(xnu_static_assert_struct_size)
-	#define xnu_static_assert_struct_size(type, size)
-#endif
-
-#if !defined(xnu_static_assert_struct_size_kernel_user)
-	#define xnu_static_assert_struct_size_kernel_user(type, ksize, usize)
-#endif
-
-#if !defined(xnu_static_assert_struct_size_kernel_user64_user32)
-	#define xnu_static_assert_struct_size_kernel_user64_user32(type, ksize, u64size, u32size)
-#endif
-
 namespace bnch_swt {
 
 	using nanoseconds  = std::chrono::duration<double, std::nano>;

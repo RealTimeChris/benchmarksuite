@@ -117,14 +117,20 @@ jobs:
         run: |
           ${{ runner.os != 'Windows' && 'sudo' || '' }} cmake --install ./Build --config=Release
 
-      - name: Run (Unix)
-        if: runner.os != 'Windows'
+      - name: Run (GCC)
+        if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'gcc'
         run: |
-          sudo chmod +x /usr/local/bin/benchmarksuite-main
-          /usr/local/bin/benchmarksuite-main
+          sudo chmod +x ./gcc.sh
+          ./gcc.sh
+
+      - name: Run (CLANG)
+        if: matrix.os == 'ubuntu-latest' && matrix.compiler == 'clang'
+        run: |
+          sudo chmod +x ./clang.sh
+          ./clang.sh
 
       - name: Run (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          & "C:/Program Files (x86)/benchmarksuite/bin/benchmarksuite-main.exe"
+          ./msvc.ps1

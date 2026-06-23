@@ -626,7 +626,7 @@ namespace bnch_swt {
 		std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << test_name << " Test Results " << "\n ";
-			ss << "#**" << device_type_string << ":** " << sys_info::device_name << "\n";
+			ss << "#**" << device_type_string << ":** " << sys_info::device_name() << "\n";
 			ss << "#**OS:** " << sys_info::os_id << "-" << sys_info::os_version << "\n";
 			ss << "#**Compiler:** " << sys_info::compiler_id << "-" << sys_info::compiler_version << "\n\n";
 			return ss.str();
@@ -641,7 +641,7 @@ namespace bnch_swt {
 			if constexpr (metrics_presence.time_in_ns)
 				h += ",Time (ns)";
 			if constexpr (metrics_presence.bytes_processed)
-				h += ",Bytes Processed";
+				h += ",File Size (Bytes)";
 			if constexpr (metrics_presence.measured_execution_count)
 				h += ",Measured Executions";
 			if constexpr (metrics_presence.iterations_to_stabilize)
@@ -756,7 +756,7 @@ namespace bnch_swt {
 
 		std::string md_preamble() const {
 			std::stringstream ss{};
-			ss << "**" << device_type_string << ":** " << sys_info::device_name << "  \n";
+			ss << "**" << device_type_string << ":** " << sys_info::device_name() << "  \n";
 			ss << "**OS:** " << sys_info::os_id << "-" << sys_info::os_version << "  \n";
 			ss << "**Compiler:** " << sys_info::compiler_id << "-" << sys_info::compiler_version << "  \n\n";
 			return ss.str();
@@ -769,7 +769,7 @@ namespace bnch_swt {
 			if constexpr (metrics_presence.throughput_percentage_deviation)
 				h += " Percentage Deviation (+/-%) |";
 			if constexpr (metrics_presence.bytes_processed)
-				h += " Bytes Processed |";
+				h += " File Size (Bytes) |";
 			if constexpr (metrics_presence.time_in_ns)
 				h += " Time (ns) |";
 			if constexpr (metrics_presence.measured_execution_count)
@@ -1087,7 +1087,7 @@ namespace bnch_swt {
 		std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << stage_name_str << " Stage Results" << "\n";
-			ss << "#**" << device_type_string << ":** " << sys_info::device_name << "\n";
+			ss << "#**" << device_type_string << ":** " << sys_info::device_name() << "\n";
 			ss << "#**OS:** " << sys_info::os_id << "-" << sys_info::os_version << "\n";
 			ss << "#**Compiler:** " << sys_info::compiler_id << "-" << sys_info::compiler_version << "\n\n";
 			return ss.str();
@@ -1096,7 +1096,7 @@ namespace bnch_swt {
 		std::string md_preamble() const {
 			std::stringstream ss{};
 			ss << stage_name_str << " Stage Results" << "\n";
-			ss << "**" << device_type_string << ":** " << sys_info::device_name << "  \n";
+			ss << "**" << device_type_string << ":** " << sys_info::device_name() << "  \n";
 			ss << "**OS:** " << sys_info::os_id << "-" << sys_info::os_version << "  \n";
 			ss << "**Compiler:** " << sys_info::compiler_id << "-" << sys_info::compiler_version << "  \n\n";
 			return ss.str();
@@ -1111,7 +1111,7 @@ namespace bnch_swt {
 			if constexpr (metrics_presence.time_in_ns)
 				h += ",Average Time (ns)";
 			if constexpr (metrics_presence.bytes_processed)
-				h += ",Average Bytes Processed";
+				h += ",Average File Size (Bytes)";
 			if constexpr (metrics_presence.measured_execution_count)
 				h += ",Average Measured Executions";
 			if constexpr (metrics_presence.iterations_to_stabilize)

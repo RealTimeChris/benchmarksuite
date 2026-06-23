@@ -52,7 +52,8 @@ else()
 endif()
 
 include(cmake/detection/benchmarksuite_detect_cpu_properties.cmake)
-
+option(CHUNKS_PER_BLOCK "" 2)
+option(BLOCKS_PER_STEP "" 8)
 include(cmake/library_setup.cmake)
 
 include(cmake/installation_setup.cmake)
