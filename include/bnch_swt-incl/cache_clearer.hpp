@@ -143,7 +143,7 @@ namespace bnch_swt::internal {
 		inline static size_t get_cache_line_size() {
 			static const size_t cache_line_size = get_cache_line_size_impl();
 			return cache_line_size;
-		} 
+		}
 		static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 		static constexpr size_t biggest_cache_size{ [] {
 			size_t return_value{};

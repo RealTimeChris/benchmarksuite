@@ -76,12 +76,14 @@ set(BNCH_SWT_MSVC_COMPILER_OPTIONS
     /wd5039
     /wd4710
     /wd4711
+    /wd5045
     /Wall
     /W4
     /WX
 )
 
 set(BNCH_SWT_CLANG_COMPILER_OPTIONS
+    $<$<AND:$<OR:$<CXX_COMPILER_ID:Clang>,$<CXX_COMPILER_ID:AppleClang>>,$<NOT:$<VERSION_LESS:$<CXX_COMPILER_VERSION>,23>>>:-Wno-lifetime-safety-lifetimebound-violation;-Wno-lifetime-safety-intra-tu-suggestions;-Wno-lifetime-safety-invalidation>
     -Weverything
     -Wpedantic
     -Werror
