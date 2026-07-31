@@ -27,9 +27,6 @@
 
 #if BNCH_SWT_PLATFORM_WINDOWS
 
-	#include <intrin.h>
-	#include <vector>
-
 namespace bnch_swt::internal {
 
 	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector {

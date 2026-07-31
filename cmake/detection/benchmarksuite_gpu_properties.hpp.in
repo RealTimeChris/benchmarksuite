@@ -22,7 +22,6 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
-#include <cstdint>
 #include <bnch_swt-incl/config.hpp>
 #include <bnch_swt-incl/aligned_const.hpp>
 

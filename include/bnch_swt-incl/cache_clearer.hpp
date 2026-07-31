@@ -24,29 +24,6 @@
 
 #include <bnch_swt-incl/benchmarksuite_cpu_properties.hpp>
 #include <bnch_swt-incl/config.hpp>
-#include <algorithm>
-#include <bit>
-#include <chrono>
-#include <fstream>
-#include <iostream>
-#include <vector>
-
-#if BNCH_SWT_PLATFORM_WINDOWS
-	#include <Windows.h>
-	#include <intrin.h>
-#elif BNCH_SWT_PLATFORM_LINUX
-	#include <unistd.h>
-	#include <vector>
-	#include <string>
-	#if defined(__i386__) || defined(__x86_64__)
-		#include <immintrin.h>
-	#endif
-#elif BNCH_SWT_PLATFORM_MAC
-	#include <libkern/OSCacheControl.h>
-	#include <sys/sysctl.h>
-	#include <unistd.h>
-	#include <vector>
-#endif
 
 namespace bnch_swt::internal {
 
@@ -140,10 +117,12 @@ namespace bnch_swt::internal {
 			}
 #endif
 		}
-		inline static size_t get_cache_line_size() {
+
+		BNCH_SWT_HOST static size_t get_cache_line_size() {
 			static const size_t cache_line_size = get_cache_line_size_impl();
 			return cache_line_size;
 		}
+
 		static constexpr std::array<size_t, 3> cache_sizes{ { cpu_properties::l1_cache_size, cpu_properties::l2_cache_size, cpu_properties::l3_cache_size } };
 		static constexpr size_t biggest_cache_size{ [] {
 			size_t return_value{};
@@ -163,7 +142,7 @@ namespace bnch_swt::internal {
 			char* aligned_ptr;
 			size_t size;
 
-			aligned_vector(size_t requested_size) {
+			BNCH_SWT_HOST aligned_vector(size_t requested_size) {
 				data.resize(requested_size + 64ULL);
 				uintptr_t addr	  = std::bit_cast<uintptr_t>(data.data());
 				uintptr_t aligned = (addr + 63ULL) & ~63ULL;
@@ -171,10 +150,11 @@ namespace bnch_swt::internal {
 				size			  = requested_size;
 			}
 
-			char* get() {
+			BNCH_SWT_HOST char* get() {
 				return aligned_ptr;
 			}
-			size_t get_size() const {
+
+			BNCH_SWT_HOST size_t get_size() const {
 				return size;
 			}
 		};
@@ -183,7 +163,7 @@ namespace bnch_swt::internal {
 
 		uint64_t rng_state{ static_cast<uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count()) };
 
-		inline size_t fast_rng(size_t max_val) {
+		BNCH_SWT_HOST size_t fast_rng(size_t max_val) {
 			rng_state = rng_state * 6364136223846793005ULL + 1442695040888963407ULL;
 			return static_cast<size_t>(rng_state % max_val);
 		}
@@ -279,7 +259,7 @@ namespace bnch_swt::internal {
 		}
 
 	  public:
-		cache_clearer() {
+		BNCH_SWT_HOST cache_clearer() {
 			char* buffer_start = evict_buffer.get();
 			size_t buffer_size = evict_buffer.get_size();
 

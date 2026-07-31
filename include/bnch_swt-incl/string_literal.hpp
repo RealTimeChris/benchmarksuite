@@ -24,9 +24,6 @@
 #pragma once
 
 #include <bnch_swt-incl/config.hpp>
-#include <string_view>
-#include <algorithm>
-#include <array>
 
 namespace bnch_swt {
 

@@ -24,11 +24,6 @@
 #pragma once
 
 #include <bnch_swt-incl/concepts.hpp>
-#include <type_traits>
-#include <cstddef>
-#include <utility>
-#include <random>
-#include <array>
 
 namespace bnch_swt {
 
@@ -148,8 +143,8 @@ namespace bnch_swt {
 
 	  protected:
 		BNCH_SWT_HOST value_type next() {
-			return static_cast<value_type>(
-				(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) * xoshiro_256_traits<value_type>::multiplicand);
+			return static_cast<value_type>(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) *
+				static_cast<value_type>(xoshiro_256_traits<value_type>::multiplicand);
 		}
 	};
 

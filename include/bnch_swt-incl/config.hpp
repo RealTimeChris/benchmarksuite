@@ -22,9 +22,22 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
+#include <source_location>
+#include <unordered_map>
+#include <filesystem>
+#include <algorithm>
+#include <iostream>
 #include <optional>
+#include <fstream>
+#include <variant>
 #include <cstdint>
+#include <cstring>
 #include <chrono>
+#include <vector>
+#include <mutex>
+#include <cmath>
+#include <array>
+#include <span>
 
 #if BNCH_SWT_COMPILER_CUDA
 	#define BNCH_SWT_ALIGN(x) __align__(x)
@@ -32,6 +45,43 @@
 	#include <cuda_bf16.h>
 #else
 	#define BNCH_SWT_ALIGN(x) alignas(x)
+#endif
+
+#if BNCH_SWT_PLATFORM_WINDOWS
+	#include <Windows.h>
+	#include <intrin.h>
+#elif BNCH_SWT_PLATFORM_MAC
+	#include <libkern/OSCacheControl.h>
+	#include <sys/sysctl.h>
+	#include <unistd.h>
+	#include <dlfcn.h>
+	#include <pthread.h>
+	#include <sys/qos.h>
+	#include <mach/mach.h>
+	#include <mach/thread_policy.h>
+	#include <mach/thread_act.h>
+#elif BNCH_SWT_PLATFORM_LINUX
+	#ifndef _GNU_SOURCE
+		#define _GNU_SOURCE
+	#endif
+	#include <unistd.h>
+	#include <pthread.h>
+	#include <sched.h>
+	#include <sys/resource.h>
+	#include <errno.h>
+	#if defined(__i386__) || defined(__x86_64__)
+		#include <immintrin.h>
+		#include <cpuid.h>
+	#endif
+#elif BNCH_SWT_PLATFORM_ANDROID
+	#if defined(__x86_64__) || defined(__i386__)
+		#include <cpuid.h>
+	#endif
+	#include <sys/system_properties.h>
+	#include <pthread.h>
+	#include <sched.h>
+	#include <sys/resource.h>
+	#include <errno.h>
 #endif
 
 namespace bnch_swt {

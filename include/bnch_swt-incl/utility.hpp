@@ -23,14 +23,10 @@
 #pragma once
 
 #include <bnch_swt-incl/concepts.hpp>
-#include <type_traits>
-#include <concepts>
-#include <cstdint>
-#include <variant>
 
 namespace bnch_swt {
 
-	[[maybe_unused]] inline static std::string get_time() {
+	[[maybe_unused]] BNCH_SWT_HOST static std::string get_time() {
 		std::string new_time_string{};
 		new_time_string.resize(1024);
 #if BNCH_SWT_PLATFORM_WINDOWS
@@ -45,7 +41,7 @@ namespace bnch_swt {
 		return new_time_string;
 	}
 
-	[[maybe_unused]] inline static std::string url_encode(std::string value) {
+	[[maybe_unused]] BNCH_SWT_HOST static std::string url_encode(std::string value) {
 		std::ostringstream escaped;
 		escaped.fill('0');
 		escaped << std::hex;
@@ -63,12 +59,12 @@ namespace bnch_swt {
 		return escaped.str();
 	}
 
-	[[maybe_unused]] inline static std::string get_current_path_impl() {
+	[[maybe_unused]] BNCH_SWT_HOST static std::string get_current_path_impl() {
 		return static_cast<std::string>(bnch_swt::system_info_data<bnch_swt::benchmark_types::cpu>::os_id) + "-" +
 			static_cast<std::string>(bnch_swt::system_info_data<bnch_swt::benchmark_types::cpu>::compiler_id);
 	}
 
-	[[maybe_unused]] inline static int32_t execute_python_script(const std::string& script_path, const std::string& argument_01, const std::string& argument_02) {
+	[[maybe_unused]] BNCH_SWT_HOST static int32_t execute_python_script(const std::string& script_path, const std::string& argument_01, const std::string& argument_02) {
 #if BNCH_SWT_PLATFORM_WINDOWS
 		static constexpr std::string_view python_name{ "python" };
 #else

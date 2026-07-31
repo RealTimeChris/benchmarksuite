@@ -38,21 +38,6 @@
 
 #if BNCH_SWT_PLATFORM_MAC
 
-	#include <sys/sysctl.h>
-	#include <sys/kdebug.h>
-	#include <string_view>
-	#include <iostream>
-	#include <unistd.h>
-	#include <dlfcn.h>
-	#include <cstring>
-	#include <vector>
-	#include <memory>
-	#include <string>
-	#include <array>
-	#include <mutex>
-	#include <span>
-	#include <bit>
-
 namespace bnch_swt::internal {
 
 	struct performance_counters {

@@ -22,14 +22,7 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
-#include <type_traits>
-#include <iostream>
-#include <concepts>
-#include <optional>
-#include <cstdint>
-#include <variant>
-#include <vector>
-#include <tuple>
+#include <bnch_swt-incl/config.hpp>
 
 namespace bnch_swt {
 
