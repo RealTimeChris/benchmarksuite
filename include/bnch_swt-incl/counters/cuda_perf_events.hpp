@@ -35,11 +35,11 @@ namespace bnch_swt {
 
 	namespace internal {
 
-		static constexpr const char* get_function_name(std::source_location location = std::source_location::current()) {
+		BNCH_SWT_HOST static constexpr const char* get_function_name(std::source_location location = std::source_location::current()) {
 			return location.function_name();
 		}
 
-		static constexpr uint64_t get_line(std::source_location location = std::source_location::current()) {
+		BNCH_SWT_HOST static constexpr uint64_t get_line(std::source_location location = std::source_location::current()) {
 			return location.line();
 		}
 

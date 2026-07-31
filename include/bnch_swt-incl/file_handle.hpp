@@ -32,7 +32,7 @@ namespace bnch_swt {
 
 	class file_handle {
 	  public:
-		static void save_file(const std::string& data, const std::string& path) {
+		BNCH_SWT_HOST static void save_file(const std::string& data, const std::string& path) {
 			std::filesystem::path abs_path = std::filesystem::absolute(path);
 			std::filesystem::create_directories(abs_path.parent_path());
 			std::fstream stream{ abs_path, std::ios::out | std::ios::trunc };
@@ -47,7 +47,7 @@ namespace bnch_swt {
 			}
 		}
 
-		static std::string get(const std::string& path) {
+		BNCH_SWT_HOST static std::string get(const std::string& path) {
 			std::fstream stream{ std::filesystem::absolute(path), std::ios::in };
 			if (stream.is_open()) {
 				return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
