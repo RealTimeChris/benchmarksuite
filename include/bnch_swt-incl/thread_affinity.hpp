@@ -38,23 +38,33 @@
 
 #if BNCH_SWT_PLATFORM_WINDOWS
 	#include <windows.h>
-	#include <intrin.h>
+	#if BNCH_SWT_PLATFORM_WINDOWS || ((BNCH_SWT_PLATFORM_LINUX || BNCH_SWT_PLATFORM_ANDROID) && BNCH_SWT_ARCH_X64)
+		#if BNCH_SWT_PLATFORM_WINDOWS
+			#include <intrin.h>
+		#else
+			#include <cpuid.h>
+		#endif
+	#endif
 #elif BNCH_SWT_PLATFORM_MAC && !BNCH_SWT_DISABLE_PINNING
-    #include <pthread.h>
-    #include <sys/qos.h>
-    #include <mach/mach.h>
-    #include <mach/thread_policy.h>
-    #include <mach/thread_act.h>
-#elif BNCH_SWT_PLATFORM_LINUX
+	#include <pthread.h>
+	#include <sys/qos.h>
+	#include <mach/mach.h>
+	#include <mach/thread_policy.h>
+	#include <mach/thread_act.h>
+#elif BNCH_SWT_PLATFORM_LINUX || BNCH_SWT_PLATFORM_ANDROID
 	#ifndef _GNU_SOURCE
 		#define _GNU_SOURCE
+	#endif
+	#if defined(__x86_64__) || defined(__i386__)
+		#include <cpuid.h>
 	#endif
 	#include <pthread.h>
 	#include <sched.h>
 	#include <sys/resource.h>
 	#include <unistd.h>
-	#include <cpuid.h>
 	#include <errno.h>
+	#include <unistd.h>
+	#include <sched.h>
 #endif
 
 namespace bnch_swt {
@@ -65,7 +75,7 @@ namespace bnch_swt {
 		uint32_t eax, ebx, ecx, edx;
 	};
 
-	inline cpuid_regs cpuid_call(uint32_t leaf, uint32_t subleaf) noexcept {
+	BNCH_SWT_HOST static cpuid_regs cpuid_call(uint32_t leaf, uint32_t subleaf) noexcept {
 		cpuid_regs r{};
 	#if BNCH_SWT_PLATFORM_WINDOWS
 		int regs[4];
@@ -80,7 +90,7 @@ namespace bnch_swt {
 		return r;
 	}
 
-	inline bool is_intel_hybrid() noexcept {
+	BNCH_SWT_HOST static bool is_intel_hybrid() noexcept {
 		auto vendor		 = cpuid_call(0, 0);
 		const bool intel = (vendor.ebx == 0x756e6547u) && (vendor.edx == 0x49656e69u) && (vendor.ecx == 0x6c65746eu);
 		if (!intel || vendor.eax < 0x7)
@@ -91,7 +101,7 @@ namespace bnch_swt {
 		return cpuid_call(0, 0).eax >= 0x1A;
 	}
 
-	inline bool current_cpu_is_pcore() noexcept {
+	BNCH_SWT_HOST static bool current_cpu_is_pcore() noexcept {
 		return ((cpuid_call(0x1A, 0).eax >> 24) & 0xffu) == 0x40u;
 	}
 
@@ -99,7 +109,7 @@ namespace bnch_swt {
 
 #if BNCH_SWT_PLATFORM_WINDOWS
 
-	inline bool index_to_processor_number(DWORD index, PROCESSOR_NUMBER& out) noexcept {
+	BNCH_SWT_HOST static bool index_to_processor_number(DWORD index, PROCESSOR_NUMBER& out) noexcept {
 		DWORD seen		  = 0;
 		const WORD groups = GetActiveProcessorGroupCount();
 		for (WORD g = 0; g < groups; ++g) {
@@ -115,7 +125,7 @@ namespace bnch_swt {
 		return false;
 	}
 
-	inline int find_first_pcore() noexcept {
+	BNCH_SWT_HOST static int find_first_pcore() noexcept {
 		if (!is_intel_hybrid())
 			return -1;
 
@@ -149,7 +159,7 @@ namespace bnch_swt {
 		return found;
 	}
 
-	inline bool pin_for_benchmark() noexcept {
+	BNCH_SWT_HOST static bool pin_for_benchmark() noexcept {
 		HANDLE self = GetCurrentThread();
 
 		bool aff_ok		= false;
@@ -182,10 +192,47 @@ namespace bnch_swt {
 		return aff_ok && prio_ok;
 	}
 
-#elif BNCH_SWT_PLATFORM_LINUX
+#elif BNCH_SWT_PLATFORM_LINUX || BNCH_SWT_PLATFORM_ANDROID
 
-	inline int find_first_pcore() noexcept {
-	#if defined(__x86_64__) || defined(__i386__)
+	#if defined(__aarch64__) || defined(__arm__)
+
+	BNCH_SWT_HOST static long read_cpu_max_freq_khz(int cpu_index) noexcept {
+		char path[128];
+		std::snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/cpuinfo_max_freq", cpu_index);
+		FILE* f = std::fopen(path, "r");
+		if (!f)
+			return -1;
+		long khz = -1;
+		if (std::fscanf(f, "%ld", &khz) != 1)
+			khz = -1;
+		std::fclose(f);
+		return khz;
+	}
+
+	BNCH_SWT_HOST static int find_first_pcore() noexcept {
+		const long ncpu = sysconf(_SC_NPROCESSORS_ONLN);
+		if (ncpu <= 0)
+			return -1;
+
+		int best_cpu   = -1;
+		long best_freq = -1;
+		for (long i = 0; i < ncpu; ++i) {
+			const long freq = read_cpu_max_freq_khz(static_cast<int>(i));
+			if (freq > best_freq) {
+				best_freq = freq;
+				best_cpu  = static_cast<int>(i);
+			}
+		}
+
+		if (best_cpu < 0 || best_freq <= 0)
+			return -1;
+
+		return best_cpu;
+	}
+
+	#elif defined(__x86_64__) || defined(__i386__)
+
+	BNCH_SWT_HOST static int find_first_pcore() noexcept {
 		if (!is_intel_hybrid())
 			return -1;
 
@@ -214,12 +261,17 @@ namespace bnch_swt {
 
 		pthread_setaffinity_np(self, sizeof(original), &original);
 		return found;
-	#else
-		return -1;
-	#endif
 	}
 
-	inline bool pin_for_benchmark() noexcept {
+	#else
+
+	BNCH_SWT_HOST static int find_first_pcore() noexcept {
+		return -1;
+	}
+
+	#endif
+
+	BNCH_SWT_HOST static bool pin_for_benchmark() noexcept {
 		pthread_t self = pthread_self();
 
 		cpu_set_t target;
@@ -230,7 +282,12 @@ namespace bnch_swt {
 		} else {
 			CPU_SET(sched_getcpu(), &target);
 		}
+
+	#if BNCH_SWT_PLATFORM_ANDROID
+		const bool aff_ok = sched_setaffinity(0, sizeof(target), &target) == 0;
+	#else
 		const bool aff_ok = pthread_setaffinity_np(self, sizeof(target), &target) == 0;
+	#endif
 
 		bool prio_ok = false;
 		sched_param sp{};
@@ -252,7 +309,7 @@ namespace bnch_swt {
 
 #elif BNCH_SWT_PLATFORM_MAC && !BNCH_SWT_DISABLE_PINNING
 
-	inline bool pin_for_benchmark() noexcept {
+	BNCH_SWT_HOST static bool pin_for_benchmark() noexcept {
 		const int qos_rc = pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
 
 		thread_port_t mach_thread = pthread_mach_thread_np(pthread_self());
@@ -271,7 +328,7 @@ namespace bnch_swt {
 	}
 
 #else
-	inline bool pin_for_benchmark() noexcept {
+	BNCH_SWT_HOST static bool pin_for_benchmark() noexcept {
 		std::fprintf(stderr, "[bench] unsupported platform - no pin performed\n");
 		return false;
 	}

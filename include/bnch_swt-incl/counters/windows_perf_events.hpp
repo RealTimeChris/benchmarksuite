@@ -28,7 +28,6 @@
 #if BNCH_SWT_PLATFORM_WINDOWS
 
 	#include <intrin.h>
-	#include <vector>
 
 namespace bnch_swt::internal {
 

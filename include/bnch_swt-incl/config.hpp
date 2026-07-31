@@ -51,12 +51,10 @@ namespace bnch_swt {
 
 		static constexpr bool is_steady = true;
 
-		static time_point now() noexcept {
+		BNCH_SWT_HOST static time_point now() noexcept {
 			auto system_now			  = std::chrono::steady_clock::now();
 			auto duration_since_epoch = system_now.time_since_epoch();
-
-			auto casted_duration = std::chrono::duration_cast<duration>(duration_since_epoch);
-
+			auto casted_duration	  = std::chrono::duration_cast<duration>(duration_since_epoch);
 			return time_point(casted_duration);
 		}
 	};

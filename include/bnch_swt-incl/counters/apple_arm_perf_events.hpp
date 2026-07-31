@@ -45,7 +45,6 @@
 	#include <unistd.h>
 	#include <dlfcn.h>
 	#include <cstring>
-	#include <vector>
 	#include <memory>
 	#include <string>
 	#include <array>

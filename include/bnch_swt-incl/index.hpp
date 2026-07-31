@@ -50,8 +50,8 @@ namespace bnch_swt {
 
 	struct stage_config_data {
 		bool clear_cpu_caches_before_iterations{ true };
-		uint64_t measured_iteration_count{ 100 };
-		uint64_t max_iteration_count{ 1000 };
+		uint64_t measured_iteration_count{ 40 };
+		uint64_t max_iteration_count{ 10000 };
 		double convergence_threshold{ 1.0 };
 		benchmark_types benchmark_type{};
 		uint64_t max_time_in_s{ 5 };
@@ -63,10 +63,16 @@ namespace bnch_swt {
 	struct printable_milliseconds {
 		double value;
 		static constexpr const char* units{ "ms" };
-		printable_milliseconds(double ns_value = 0) : value{ static_cast<double>(ns_value) / 1e6 } {
+		BNCH_SWT_HOST printable_milliseconds& operator=(double ns_value) {
+			value = ns_value / 1'000'000.0;
+			return *this;
 		}
 
-		inline friend std::ostream& operator<<(std::ostream& os BNCH_SWT_LIFETIME_BOUND, const printable_milliseconds& ms) {
+		BNCH_SWT_HOST printable_milliseconds(double ns_value = 0) {
+			*this = ns_value;
+		}
+
+		BNCH_SWT_HOST friend std::ostream& operator<<(std::ostream& os BNCH_SWT_LIFETIME_BOUND, const printable_milliseconds& ms) {
 			os << ms.value << units;
 			return os;
 		}
@@ -88,12 +94,12 @@ namespace bnch_swt {
 		bnch_swt::position_type position_type_val{ bnch_swt::position_type::none };
 		std::string_view name;
 		uint64_t position;
-		bool operator>(const library_completion_data& rhs) const {
+		BNCH_SWT_HOST bool operator>(const library_completion_data& rhs) const {
 			return position > rhs.position;
 		}
 	};
 
-	inline static library_benchmark_data calculate_epoch_stats(const iteration_metrics* iteration_data, uint64_t iterations, uint64_t k) {
+	BNCH_SWT_HOST static library_benchmark_data calculate_epoch_stats(const iteration_metrics* iteration_data, uint64_t iterations, uint64_t k) {
 		if (k == 0) {
 			return {};
 		}
@@ -150,13 +156,13 @@ namespace bnch_swt {
 	}
 
 	template<auto function> struct function_holder {
-		template<typename... arg_types> static uint64_t impl(arg_types&&... args) {
+		template<typename... arg_types> BNCH_SWT_HOST static uint64_t impl(arg_types&&... args) {
 			return function(std::forward<arg_types>(args)...);
 		}
 	};
 
 	template<typename functor_type, stage_config_data stage_config, typename... arg_types>
-	[[maybe_unused]] BNCH_SWT_NOINLINE static library_benchmark_data impl(uint64_t iterations, arg_types&&... args) {
+	[[maybe_unused]] BNCH_SWT_HOST static library_benchmark_data impl(uint64_t iterations, arg_types&&... args) {
 		static_assert(stage_config.max_iteration_count > 0, "MAX ITERATIONS MUST BE GREATER THAN ZERO TO ALLOCATE THE BUFFER");
 		static_assert(stage_config.measured_iteration_count > 0, "MEASURED ITERATION COUNT MUST START AT GREATER THAN ZERO");
 		static_assert(stage_config.measured_iteration_count <= stage_config.max_iteration_count, "INITIAL WORKLOAD STEPS CANNOT EXCEED THE ABSOLUTE MAXIMUM BUFFER LIMIT");
@@ -199,10 +205,10 @@ namespace bnch_swt {
 		std::string_view stage_name_str;
 		std::string_view test_name;
 
-		final_test_results(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
+		BNCH_SWT_HOST final_test_results(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
 		}
 
-		std::string csv_preamble() const {
+		BNCH_SWT_HOST std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << test_name << " Test Results " << std::endl;
 			ss << "#**" << system_info.device_type << ":** " << system_info.device_name() << std::endl;
@@ -211,7 +217,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string csv_header(bool include_cycles_per_byte) {
+		BNCH_SWT_HOST static std::string csv_header(bool include_cycles_per_byte) {
 			std::string h = "Library";
 			h += ",Throughput (MB/s)";
 			h += ",RSE (%)";
@@ -227,7 +233,7 @@ namespace bnch_swt {
 			return h;
 		}
 
-		static std::string result_to_csv_line(const library_completion_data& r, bool include_cycles_per_byte) {
+		BNCH_SWT_HOST static std::string result_to_csv_line(const library_completion_data& r, bool include_cycles_per_byte) {
 			std::stringstream ss{};
 			ss << r.name;
 			ss << "," << r.final_throughput;
@@ -260,7 +266,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		std::string to_csv(bool include_preamble = true, const std::string& file_path = "") const {
+		BNCH_SWT_HOST std::string to_csv(bool include_preamble = true, const std::string& file_path = "") const {
 			std::stringstream ss{};
 			if (include_preamble) {
 				ss << csv_preamble();
@@ -285,7 +291,7 @@ namespace bnch_swt {
 			return text;
 		}
 
-		std::string md_preamble() const {
+		BNCH_SWT_HOST std::string md_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << test_name << " Test Results" << std::endl << std::endl;
 			ss << "**" << system_info.device_type << ":** " << system_info.device_name() << "  " << std::endl;
@@ -294,7 +300,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string md_header_row(bool include_cycles_per_byte) {
+		BNCH_SWT_HOST static std::string md_header_row(bool include_cycles_per_byte) {
 			std::string h = "| Library";
 			h += " | Throughput (MB/s)";
 			h += " | RSE (%)";
@@ -310,7 +316,7 @@ namespace bnch_swt {
 			return h;
 		}
 
-		static std::string md_separator_row(bool include_cycles_per_byte) {
+		BNCH_SWT_HOST static std::string md_separator_row(bool include_cycles_per_byte) {
 			std::string s = "| -------";
 			s += " | -----------";
 			s += " | -------";
@@ -326,7 +332,7 @@ namespace bnch_swt {
 			return s;
 		}
 
-		static std::string result_to_md_row(const library_completion_data& r, bool include_cycles_per_byte) {
+		BNCH_SWT_HOST static std::string result_to_md_row(const library_completion_data& r, bool include_cycles_per_byte) {
 			std::string lib_cell = static_cast<std::string>(r.name);
 			if (r.position_type_val == position_type::tie)
 				lib_cell += " STATISTICAL TIE";
@@ -391,7 +397,7 @@ namespace bnch_swt {
 			return text;
 		}
 
-		void print(bool include_preamble = true) const {
+		BNCH_SWT_HOST void print(bool include_preamble = true) const {
 			std::cout << to_markdown(include_preamble);
 		}
 	};
@@ -416,10 +422,10 @@ namespace bnch_swt {
 		system_info_data<stage_config.benchmark_type> system_info;
 		std::string_view stage_name_str;
 
-		stage_results_data(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
+		BNCH_SWT_HOST stage_results_data(std::string_view stage_name_new) : stage_name_str{ stage_name_new } {
 		}
 
-		std::string csv_preamble() const {
+		BNCH_SWT_HOST std::string csv_preamble() const {
 			std::stringstream ss{};
 			ss << "# " << stage_name_str << " Stage Results" << "\n";
 			ss << "#" << system_info.device_type << ": " << system_info.device_name() << "\n";
@@ -428,7 +434,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string config_csv_header() {
+		BNCH_SWT_HOST static std::string config_csv_header() {
 			std::string h = "ClearCpuCachesBeforeIterations";
 			h += ",MeasuredIterationCount";
 			h += ",MaxIterationCount";
@@ -440,7 +446,7 @@ namespace bnch_swt {
 			return h;
 		}
 
-		static std::string config_to_csv_line() {
+		BNCH_SWT_HOST static std::string config_to_csv_line() {
 			std::stringstream ss{};
 			ss << (stage_config.clear_cpu_caches_before_iterations ? "true" : "false") << ",";
 			ss << stage_config.measured_iteration_count << ",";
@@ -453,7 +459,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		static std::string csv_header() {
+		BNCH_SWT_HOST static std::string csv_header() {
 			std::string h = "Library";
 			h += ",Wins";
 			h += ",Ties";
@@ -461,7 +467,7 @@ namespace bnch_swt {
 			return h;
 		}
 
-		std::string accum_to_csv_line(const library_positions& lib) const {
+		BNCH_SWT_HOST std::string accum_to_csv_line(const library_positions& lib) const {
 			std::stringstream ss{};
 			uint64_t wins	= lib.wins;
 			uint64_t ties	= lib.ties;
@@ -470,7 +476,7 @@ namespace bnch_swt {
 			return ss.str();
 		}
 
-		std::string to_csv(const std::string& file_path = "") const {
+		BNCH_SWT_HOST std::string to_csv(const std::string& file_path = "") const {
 			std::stringstream ss{};
 			ss << csv_preamble();
 			ss << "# " << stage_name_str << " Stage Config" << "\n\n";
@@ -490,8 +496,7 @@ namespace bnch_swt {
 		}
 	};
 
-
-	template<typename functor_type_new, stage_config_data stage_config, typename... arg_types> inline library_benchmark_data run_adaptive_benchmark(arg_types&&... args) {
+	template<typename functor_type_new, stage_config_data stage_config, typename... arg_types> BNCH_SWT_HOST library_benchmark_data run_adaptive_benchmark(arg_types&&... args) {
 		static constexpr double max_time_in_ns{ static_cast<double>(stage_config.max_time_in_s) * 1e9 };
 		using functor_type = internal::iteration_metric_collector<stage_config.benchmark_type, functor_type_new>;
 		epoch_state_data state{};
@@ -502,7 +507,12 @@ namespace bnch_swt {
 		library_benchmark_data current_stats{};
 		double previous_mean = -1.0;
 		double elapsed_time	 = 0;
-		while (state.total_iterations_run + state.target_count < stage_config.max_iteration_count) {
+
+		while (true) {
+			if (state.target_count > stage_config.max_iteration_count - state.total_iterations_run) {
+				state.target_count = stage_config.max_iteration_count - state.total_iterations_run;
+			}
+
 			current_stats = impl<functor_type, stage_config>(state.target_count, std::forward<arg_types>(args)...);
 			state.total_iterations_run += state.target_count;
 
@@ -531,7 +541,10 @@ namespace bnch_swt {
 				current_best_stats = current_stats;
 			}
 
-			if (elapsed_time >= max_time_in_ns || state.total_iterations_run + state.target_count >= stage_config.max_iteration_count) {
+			bool time_exhausted		  = elapsed_time >= max_time_in_ns;
+			bool iterations_exhausted = state.total_iterations_run >= stage_config.max_iteration_count;
+
+			if (time_exhausted || iterations_exhausted) {
 				if (current_best_stats.final_mean == 0.0) {
 					current_best_stats = current_stats;
 				}
@@ -547,10 +560,9 @@ namespace bnch_swt {
 				state.target_count = stage_config.max_iteration_count;
 			}
 		}
-		return current_best_stats;
 	}
 
-	inline bool is_statistically_tied(const library_benchmark_data& a, const library_benchmark_data& b) {
+	BNCH_SWT_HOST static bool is_statistically_tied(const library_benchmark_data& a, const library_benchmark_data& b) {
 		double n1 = static_cast<double>(a.final_sample_size);
 		double n2 = static_cast<double>(b.final_sample_size);
 
@@ -580,7 +592,7 @@ namespace bnch_swt {
 		return t_stat < t_critical;
 	}
 
-	template<string_literal stage_name_new, benchmark_types benchmark_type> inline final_test_results<benchmark_type> process_test_rankings(const test_data& raw_data) {
+	template<string_literal stage_name_new, benchmark_types benchmark_type> BNCH_SWT_HOST final_test_results<benchmark_type> process_test_rankings(const test_data& raw_data) {
 		static constexpr string_literal stage_name{ stage_name_new };
 		std::vector<library_completion_data> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
@@ -633,12 +645,14 @@ namespace bnch_swt {
 			}
 		}
 
-		return_value.sorted_results = std::move(leaderboard);
+		if (leaderboard.size() > 1) {
+			return_value.sorted_results = std::move(leaderboard);
+		}
 
 		return return_value;
 	}
 
-	template<string_literal stage_name_new, stage_config_data stage_config> inline stage_results_data<stage_config> process_stage_rankings(const stage_data& raw_data) {
+	template<string_literal stage_name_new, stage_config_data stage_config> BNCH_SWT_HOST stage_results_data<stage_config> process_stage_rankings(const stage_data& raw_data) {
 		static constexpr string_literal stage_name{ stage_name_new };
 		std::vector<final_test_results<stage_config.benchmark_type>> leaderboard;
 		leaderboard.reserve(raw_data.results.size());
@@ -679,13 +693,13 @@ namespace bnch_swt {
 	}
 
 	template<string_literal stage_name_new, const stage_config_data stage_config> struct benchmark_stage {
-		inline static stage_data& get_raw_test_data() {
+		BNCH_SWT_HOST static stage_data& get_raw_test_data() {
 			static stage_data* raw_test_data{ new stage_data{} };
 			return *raw_test_data;
 		}
 
 		template<bnch_swt::string_literal test_name_new, bnch_swt::string_literal library_name_new, typename functor_type, typename... arg_types>
-		static void run_benchmark(arg_types&&... args) {
+		BNCH_SWT_HOST static void run_benchmark(arg_types&&... args) {
 			[[maybe_unused]] static constexpr string_literal stage_name{ stage_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			static constexpr string_literal library_name{ library_name_new };
@@ -699,7 +713,7 @@ namespace bnch_swt {
 		}
 
 		template<bnch_swt::string_literal test_name_new, bnch_swt::string_literal library_name_new, auto function, typename... arg_types>
-		static void run_benchmark(arg_types&&... args) {
+		BNCH_SWT_HOST static void run_benchmark(arg_types&&... args) {
 			[[maybe_unused]] static constexpr string_literal stage_name{ stage_name_new };
 			static constexpr string_literal test_name{ test_name_new };
 			static constexpr string_literal library_name{ library_name_new };
@@ -709,11 +723,11 @@ namespace bnch_swt {
 			test_data_val.results[library_name.operator std::string_view()] = run_adaptive_benchmark<function_type, stage_config>(std::forward<arg_types>(args)...);
 		}
 
-		inline static auto get_test_results(const std::string& test_name) {
+		BNCH_SWT_HOST static auto get_test_results(const std::string& test_name) {
 			return process_test_rankings<stage_name_new, stage_config.benchmark_type>(get_raw_test_data().results[test_name]);
 		}
 
-		inline static auto get_all_results() {
+		BNCH_SWT_HOST static auto get_all_results() {
 			return process_stage_rankings<stage_name_new, stage_config>(get_raw_test_data());
 		}
 	};
