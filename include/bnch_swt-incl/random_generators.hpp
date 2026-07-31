@@ -148,8 +148,8 @@ namespace bnch_swt {
 
 	  protected:
 		BNCH_SWT_HOST value_type next() {
-			return static_cast<value_type>(
-				(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) * xoshiro_256_traits<value_type>::multiplicand);
+			return static_cast<value_type>(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) *
+				static_cast<value_type>(xoshiro_256_traits<value_type>::multiplicand);
 		}
 	};
 

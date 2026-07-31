@@ -33,7 +33,7 @@ namespace bnch_swt {
 	namespace internal {
 
 		template<const auto& function, uint64_t current_index = 0, typename variant_type, typename... arg_types>
-		constexpr void visit(variant_type&& variant, arg_types&&... args) noexcept {
+		BNCH_SWT_HOST constexpr void visit(variant_type&& variant, arg_types&&... args) noexcept {
 			if constexpr (current_index < std::variant_size_v<base_t<variant_type>>) {
 				variant_type&& variant_new = std::forward<variant_type>(variant);
 				if (variant_new.index() == current_index) {
@@ -44,23 +44,23 @@ namespace bnch_swt {
 			}
 		}
 
-		template<printable value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<printable value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << value;
 		}
 
-		template<bool_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<bool_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << std::boolalpha << value;
 		}
 
-		template<string_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<string_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "\"" << value << "\"";
 		}
 
-		template<string_view_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<string_view_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "\"" << value << "\"";
 		}
 
-		template<vector_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<vector_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "[";
 			for (uint64_t x = 0; x < value.size(); ++x) {
 				print_value(os, value[x]);
@@ -71,7 +71,7 @@ namespace bnch_swt {
 			os << "]";
 		}
 
-		template<map_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<map_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "{";
 			uint64_t index{};
 			for (auto iter = value.begin(); iter != value.end(); ++iter) {
@@ -86,20 +86,20 @@ namespace bnch_swt {
 			os << "}";
 		}
 
-		template<variant_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<variant_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			static constexpr auto lambda = [](auto&& value_new, auto& os_new) {
 				print_value(os_new, value_new);
 			};
 			visit<lambda>(value, os);
 		}
 
-		template<optional_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<optional_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			if (value.has_value()) {
 				print_value(os, value.value());
 			}
 		}
 
-		template<pair_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<pair_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "{";
 			print_value(os, std::get<0>(value));
 			os << ",";
@@ -107,7 +107,7 @@ namespace bnch_swt {
 			os << "}";
 		}
 
-		template<tuple_t value_type, uint64_t index> void print_value(std::ostream& os, const value_type& value) {
+		template<tuple_t value_type, uint64_t index> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			if constexpr (index < std::tuple_size_v<base_t<value_type>>) {
 				print_value(os, std::get<index>(value));
 				if constexpr (index < std::tuple_size_v<base_t<value_type>> - 1) {
@@ -117,7 +117,7 @@ namespace bnch_swt {
 			}
 		}
 
-		template<tuple_t value_type> void print_value(std::ostream& os, const value_type& value) {
+		template<tuple_t value_type> BNCH_SWT_HOST void print_value(std::ostream& os, const value_type& value) {
 			os << "{";
 			print_value<value_type, 0>(os, value);
 			os << "}";
@@ -127,32 +127,32 @@ namespace bnch_swt {
 
 }
 
-template<bnch_swt::internal::vector_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::vector_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }
 
-template<bnch_swt::internal::map_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::map_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }
 
-template<bnch_swt::internal::variant_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::variant_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }
 
-template<bnch_swt::internal::optional_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::optional_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }
 
-template<bnch_swt::internal::pair_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::pair_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }
 
-template<bnch_swt::internal::tuple_t value_type> std::ostream& operator<<(std::ostream& os, const value_type& value) {
+template<bnch_swt::internal::tuple_t value_type> BNCH_SWT_HOST std::ostream& operator<<(std::ostream& os, const value_type& value) {
 	bnch_swt::internal::print_value(os, value);
 	return os;
 }

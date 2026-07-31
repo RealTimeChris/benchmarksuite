@@ -112,6 +112,8 @@ namespace bnch_swt {
 			return string_literal{ "macOS" };
 #elif BNCH_SWT_PLATFORM_LINUX
 			return string_literal{ "Linux" };
+#elif BNCH_SWT_PLATFORM_ANDROID
+			return string_literal{ "Android" };
 #else
 			return string_literal{ "Unknown" };
 #endif
@@ -145,7 +147,7 @@ namespace bnch_swt {
 		inline static constexpr std::string_view os_id{ internal::operating_system_name };
 		inline static constexpr std::string_view device_type{ benchmark_type == benchmark_types::cpu ? "CPU" : "GPU" };
 		inline static constexpr std::string_view instruction_set_name{ benchmark_type == benchmark_types::cpu ? BNCH_SWT_INSTRUCTION_SET_NAME : "CUDA" };
-		static std::string_view device_name() noexcept {
+		BNCH_SWT_HOST static std::string_view device_name() noexcept {
 			static const std::string* name{ new std::string{ internal::get_device_info<benchmark_type>() + "-" + static_cast<std::string>(instruction_set_name) } };
 			return *name;
 		}

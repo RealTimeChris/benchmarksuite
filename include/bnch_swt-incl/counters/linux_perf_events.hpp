@@ -33,11 +33,10 @@
 	#include <sys/ioctl.h>
 	#include <unistd.h>
 	#include <cstring>
-	#include <vector>
 
 namespace bnch_swt::internal {
 
-	inline static uint64_t rdtsc() {
+	BNCH_SWT_HOST static uint64_t rdtsc() {
 		uint32_t a, d;
 		__asm__ volatile("rdtsc" : "=a"(a), "=d"(d));
 		return static_cast<unsigned long>(a) | (static_cast<unsigned long>(d) << 32);
