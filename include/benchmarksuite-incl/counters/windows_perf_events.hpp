@@ -20,36 +20,26 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
+
 #pragma once
 
 #include <benchmarksuite-incl/config.hpp>
 
-namespace benchmarksuite {
+#if BNCH_SWT_PLATFORM_WINDOWS
 
-	struct BNCH_SWT_ALIGN(64) uint64_holder {
-		BNCH_SWT_ALIGN(64) uint64_t value {};
+namespace benchmarksuite::internal {
 
-		BNCH_SWT_HOST constexpr operator const uint64_t&() const BNCH_SWT_LIFETIME_BOUND {
-			return value;
+	template<benchmark_types benchmark_types, typename function_type> struct iteration_metric_collector {
+		template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE static void impl(metric_type& iteration_data, arg_types&&... args) {
+			const auto start_clock				= clock_type::now();
+			const volatile uint64_t cycle_start = __rdtsc();
+			iteration_data.bytes_processed		= static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
+			const volatile uint64_t cycle_end	= __rdtsc();
+			const auto end_clock				= clock_type::now();
+			iteration_data.time_in_ns			= (end_clock - start_clock).count();
+			iteration_data.cycles.emplace(cycle_end - cycle_start);
 		}
 	};
 
-	struct cpu_properties {
-	  protected:
-		static constexpr uint64_holder thread_count_raw{ @BNCH_SWT_THREAD_COUNT@ULL };
-		static constexpr uint64_holder l1_cache_size_raw{ @BNCH_SWT_CPU_L1_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l2_cache_size_raw{ @BNCH_SWT_CPU_L2_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l3_cache_size_raw{ @BNCH_SWT_CPU_L3_CACHE_SIZE@ULL };
-		static constexpr uint64_holder cpu_arch_index_raw{ @BNCH_SWT_CPU_ARCH_INDEX@ULL };
-		static constexpr uint64_holder cpu_alignment_raw{ @BNCH_SWT_CPU_ALIGNMENT@ULL };
-
-	  public:
-		static constexpr const uint64_t& thread_count{ thread_count_raw };
-		static constexpr const uint64_t& l1_cache_size{ l1_cache_size_raw };
-		static constexpr const uint64_t& l2_cache_size{ l2_cache_size_raw };
-		static constexpr const uint64_t& l3_cache_size{ l3_cache_size_raw };
-		static constexpr const uint64_t& cpu_arch_index{ cpu_arch_index_raw };
-		static constexpr const uint64_t& cpu_alignment{ cpu_alignment_raw };
-	};
-
 }
+#endif

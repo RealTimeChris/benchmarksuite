@@ -31,7 +31,7 @@ if(BNCH_SWT_CUDA)
     project(benchmarksuite
         VERSION ${CLEAN_VERSION}
         DESCRIPTION "A header-only C++ benchmarking library with cross-platform hardware performance counter integration, providing precise measurements of cycles, instructions, branches, cache behavior, and throughput with minimal overhead."
-        LANGUAGES CUDA CXX
+        LANGUAGES CUDA 
     )
     find_package(CUDAToolkit REQUIRED COMPONENTS cudart)
     include(cmake/detection/benchmarksuite_detect_gpu_properties.cmake)

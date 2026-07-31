@@ -18,55 +18,59 @@
 #	OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 #	DEALINGS IN THE SOFTWARE.
 
-if(UNIX OR APPLE)
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh "#!/bin/bash\n"
-        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
-        "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
-    )
-    
-    execute_process(
-        COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh
-        RESULT_VARIABLE CHMOD_RESULT
-    )
-    
-    if(NOT CHMOD_RESULT EQUAL 0)
-        message(FATAL_ERROR "Failed to set executable permissions for build_feature_tester_cpu_properties.sh")
-    endif()
-    
-    execute_process(
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
-    )
-    
-    set(FEATURE_TESTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/Build-Cpu-Properties/feature_detector)
-    
-elseif(WIN32)
-    file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.bat
-        "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
-        "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
-    )
-    
-    execute_process(
-        COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.bat
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
-    )
-    
-    set(FEATURE_TESTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/Build-Cpu-Properties/Release/feature_detector.exe)
-endif()
+if(NOT CMAKE_CROSSCOMPILING)
 
-if(NOT DEFINED BNCH_SWT_THREAD_COUNT OR
-   NOT DEFINED BNCH_SWT_CPU_L1_CACHE_SIZE OR
-   NOT DEFINED BNCH_SWT_CPU_L2_CACHE_SIZE OR
-   NOT DEFINED BNCH_SWT_CPU_L3_CACHE_SIZE OR
-   NOT BNCH_SWT_DETECT_CPU_PROPERTIES)
+    if(NOT CMAKE_HOST_WIN32)
+        file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh "#!/bin/bash\n"
+            "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=\"${CMAKE_CXX_COMPILER}\" -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
+            "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
+        )
     
-    execute_process(
-        COMMAND ${FEATURE_TESTER_FILE}
-        RESULT_VARIABLE FEATURE_TESTER_EXIT_CODE
-        OUTPUT_VARIABLE CPU_PROPERTIES_OUTPUT
-        ERROR_VARIABLE FEATURE_TESTER_ERROR
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+        execute_process(
+            COMMAND chmod +x ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh
+            RESULT_VARIABLE CHMOD_RESULT
+        )
+    
+        if(NOT CHMOD_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to set executable permissions for build_feature_tester_cpu_properties.sh")
+        endif()
+    
+        execute_process(
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.sh
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
+        )
+    
+        set(FEATURE_TESTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/Build-Cpu-Properties/feature_detector)
+    
+    elseif(CMAKE_HOST_WIN32)
+        file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.bat
+            "\"${CMAKE_COMMAND}\" -S ./ -B ./Build-Cpu-Properties -DBNCH_SWT_DETECT_CPU_PROPERTIES=TRUE\n"
+            "\"${CMAKE_COMMAND}\" --build ./Build-Cpu-Properties --config=Release"
+        )
+    
+        execute_process(
+            COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/build_feature_tester_cpu_properties.bat
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection
+        )
+    
+        set(FEATURE_TESTER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/Build-Cpu-Properties/Release/feature_detector.exe)
+    endif()
+
+    if(NOT DEFINED BNCH_SWT_THREAD_COUNT OR
+       NOT DEFINED BNCH_SWT_CPU_L1_CACHE_SIZE OR
+       NOT DEFINED BNCH_SWT_CPU_L2_CACHE_SIZE OR
+       NOT DEFINED BNCH_SWT_CPU_L3_CACHE_SIZE OR
+       NOT BNCH_SWT_DETECT_CPU_PROPERTIES)
+    
+        execute_process(
+            COMMAND ${FEATURE_TESTER_FILE}
+            RESULT_VARIABLE FEATURE_TESTER_EXIT_CODE
+            OUTPUT_VARIABLE CPU_PROPERTIES_OUTPUT
+            ERROR_VARIABLE FEATURE_TESTER_ERROR
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+    endif()
+
 endif()
 
 message(STATUS "CPU detector exit code: ${FEATURE_TESTER_EXIT_CODE}")
@@ -204,6 +208,7 @@ message(STATUS "CPU Configuration: ${BNCH_SWT_THREAD_COUNT} threads, L1: ${BNCH_
 
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/detection/benchmarksuite_cpu_properties.hpp.in
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/bnch_swt-incl/benchmarksuite_cpu_properties.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/benchmarksuite-incl/benchmarksuite_cpu_properties.hpp
     @ONLY
 )
+

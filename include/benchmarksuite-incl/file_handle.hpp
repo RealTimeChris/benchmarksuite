@@ -20,36 +20,39 @@
 	DEALINGS IN THE SOFTWARE.
 */
 /// https://github.com/RealTimeChris/benchmarksuite
+
 #pragma once
 
 #include <benchmarksuite-incl/config.hpp>
 
 namespace benchmarksuite {
 
-	struct BNCH_SWT_ALIGN(64) uint64_holder {
-		BNCH_SWT_ALIGN(64) uint64_t value {};
-
-		BNCH_SWT_HOST constexpr operator const uint64_t&() const BNCH_SWT_LIFETIME_BOUND {
-			return value;
-		}
-	};
-
-	struct cpu_properties {
-	  protected:
-		static constexpr uint64_holder thread_count_raw{ @BNCH_SWT_THREAD_COUNT@ULL };
-		static constexpr uint64_holder l1_cache_size_raw{ @BNCH_SWT_CPU_L1_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l2_cache_size_raw{ @BNCH_SWT_CPU_L2_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l3_cache_size_raw{ @BNCH_SWT_CPU_L3_CACHE_SIZE@ULL };
-		static constexpr uint64_holder cpu_arch_index_raw{ @BNCH_SWT_CPU_ARCH_INDEX@ULL };
-		static constexpr uint64_holder cpu_alignment_raw{ @BNCH_SWT_CPU_ALIGNMENT@ULL };
-
+	class file_handle {
 	  public:
-		static constexpr const uint64_t& thread_count{ thread_count_raw };
-		static constexpr const uint64_t& l1_cache_size{ l1_cache_size_raw };
-		static constexpr const uint64_t& l2_cache_size{ l2_cache_size_raw };
-		static constexpr const uint64_t& l3_cache_size{ l3_cache_size_raw };
-		static constexpr const uint64_t& cpu_arch_index{ cpu_arch_index_raw };
-		static constexpr const uint64_t& cpu_alignment{ cpu_alignment_raw };
+		BNCH_SWT_HOST static void save_file(const std::string& data, const std::string& path) {
+			std::filesystem::path abs_path = std::filesystem::absolute(path);
+			std::filesystem::create_directories(abs_path.parent_path());
+			std::fstream stream{ abs_path, std::ios::out | std::ios::trunc };
+			if (stream.is_open()) {
+				stream << data;
+				stream.flush();
+				bool ok = stream.good();
+				stream.close();
+				std::cout << (ok ? "Saved: " : "Write error: ") << abs_path.string() << std::endl;
+			} else {
+				std::cout << "Failed to open for writing: " << abs_path.string() << std::endl;
+			}
+		}
+
+		BNCH_SWT_HOST static std::string get(const std::string& path) {
+			std::fstream stream{ std::filesystem::absolute(path), std::ios::in };
+			if (stream.is_open()) {
+				return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+			} else {
+				throw std::runtime_error{ "Sorry, but we failed to load the file at: " + path };
+			}
+			return {};
+		}
 	};
 
 }

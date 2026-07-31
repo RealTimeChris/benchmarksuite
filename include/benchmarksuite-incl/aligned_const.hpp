@@ -23,10 +23,10 @@
 
 #pragma once
 
-#include <bnch_swt-incl/config.hpp>
-#include <bnch_swt-incl/benchmarksuite_cpu_properties.hpp>
+#include <benchmarksuite-incl/config.hpp>
+#include <benchmarksuite-incl/benchmarksuite_cpu_properties.hpp>
 
-namespace bnch_swt {
+namespace benchmarksuite {
 
 	static constexpr uint64_t device_alignment{ [] {
 		if constexpr (BNCH_SWT_COMPILER_CUDA) {

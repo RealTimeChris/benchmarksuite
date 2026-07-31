@@ -22,11 +22,10 @@
 /// https://github.com/RealTimeChris/benchmarksuite
 #pragma once
 
-#include <cstdint>
-#include <bnch_swt-incl/config.hpp>
-#include <bnch_swt-incl/aligned_const.hpp>
+#include <benchmarksuite-incl/config.hpp>
+#include <benchmarksuite-incl/aligned_const.hpp>
 
-namespace bnch_swt {
+namespace benchmarksuite {
 
 	struct BNCH_SWT_ALIGN(512) uint512_aligner {
 		BNCH_SWT_ALIGN(512) uint64_t value{};

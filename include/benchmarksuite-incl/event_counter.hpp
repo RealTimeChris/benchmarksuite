@@ -1,4 +1,4 @@
-// bnch_swt-incl/event_counter.hpp
+// benchmarksuite-incl/event_counter.hpp
 /*
 	MIT License
 
@@ -24,15 +24,14 @@
 
 #pragma once
 
-#include <bnch_swt-incl/config.hpp>
-#include <bnch_swt-incl/counters/apple_arm_perf_events.hpp>
-#include <bnch_swt-incl/counters/windows_perf_events.hpp>
-#include <bnch_swt-incl/counters/linux_perf_events.hpp>
-#include <bnch_swt-incl/counters/cuda_perf_events.hpp>
-#include <optional>
-#include <chrono>
+#include <benchmarksuite-incl/config.hpp>
+#include <benchmarksuite-incl/counters/apple_arm_perf_events.hpp>
+#include <benchmarksuite-incl/counters/windows_perf_events.hpp>
+#include <benchmarksuite-incl/counters/linux_perf_events.hpp>
+#include <benchmarksuite-incl/counters/cuda_perf_events.hpp>
+#include <benchmarksuite-incl/counters/android_perf_events.hpp>
 
-namespace bnch_swt::internal {
+namespace benchmarksuite::internal {
 
 	template<benchmark_types benchmark_type> struct event_count;
 
