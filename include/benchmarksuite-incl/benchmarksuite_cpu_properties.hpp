@@ -36,12 +36,12 @@ namespace benchmarksuite {
 
 	struct cpu_properties {
 	  protected:
-		static constexpr uint64_holder thread_count_raw{ @BNCH_SWT_THREAD_COUNT@ULL };
-		static constexpr uint64_holder l1_cache_size_raw{ @BNCH_SWT_CPU_L1_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l2_cache_size_raw{ @BNCH_SWT_CPU_L2_CACHE_SIZE@ULL };
-		static constexpr uint64_holder l3_cache_size_raw{ @BNCH_SWT_CPU_L3_CACHE_SIZE@ULL };
-		static constexpr uint64_holder cpu_arch_index_raw{ @BNCH_SWT_CPU_ARCH_INDEX@ULL };
-		static constexpr uint64_holder cpu_alignment_raw{ @BNCH_SWT_CPU_ALIGNMENT@ULL };
+		static constexpr uint64_holder thread_count_raw{ 32ULL };
+		static constexpr uint64_holder l1_cache_size_raw{ 49152ULL };
+		static constexpr uint64_holder l2_cache_size_raw{ 2097152ULL };
+		static constexpr uint64_holder l3_cache_size_raw{ 37748736ULL };
+		static constexpr uint64_holder cpu_arch_index_raw{ 1ULL };
+		static constexpr uint64_holder cpu_alignment_raw{ 32ULL };
 
 	  public:
 		static constexpr const uint64_t& thread_count{ thread_count_raw };

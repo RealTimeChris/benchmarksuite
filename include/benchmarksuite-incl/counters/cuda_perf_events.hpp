@@ -23,23 +23,19 @@
 
 #pragma once
 
-#include <bnch_swt-incl/config.hpp>
-#include <source_location>
+#include <benchmarksuite-incl/config.hpp>
 
 #if BNCH_SWT_COMPILER_CUDA
 
-	#include <cuda_runtime.h>
-	#include <cuda.h>
-
-namespace bnch_swt {
+namespace benchmarksuite {
 
 	namespace internal {
 
-		static constexpr const char* get_function_name(std::source_location location = std::source_location::current()) {
+		BNCH_SWT_HOST static constexpr const char* get_function_name(std::source_location location = std::source_location::current()) {
 			return location.function_name();
 		}
 
-		static constexpr uint64_t get_line(std::source_location location = std::source_location::current()) {
+		BNCH_SWT_HOST static constexpr uint64_t get_line(std::source_location location = std::source_location::current()) {
 			return location.line();
 		}
 
@@ -138,77 +134,21 @@ namespace bnch_swt {
 			function_type::impl(args...);
 		}
 
-		template<typename event_count, uint64_t count> struct event_collector_type<event_count, benchmark_types::cuda, count> : public std::vector<event_count> {
-			std::vector<cuda_timer> events{};
-			uint64_t current_index{};
+		template<typename function_type> struct iteration_metric_collector<benchmark_types::cuda, function_type> {
+			template<typename metric_type, typename... arg_types> BNCH_SWT_NOINLINE static void impl(metric_type& iteration_data, arg_types&&... args) {
+				internal::cuda_timer timer{};
+				timer.start();
+				iteration_data.bytes_processed = static_cast<uint64_t>(function_type::impl(std::forward<arg_types>(args)...));
+				internal::check_cuda_status();
+				timer.stop();
+				double ms				  = timer.get_time();
+				iteration_data.time_in_ns = static_cast<double>(ms * 1e6);
 
-			BNCH_SWT_HOST void reset() {
-				current_index = 0;
-			}
-
-			BNCH_SWT_HOST event_collector_type() : std::vector<event_count>(count), current_index(0) {
-				events.resize(count);
-			}
-
-			BNCH_SWT_HOST ~event_collector_type() {
-			}
-
-			template<typename function_type, typename... args_types> BNCH_SWT_HOST void run_from_host(uint64_t bytes_processed, args_types&&... args) {
-				if (current_index >= count) {
-					return;
-				}
-				events[current_index].start();
-				function_type::impl(args...);
-				check_cuda_status();
-				events[current_index].stop();
-				double ms{ events[current_index].get_time() };
-				std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(ms);
-				std::vector<event_count>::operator[](current_index).cuda_event_ms_val.emplace(ms);
-				std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(bytes_processed);
-				uint64_t nanoseconds = static_cast<uint64_t>(ms * 1e6);
-				std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(nanoseconds);
-				int clock_rate_khz;
+				int clock_rate_khz = 0;
 				cudaDeviceGetAttribute(&clock_rate_khz, cudaDevAttrClockRate, 0);
-				check_cuda_status();
+				internal::check_cuda_status();
 				uint64_t cycles = static_cast<uint64_t>(ms * 1e-3 * clock_rate_khz * 1000.0);
-				std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycles);
-				++current_index;
-			}
-
-			template<function_pointer_types auto function, typename... args_types>
-			BNCH_SWT_HOST void run_cooperative(dim3 grid, dim3 block, uint64_t shared_mem, cudaStream_t stream, uint64_t bytes_processed, args_types&&... args_new) {
-				if (current_index >= count) {
-					return;
-				}
-				if constexpr (sizeof...(args_new) > 0) {
-					void* args[] = { static_cast<void*>(std::addressof(args_new))... };
-					events[current_index].start();
-					cudaLaunchCooperativeKernel(function, grid, block, args, shared_mem, stream);
-					check_cuda_status();
-				} else {
-					events[current_index].start();
-					cudaLaunchCooperativeKernel(function, grid, block, nullptr, shared_mem, stream);
-					check_cuda_status();
-				}
-				events[current_index].stop();
-				double ms{ events[current_index].get_time() };
-				std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(ms);
-				std::vector<event_count>::operator[](current_index).cuda_event_ms_val.emplace(ms);
-				std::vector<event_count>::operator[](current_index).bytes_processed_val.emplace(bytes_processed);
-				uint64_t nanoseconds = static_cast<uint64_t>(ms * 1e6);
-				std::vector<event_count>::operator[](current_index).elapsed_ns_val.emplace(nanoseconds);
-				int clock_rate_khz;
-				cudaDeviceGetAttribute(&clock_rate_khz, cudaDevAttrClockRate, 0);
-				check_cuda_status();
-				uint64_t cycles = static_cast<uint64_t>(ms * 1e-3 * clock_rate_khz * 1000.0);
-				std::vector<event_count>::operator[](current_index).cycles_val.emplace(cycles);
-				++current_index;
-			}
-
-			BNCH_SWT_HOST void set_bytes_processed(uint64_t bytes) {
-				if (current_index > 0) {
-					std::vector<event_count>::operator[](current_index - 1).bytes_processed_val.emplace(bytes);
-				}
+				iteration_data.cycles.emplace(cycles);
 			}
 		};
 	}

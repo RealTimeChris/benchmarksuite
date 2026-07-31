@@ -22,4 +22,4 @@
 
 #pragma once
 
-#include <bnch_swt-incl/index.hpp>
+#include <benchmarksuite-incl/index.hpp>

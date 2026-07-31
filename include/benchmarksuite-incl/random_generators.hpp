@@ -23,14 +23,9 @@
 /// Feb 3, 2023
 #pragma once
 
-#include <bnch_swt-incl/concepts.hpp>
-#include <type_traits>
-#include <cstddef>
-#include <utility>
-#include <random>
-#include <array>
+#include <benchmarksuite-incl/concepts.hpp>
 
-namespace bnch_swt {
+namespace benchmarksuite {
 
 	[[maybe_unused]] BNCH_SWT_HOST static uint64_t get_time_based_seed() noexcept {
 		return std::chrono::duration_cast<std::chrono::duration<uint64_t, std::nano>>(clock_type::now().time_since_epoch()).count();
@@ -148,14 +143,14 @@ namespace bnch_swt {
 
 	  protected:
 		BNCH_SWT_HOST value_type next() {
-			return static_cast<value_type>(
-				(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) * xoshiro_256_traits<value_type>::multiplicand);
+			return static_cast<value_type>(xoshiro_256_base<xoshiro_256_seed>::operator()() >> xoshiro_256_traits<value_type>::shift) *
+				static_cast<value_type>(xoshiro_256_traits<value_type>::multiplicand);
 		}
 	};
 
 	template<typename value_type, xoshiro_256_seeds xoshiro_256_seeds = xoshiro_256_seeds::time_based> struct random_generator;
 
-	template<bnch_swt::internal::string_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
+	template<benchmarksuite::internal::string_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
 		: public xoshiro_256<uint64_t, xoshiro_256_seed> {
 		BNCH_SWT_HOST value_type impl(uint64_t length) {
 			value_type result{};
@@ -167,21 +162,21 @@ namespace bnch_swt {
 		}
 	};
 
-	template<bnch_swt::internal::bool_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
+	template<benchmarksuite::internal::bool_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
 		: public xoshiro_256<uint64_t, xoshiro_256_seed> {
 		BNCH_SWT_HOST value_type impl() {
 			return static_cast<value_type>(xoshiro_256<uint64_t, xoshiro_256_seed>::operator()(0, 1));
 		}
 	};
 
-	template<bnch_swt::internal::floating_point_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
+	template<benchmarksuite::internal::floating_point_t value_type, xoshiro_256_seeds xoshiro_256_seed> struct random_generator<value_type, xoshiro_256_seed>
 		: public xoshiro_256<value_type, xoshiro_256_seed> {
 		BNCH_SWT_HOST value_type impl(value_type min = static_cast<value_type>(-1.0), value_type max = static_cast<value_type>(1.0)) {
 			return xoshiro_256<value_type, xoshiro_256_seed>::operator()(min, max);
 		}
 	};
 
-	template<bnch_swt::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
+	template<benchmarksuite::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
 		requires(std::is_unsigned_v<value_type>)
 	struct random_generator<value_type, xoshiro_256_seed> : public xoshiro_256<value_type, xoshiro_256_seed> {
 		BNCH_SWT_HOST value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {
@@ -189,7 +184,7 @@ namespace bnch_swt {
 		}
 	};
 
-	template<bnch_swt::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
+	template<benchmarksuite::internal::integer_t value_type, xoshiro_256_seeds xoshiro_256_seed>
 		requires(std::is_signed_v<value_type>)
 	struct random_generator<value_type, xoshiro_256_seed> : public xoshiro_256<value_type, xoshiro_256_seed> {
 		BNCH_SWT_HOST value_type impl(value_type min = std::numeric_limits<value_type>::min(), value_type max = std::numeric_limits<value_type>::max()) {

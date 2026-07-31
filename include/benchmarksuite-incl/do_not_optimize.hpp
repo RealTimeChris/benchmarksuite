@@ -23,9 +23,9 @@
 /// Sep 1, 2024
 #pragma once
 
-#include <bnch_swt-incl/config.hpp>
+#include <benchmarksuite-incl/config.hpp>
 
-namespace bnch_swt::internal {
+namespace benchmarksuite::internal {
 
 	template<typename value_type, typename... arg_types>
 	concept invocable = std::is_invocable_v<base_t<value_type>, arg_types...>;
@@ -45,13 +45,13 @@ namespace bnch_swt::internal {
 	template<typename value_type>
 	concept large_or_non_trivially_copyable = !std::is_trivially_copyable_v<value_type> || (sizeof(value_type) > sizeof(value_type*));
 
-#if BNCH_SWT_COMPILER_MSVC
-
 	[[maybe_unused]] inline void const volatile* volatile global_force_escape_pointer;
 
 	[[maybe_unused]] BNCH_SWT_HOST static void use_char_pointer(void const volatile* const v) {
 		global_force_escape_pointer = v;
 	}
+
+#if BNCH_SWT_COMPILER_MSVC
 
 	template<typename value_type> [[maybe_unused]] BNCH_SWT_HOST static void do_not_optimize_impl(value_type const& value) {
 		use_char_pointer(static_cast<void const volatile* const>(&value));
@@ -90,7 +90,7 @@ namespace bnch_swt::internal {
 	}
 #else
 
-	template<class value_type> static inline [[maybe_unused]] BNCH_SWT_HOST static void do_not_optimize_impl(value_type&& value) {
+	template<class value_type> [[maybe_unused]] BNCH_SWT_HOST static void do_not_optimize_impl(value_type&& value) {
 		internal::use_char_pointer(&std::bit_cast<char const volatile&>(value));
 	}
 
@@ -105,7 +105,7 @@ namespace bnch_swt::internal {
 	}
 }
 
-namespace bnch_swt {	
+namespace benchmarksuite {	
 
 	template<internal::not_invocable value_type> [[maybe_unused]] BNCH_SWT_HOST static void do_not_optimize_away(value_type&& value) {
 		internal::do_not_optimize_impl(value);
